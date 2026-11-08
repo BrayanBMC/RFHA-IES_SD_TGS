@@ -229,7 +229,7 @@ Detalle cronológico en `docs/BITACORA.md`.
 | **Decisiones de diseño** | Hecho: `docs/DECISIONES.md` (D-01 a D-23). |
 | **Esqueleto portable** | Hecho: configuración de VS Code, dependencias fijadas, `.env.example`, `.gitignore`, `.gitattributes`. |
 | **Demo del middleware** | **Hecha** (etiqueta `demo-martes`): API con 403/200/404, 6 estudiantes ficticios en 4 universidades, interfaz web accesible con validación en 4 controles, panel de homologación y modo demostración. |
-| **Guía de la demo y AWS** | Hecha: `docs/DEMO.md` (conceptos explicados, 15 escenas de prueba con clics, guion de 12 a 14 minutos, despliegue en AWS paso a paso). |
+| **Guía de la demo y AWS** | Hecha: `docs/DEMO.md` (conceptos explicados, 15 escenas de prueba con clics que explican cómo actúa el middleware en cada caso, despliegue en AWS paso a paso). |
 | **HU-01** | **Terminada:** `POST /api/v1/nodes/register` y formulario web `/registro-nodo`; repositorio en memoria y DynamoDB. Espera el «aprobado». |
 | **CI/CD** | Hecho: GitHub Actions corre las pruebas y un job que levanta la demo y la app final. Despliegue a AWS manual y opcional. |
 | **Pruebas** | 61 pruebas automáticas definidas, ejecutadas en GitHub. |
@@ -378,7 +378,7 @@ RFHA-IES_SD_TGS/
 
 | Documento | Contenido |
 |---|---|
-| `docs/DEMO.md` | **Guía de la demo:** conceptos explicados, levantar en local y en AWS, escenas de prueba con clics, guion de 12 a 14 minutos y preguntas probables. |
+| `docs/DEMO.md` | **Guía de la demo:** conceptos explicados, levantar en local y en AWS, escenas de prueba con clics (con el funcionamiento del middleware en cada caso), lista de verificación y preguntas probables. |
 | `docs/historias/HU-01.md` | Historia HU-01 completa: archivos, casos de prueba y matriz de criterios. |
 | `docs/BITACORA.md` | Bitácora de desarrollo: qué se hizo, commits, resultado del CI e incidencias. |
 | `docs/DECISIONES.md` | Registro de decisiones (D-01 a D-23). |

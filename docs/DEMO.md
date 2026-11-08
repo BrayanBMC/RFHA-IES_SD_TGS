@@ -11,7 +11,7 @@ Guía para preparar, probar y exponer la demo. Está escrita para que cualquier 
 4. [Plan B: levantar la demo en AWS](#4-plan-b-levantar-la-demo-en-aws)
 5. [Conocer la pantalla](#5-conocer-la-pantalla)
 6. [Casos de prueba en la pantalla](#6-casos-de-prueba-en-la-pantalla)
-7. [Guion de la exposición (12 a 14 minutos)](#7-guion-de-la-exposición-12-a-14-minutos)
+7. [Lista de verificación antes de exponer](#7-lista-de-verificación-antes-de-exponer)
 8. [Por qué cumple con la exposición y con la propuesta](#8-por-qué-cumple-con-la-exposición-y-con-la-propuesta)
 9. [Cómo funciona el código](#9-cómo-funciona-el-código)
 10. [Preguntas probables de los docentes](#10-preguntas-probables-de-los-docentes)
@@ -434,7 +434,7 @@ Cuatro controles que se revisan en orden. Si uno falla, los siguientes quedan «
 
 ## 6. Casos de prueba en la pantalla
 
-Todos se hacen **con clics, delante del público**. Cada escena indica: qué clics dar, qué se ve y qué decir.
+Todos se hacen **con clics, delante del público**. Cada escena indica: qué clics dar, qué se ve y **cómo se refleja el middleware** (qué revisa y qué decide por dentro). Antes de las escenas, la sección 6.2 explica el recorrido de una consulta, que es común a todas.
 
 ### 6.1 Los 6 estudiantes de la demo (datos ficticios)
 
@@ -447,7 +447,32 @@ Todos se hacen **con clics, delante del público**. Cada escena indica: qué cli
 | `20221050914` | **Juan Sebastián Pardo Gil** | Distrital | Ingeniería Industrial | **Retirado** | 3,21 | 64 de 160 | Promedio bajo y materias repetidas. |
 | `20252345678` | **María Fernanda Ospina Duarte** | Nacional | Estadística | Activo | 3,88 | 52 de 150 | Primeros semestres. |
 
-### 6.2 Antes de empezar cada escena
+### 6.2 Cómo viaja una consulta (vale para todas las escenas)
+
+Cada vez que pulsas **Consultar expediente** pasa lo mismo, y es lo que explican las escenas de abajo:
+
+```
+Pantalla ──(1)──▶ API Gateway ──(2)──▶ Lambda con el MIDDLEWARE ──(3)──▶ Datos ──(4)──▶ Respuesta
+ (navegador)       (puerta de AWS)      revisa los 4 controles           (solo si pasan)   200, 403 o 404
+```
+
+1. **La pantalla envía una petición** (un `GET`) a una sola dirección. El código del estudiante va dentro de la dirección y el token va en un encabezado llamado `X-Student-Consent-Token`.
+2. **La recibe el servicio.** En AWS la recibe API Gateway y se la pasa a la Lambda; en tu computador la recibe el servidor local. **El programa es el mismo.**
+3. **El middleware revisa cuatro controles, en orden, y se detiene en el primero que falla.**
+4. **Solo si pasan los tres primeros controles se toca el dato.** Después responde con un código (200, 403 o 404) y un texto en JSON. La pantalla pinta los controles según esa respuesta.
+
+| Control | Cómo lo revisa el middleware | Si falla, responde |
+|---|---|---|
+| **1. Token presente** | Mira si llegó el encabezado con el token. | `403`: «falta el token de consentimiento» |
+| **2. Firma y vigencia** | Abre el token con el secreto compartido: comprueba que la firma coincida (no alterado) y que la fecha de vencimiento no haya pasado. Exige que el token traiga fecha de vencimiento. | `403`: «ha expirado» o «inválido» |
+| **3. Titular del consentimiento** | Compara el estudiante que está escrito **dentro** del token con el estudiante de la dirección. | `403`: «el token no autoriza a este estudiante» |
+| **4. Búsqueda del expediente** | Busca el código en los datos de la red. | `404`: «estudiante no encontrado» |
+| *Todo bien* | Entrega el expediente. | `200` con `status: SUCCESS`, `middleware_layer`, `transparency_verified: true` y `data` |
+
+> **Detalle técnico:** la respuesta de error solo trae el mensaje. La pantalla deduce qué control falló leyendo ese mensaje y por eso puede iluminarlo.
+> **Idea clave:** el middleware **no guarda memoria** de consultas anteriores (es *sin estado*). Cada petición se revisa desde cero, y eso le permite crecer en AWS sin cambiar nada.
+
+### 6.3 Antes de empezar cada escena
 Recarga la página (`F5`) para dejar todo limpio, salvo que la escena diga lo contrario.
 
 ### Escenas de seguridad (los rechazos)
@@ -458,39 +483,64 @@ Recarga la página (`F5`) para dejar todo limpio, salvo que la escena diga lo co
   1. En *Estudiante de ejemplo* elige **Brayan Acosta Parrado**.
   2. Pulsa **Token válido**. El campo del token se llena.
   3. Pulsa **Consultar expediente**.
-- **Qué se ve:** los 4 controles en **verde**, insignia **HTTP 200**, mensaje «Acceso concedido: el estudiante autorizó la consulta». Aparece Brayan (Activo), promedio 4,52, «140 de 160 (88 %)» y 8 materias; la última, «En curso».
-- **Qué decir:** «El estudiante dio su permiso; el middleware verificó cuatro cosas y entregó el expediente casi al instante».
-- **Extra:** abre *Ver respuesta JSON* y explica que eso es lo que viaja por la red.
+- **Qué se ve:** los 4 controles en **verde**, insignia **HTTP 200**, mensaje «Acceso concedido: el estudiante autorizó la consulta». Aparece Brayan (Activo), promedio 4,52, «140 de 160 (88 %)» y 8 materias; la última, «En curso». Abre *Ver respuesta JSON* para ver lo que viajó por la red.
+- **Cómo se refleja el middleware:**
+  - **Petición:** llega el código `20262678029` y un token firmado para ese mismo estudiante, vigente por 24 horas.
+  - **Control 1:** el token llegó. **Control 2:** la firma coincide con el secreto y no está vencido. **Control 3:** el token dice «20262678029» y la dirección dice «20262678029»: coinciden. **Control 4:** el estudiante existe.
+  - **Decisión:** abre la puerta y entrega el expediente. **Respuesta:** `200` con el historial en JSON y la marca `transparency_verified: true`.
+- **Conclusión:** el expediente solo sale después de superar los cuatro controles. Es el comportamiento base que las demás escenas ponen a prueba.
 
 #### Escena 2. Sin token
 - **Clics:** Brayan elegido, pulsa **Sin token** (el campo del token queda vacío) y **Consultar expediente**.
 - **Qué se ve:** **HTTP 403**, mensaje «ACCESO DENEGADO: falta el token de consentimiento del estudiante». Control 1 en **rojo** y controles 2, 3 y 4 en «Omitido». **No aparece ningún dato.**
-- **Qué decir:** «Sin permiso no hay acceso, y el sistema ni siquiera busca el expediente».
+- **Cómo se refleja el middleware:**
+  - **Petición:** llega el código, pero **sin** el encabezado del token.
+  - **Control 1** falla de inmediato. El middleware **ni siquiera abre el token ni busca al estudiante**: corta ahí.
+  - **Respuesta:** `403`. Los controles 2, 3 y 4 quedan «Omitido» porque nunca se ejecutaron.
+- **Conclusión:** sin permiso no hay acceso, y el dato nunca se consulta. Por eso no hay riesgo de filtrar información por accidente.
+- *Nota técnica:* el sistema responde `403` y no `422` (el error que daría el framework por defecto cuando falta un encabezado obligatorio), porque aquí lo correcto es negar el acceso.
 
 #### Escena 3. Token expirado
 - **Clics:** Brayan elegido, pulsa **Token expirado** y **Consultar expediente**.
-- **Qué se ve:** **HTTP 403**, «El token de consentimiento ha expirado». Control 1 verde, control 2 **rojo**, 3 y 4 «Omitido».
-- **Qué decir:** «El permiso caduca. Un token viejo ya no sirve aunque sea auténtico».
+- **Qué se ve:** **HTTP 403**, «El token de consentimiento ha expirado». Control 1 verde, control 2 **rojo**, controles 3 y 4 «Omitido».
+- **Cómo se refleja el middleware:**
+  - **Petición:** el token **sí llegó** y **sí es auténtico** (fue firmado con el secreto correcto), pero su fecha de vencimiento ya pasó.
+  - **Control 1** pasa. **Control 2** abre el token, ve que la fecha venció y lo rechaza con el mensaje específico «ha expirado».
+  - **Respuesta:** `403`. No se revisa el titular ni se busca al estudiante.
+- **Conclusión:** el consentimiento es **temporal**. Un permiso viejo deja de servir solo, sin que nadie tenga que anularlo.
 
 #### Escena 4. Token alterado
-- **Clics:** Brayan elegido, pulsa **Token válido**. Luego haz clic dentro del recuadro del token y borra **una letra del final** (tecla Retroceso). Pulsa **Consultar expediente**.
-- **Qué se ve:** **HTTP 403**, «ACCESO DENEGADO: token de consentimiento inválido». Control 2 rojo.
-- **Qué decir:** «Alguien intentó manipular el token. Cambiar una sola letra rompe la firma y el sistema lo detecta».
+- **Clics:** Brayan elegido, pulsa **Token válido**. Haz clic dentro del recuadro del token y borra **una letra del final** (tecla Retroceso). Pulsa **Consultar expediente**.
+- **Qué se ve:** **HTTP 403**, «ACCESO DENEGADO: token de consentimiento inválido». Control 1 verde, control 2 **rojo**.
+- **Cómo se refleja el middleware:**
+  - **Petición:** llega un token al que le falta una letra.
+  - **Control 2:** la firma del token se calculó con el secreto sobre el contenido original. El middleware vuelve a calcularla y **ya no coincide**, así que el token se declara inválido.
+  - **Respuesta:** `403`.
+- **Conclusión:** cambiar una sola letra rompe la firma. Quien no conoce el secreto **no puede fabricar ni modificar** un token que el sistema acepte.
 
 #### Escena 5. Texto que no es un token
 - **Clics:** Brayan elegido. En el recuadro del token escribe `esto-no-es-un-token` y pulsa **Consultar expediente**.
 - **Qué se ve:** **HTTP 403**, «token de consentimiento inválido». Control 2 rojo.
-- **Qué decir:** «Inventar un token tampoco funciona: no tiene la firma del sistema».
+- **Cómo se refleja el middleware:**
+  - **Petición:** llega un texto cualquiera en el encabezado del token.
+  - **Control 1:** hay algo escrito, así que pasa. **Control 2:** un token real tiene tres partes separadas por puntos y una firma; este texto no tiene esa estructura, así que **ni siquiera se puede abrir**.
+  - **Respuesta:** `403`.
+- **Conclusión:** inventar un token no sirve. El middleware no confía en lo que le envían: lo verifica.
 
 #### Escena 6. El token es de una persona
-- **Objetivo:** mostrar privacidad entre estudiantes.
+- **Objetivo:** mostrar la privacidad entre estudiantes.
 - **Clics:**
   1. Elige **Laura Camila Ríos Herrera**.
   2. Pulsa **Token válido** (es el permiso de Laura).
   3. **Sin tocar el token**, elige ahora **Valentina Torres Quintero** en la lista.
   4. Pulsa **Consultar expediente**.
 - **Qué se ve:** **HTTP 403**, «ACCESO DENEGADO: el token no autoriza a este estudiante». Controles 1 y 2 verdes, control 3 **rojo**.
-- **Qué decir:** «El permiso de Laura sirve para ver a Laura, no a Valentina. Cada estudiante decide quién ve sus datos».
+- **Cómo se refleja el middleware:**
+  - **Petición:** la dirección pide a Valentina (`20231098763`), pero el token fue firmado para Laura (`20251234501`).
+  - **Controles 1 y 2** pasan: el token es auténtico y está vigente.
+  - **Control 3:** compara el estudiante escrito dentro del token con el de la dirección. **No coinciden**, así que lo rechaza.
+  - **Respuesta:** `403`. El expediente de Valentina no se toca.
+- **Conclusión:** un token auténtico y vigente **no basta**: debe ser del titular de los datos. Cada estudiante decide quién ve su información.
 
 #### Escena 7. Estudiante que no existe
 - **Clics:**
@@ -498,12 +548,19 @@ Recarga la página (`F5`) para dejar todo limpio, salvo que la escena diga lo co
   2. Pulsa **Token válido** (se firma para `12345`).
   3. Pulsa **Consultar expediente**.
 - **Qué se ve:** **HTTP 404**, «Estudiante no encontrado en la red federada». Controles 1, 2 y 3 **verdes**, control 4 **rojo**.
-- **Qué decir:** «El permiso es válido, pero esa persona no existe. El sistema distingue "no tienes permiso" (403) de "no existe" (404)».
+- **Cómo se refleja el middleware:**
+  - **Petición:** el token es válido, vigente y fue firmado para `12345`, el mismo código que pide la dirección.
+  - **Controles 1, 2 y 3** pasan. **Control 4:** el middleware busca `12345` en los datos de la red y **no lo encuentra**.
+  - **Respuesta:** `404`.
+- **Conclusión:** el middleware distingue «no tienes permiso» (**403**) de «eso no existe» (**404**). La búsqueda ocurre **después** de validar el permiso: quien no tiene token recibe siempre 403, exista o no el estudiante, así que no puede averiguar quién está en la red.
 
 #### Escena 8. Código mal escrito
-- **Clics:** en *Código del estudiante* escribe `abc def` (con espacio) y pulsa **Consultar expediente**.
-- **Qué se ve:** un mensaje rojo bajo el campo: «Escribe un código válido: solo letras, números, guion o guion bajo (máximo 32)». **No se envía nada** al servidor. Prueba también con el campo vacío.
-- **Qué decir:** «La pantalla valida lo escrito antes de enviarlo».
+- **Clics:** en *Código del estudiante* escribe `abc def` (con espacio) y pulsa **Consultar expediente**. Prueba también con el campo vacío.
+- **Qué se ve:** un mensaje rojo bajo el campo: «Escribe un código válido: solo letras, números, guion o guion bajo (máximo 32)». **El panel de validación no cambia: no se envió nada.**
+- **Cómo se refleja el middleware:**
+  - **Aquí el middleware no interviene:** la pantalla detiene el envío antes de que la petición salga. Es una **primera capa** que mejora la experiencia de quien escribe.
+  - **El servidor no depende de ella:** todo lo que sí llega al middleware pasa igual por los cuatro controles. La validación de la pantalla ayuda; la que protege es la del middleware.
+- **Conclusión:** conviene validar en dos lugares: en la pantalla para avisar rápido y en el middleware para no confiar en nadie.
 
 ### Escenas de la red federada y la homologación
 
@@ -511,7 +568,11 @@ Recarga la página (`F5`) para dejar todo limpio, salvo que la escena diga lo co
 - **Objetivo:** transparencia de acceso y de ubicación.
 - **Clics:** repite los pasos de la escena 1 (elegir, **Token válido**, **Consultar expediente**) con **Laura** (Nacional), **Andrés Moreno** (Javeriana) y **Valentina Torres** (Andes). No hace falta recargar entre una y otra.
 - **Qué se ve:** cada vez cambia «Universidad de origen», pero el formato, los cuatro controles y la forma de consultar son idénticos.
-- **Qué decir:** «Son tres universidades distintas. La persona que consulta usa lo mismo y no sabe dónde viven los datos. Esa es la transparencia de acceso y de ubicación».
+- **Cómo se refleja el middleware:**
+  - Las tres consultas usan **la misma dirección, el mismo programa y los mismos cuatro controles**. El middleware no tiene reglas distintas por universidad.
+  - **Entrega los tres expedientes con los mismos campos** (nombre, universidad, programa, promedio, créditos y lista de materias con código, nombre, créditos, nota, estado y semestre). Así se **oculta la diferencia entre universidades**.
+  - *Honestidad técnica:* en la demo los datos de las cuatro universidades están juntos en la memoria del programa. En el proyecto final, el middleware consultará un catálogo de nodos para saber en qué base de datos de cada universidad está el estudiante, **sin cambiar nada de lo que ves**.
+- **Conclusión:** **transparencia de acceso** (se consulta igual) y **de ubicación** (no se sabe dónde viven los datos).
 
 #### Escena 10. Homologación con Laura
 - **Objetivo:** el uso real: decidir qué materias reconocer.
@@ -521,72 +582,82 @@ Recarga la página (`F5`) para dejar todo limpio, salvo que la escena diga lo co
   - Con 4,0: «**7 de 9** … **21 créditos**». Queda fuera Física Mecánica (3,9).
   - Cálculo Integral aparece dos veces: 2024-2 en rojo «Reprobada» (2,6) y 2025-1 «Aprobada» (3,4), que **no** es candidata con 3,5.
   - La materia de 2026-2 dice «En curso» y no cuenta.
-- **Qué decir:** «Cada universidad fija su criterio. Antes esto tomaba semanas de papeleo; aquí se ve en segundos qué se puede reconocer».
+- **Cómo se refleja el middleware:**
+  - **El cálculo lo hace la pantalla**, no el middleware: al mover la nota mínima, la pantalla recorre la lista de materias que ya recibió. No se hace una nueva consulta.
+  - **El aporte del middleware es la información normalizada:** cada materia llega con los mismos campos (créditos, nota, estado, semestre) sin importar de qué universidad venga. Si cada universidad enviara un formato distinto, no se podrían comparar ni sumar.
+  - Para llegar hasta aquí la consulta ya superó los cuatro controles de la escena 1.
+- **Conclusión:** cada universidad que recibe fija su criterio y decide en segundos. El middleware hace posible la comparación porque entrega datos uniformes **y solo con el permiso del estudiante**.
 
 #### Escena 11. Un graduado (Andrés)
 - **Clics:** elige **Andrés Felipe Moreno Castro**, **Token válido**, **Consultar expediente**.
-- **Qué se ve:** estado **Graduado**, además aparecen *Título* («Ingeniero Electrónico») y *Fecha de grado* («2025-12-12»). Créditos «168 de 168 (100 %)». Con nota mínima 3,5: 6 de 6 (20 créditos); con 4,0: 5 de 6 (16 créditos).
-- **Qué decir:** «El mismo servicio atiende egresados: sirve para verificar un título sin pedir un certificado».
+- **Qué se ve:** estado **Graduado**; aparecen *Título* («Ingeniero Electrónico») y *Fecha de grado* («2025-12-12»). Créditos «168 de 168 (100 %)». Con nota mínima 3,5: 6 de 6 (20 créditos); con 4,0: 5 de 6 (16 créditos).
+- **Cómo se refleja el middleware:**
+  - **Mismos cuatro controles** que en la escena 1; todos verdes.
+  - **Cambia el contenido, no el trato:** el registro de Andrés tiene dos datos más (título y fecha de grado) y el middleware los entrega tal cual. La pantalla muestra esos campos solo cuando existen.
+  - Esto es posible porque los datos se guardan sin un esquema rígido (tipo documento), así que cada registro puede traer campos distintos.
+- **Conclusión:** el mismo servicio atiende egresados y estudiantes activos, y sirve para verificar un título sin pedir un certificado en papel.
 
 #### Escena 12. Un retirado (Juan)
 - **Clics:** elige **Juan Sebastián Pardo Gil**, **Token válido**, **Consultar expediente**.
 - **Qué se ve:** estado **Retirado** (en rojo), promedio 3,21, «64 de 160 (40 %)». Dos materias reprobadas: Física I (2,8) y Probabilidad (2,9); Física I aparece repetida y aprobada (3,4). Con nota mínima 3,5: **2 de 6** candidatas (Química General y Dibujo Técnico, **5 créditos**).
-- **Qué decir:** «Un estudiante que se va y quiere continuar en otra universidad: el sistema deja ver con honestidad qué se le puede reconocer».
+- **Cómo se refleja el middleware:**
+  - **Mismos cuatro controles**, todos verdes: el estudiante dio su permiso.
+  - **El middleware no juzga el estado académico:** mientras exista el consentimiento, entrega el expediente completo y con honestidad (materias reprobadas incluidas). Qué hacer con esa información lo decide la universidad que consulta.
+  - *Nota:* en el proyecto final se podrán agregar reglas de negocio por estado; la demo no las tiene.
+- **Conclusión:** un estudiante que se va y quiere continuar en otra universidad puede mostrar su historial real, y el sistema deja ver con claridad qué se le puede reconocer.
 
 #### Escena 13. Promedio alto y primeros semestres
-- **Clics:** consulta a **Valentina** (promedio 4,62) y luego a **María Ospina** (52 de 150 créditos, 35 %).
+- **Clics:** consulta a **Valentina** (promedio 4,62) y luego a **María Ospina** (52 de 150 créditos, 35 %). Para cada una: elegirla, **Token válido**, **Consultar expediente**.
 - **Qué se ve:** con nota mínima 4,5, Valentina tiene **7 de 8** candidatas (22 créditos; Econometría I con 4,4 queda fuera). María tiene **8 de 8** con 3,5 (26 créditos) y **4 de 8** con 4,0 (12 créditos).
-- **Qué decir:** «Se puede usar para becas o traslados: se compara el rendimiento sin pedir documentos».
+- **Cómo se refleja el middleware:**
+  - **Son dos consultas independientes.** Cada una necesita su propio token. Si usaras el token de Valentina para consultar a María, volverías a la escena 6.
+  - El middleware **no recuerda** la consulta anterior (es *sin estado*): revisa de nuevo los cuatro controles. Gracias a eso, miles de consultas simultáneas se pueden atender sin que se mezclen.
+- **Conclusión:** se puede usar para becas o traslados comparando el rendimiento sin pedir documentos, y cada consulta queda protegida por separado.
 
 ### Escenas de apoyo
 
-#### Escena 14. Qué es una API (opcional, 30 segundos)
-- **Clics:** en cualquier consulta exitosa, abre *Ver respuesta JSON*.
-- **Qué decir:** «Esto es lo que recibe cualquier programa de otra universidad: texto estructurado. La pantalla solo lo presenta bonito».
+#### Escena 14. Qué es una API y «Copiar como curl»
+- **Clics:** en cualquier consulta exitosa, abre *Ver respuesta JSON*. Después pulsa **Copiar como curl** y pega el texto en cualquier lugar (por ejemplo, el bloc de notas).
+- **Qué se ve:** un texto estructurado con cuatro campos: `status`, `middleware_layer`, `transparency_verified` y `data`. Con el botón se copia un comando como `curl -i -H "X-Student-Consent-Token: ..." "http://127.0.0.1:8000/api/v1/federated/academic-history/20262678029"`.
+- **Cómo se refleja el middleware:**
+  - **Ese JSON es la respuesta real del middleware.** La pantalla solo lo presenta bonito: cualquier otro programa recibe exactamente el mismo texto.
+  - `middleware_layer` indica por dónde pasó la consulta («AWS API Gateway + AWS Lambda») y `transparency_verified: true` marca que se superaron los controles.
+  - **Para qué sirve «Copiar como curl»:** `curl` es una herramienta de terminal que hace peticiones web. El botón copia la consulta que acabas de hacer, con su código y su token, para repetirla fuera de la pantalla. Demuestra que el servicio es una **API abierta**, usable por cualquier programa de otra universidad, no solo por esta página. Es opcional.
+- **Conclusión:** el middleware expone un servicio estándar (REST con JSON); la pantalla es solo un cliente más.
 
 #### Escena 15. Servidor apagado (NO hacerla en vivo)
-Apagar el servidor (`Ctrl+C`) y consultar muestra «Sin conexión: no se pudo conectar con el servidor». Es útil para probar en privado, pero **no la hagas delante del público**: tendrías que volver a encender la demo.
+- **Qué se ve:** si apagas la demo (`Ctrl+C`) y consultas, la pantalla muestra «Sin conexión» y «No se pudo conectar con el servidor».
+- **Cómo se refleja el middleware:** la petición **no llega a ningún middleware**, así que no hay respuesta, ni código 200, 403 ni 404. Eso es diferente de un rechazo: los 403 y 404 **sí** son respuestas del middleware. En el proyecto final, este caso lo cubrirá la copia de respaldo ante caídas (HU-08).
+- **Recomendación:** pruébala en privado. **No la hagas delante del público**, porque tendrías que volver a encender la demo.
 
-### 6.3 Resumen: qué se rechaza y por qué
+### 6.4 Resumen: qué se rechaza, por qué y cómo lo resuelve el middleware
 
-| Escena | Clics clave | Resultado | Control que falla |
-|---|---|---|---|
-| 2. Sin token | Sin token | 403 | 1. Token presente |
-| 3. Token expirado | Token expirado | 403 | 2. Firma y vigencia |
-| 4. Token alterado | Borrar una letra del token | 403 | 2. Firma y vigencia |
-| 5. Texto que no es token | Escribir texto cualquiera | 403 | 2. Firma y vigencia |
-| 6. Token de otra persona | Generar token de Laura y consultar a Valentina | 403 | 3. Titular |
-| 7. No existe | Código `12345` y Token válido | 404 | 4. Búsqueda |
-| 8. Código mal escrito | `abc def` | Mensaje en pantalla, no se envía | (antes de enviar) |
-| 1. Todo bien | Token válido | 200 | Ninguno |
+| Escena | Clics clave | Resultado | Control que falla | Cómo lo resuelve el middleware |
+|---|---|---|---|---|
+| 1. Todo bien | Token válido | 200 | Ninguno | Pasa los 4 controles y entrega el expediente. |
+| 2. Sin token | Sin token | 403 | 1. Token presente | Corta al ver que no hay token; no toca el dato. |
+| 3. Token expirado | Token expirado | 403 | 2. Firma y vigencia | Detecta la fecha vencida del token auténtico. |
+| 4. Token alterado | Borrar una letra del token | 403 | 2. Firma y vigencia | La firma recalculada no coincide. |
+| 5. Texto que no es token | Escribir texto cualquiera | 403 | 2. Firma y vigencia | No se puede abrir: no tiene estructura de token. |
+| 6. Token de otra persona | Generar token de Laura y consultar a Valentina | 403 | 3. Titular | El estudiante del token no es el de la dirección. |
+| 7. No existe | Código `12345` y Token válido | 404 | 4. Búsqueda | Permiso válido, pero el estudiante no está en la red. |
+| 8. Código mal escrito | `abc def` | Mensaje en pantalla | (antes de enviar) | No interviene: la pantalla frena el envío. |
+| 9 a 13. Otras universidades y estados | Elegir, Token válido, Consultar | 200 | Ninguno | Mismos controles y mismo formato para todas. |
+| 14. API abierta | Ver JSON / Copiar como curl | — | — | Muestra que la respuesta es un servicio estándar. |
 
 ---
 
-## 7. Guion de la exposición (12 a 14 minutos)
+## 7. Lista de verificación antes de exponer
 
-Los bloques marcados *(opcional)* se pueden omitir: sin ellos la exposición dura unos 10 minutos.
+Revísala unos 10 minutos antes de empezar.
 
-**Lista de verificación 10 minutos antes:**
-- [ ] Plan A: la demo corriendo y la pantalla abierta en `http://127.0.0.1:8000` (sección 3).
-- [ ] Plan B: la URL de AWS abierta en **otra pestaña**, con una consulta de prueba hecha para calentar la Lambda (sección 4, paso 10).
+- [ ] **Plan A:** la demo corriendo en el computador y la pantalla abierta en `http://127.0.0.1:8000` (sección 3). Arriba a la derecha dice **Entorno: Local**.
+- [ ] **Plan B:** la URL de AWS abierta en **otra pestaña**, con una consulta de prueba hecha para despertar la Lambda (sección 4, paso 10). Arriba a la derecha dice **Entorno: Nube (AWS)**.
 - [ ] Las escenas 1, 2 y 3 probadas una vez en cada plan.
 - [ ] La terminal de la demo abierta y sin cerrar.
-- [ ] Presentación con el esquema de la sección 2 lista.
-
-| Minutos | Bloque | Qué haces | Qué dices |
-|---|---|---|---|
-| 0:00 a 1:30 | **1. Apertura** | Diapositiva de inicio o la pantalla de la demo. | Las universidades guardan los historiales cada una por su lado. Una homologación puede tardar de 15 a 45 días hábiles por trámites en papel. RFHA-IES conecta las universidades **sin juntar los datos**. |
-| 1:30 a 3:00 | **2. Qué es el middleware** | Muestra el esquema de la sección 2. | El middleware es un intermediario con tres funciones: **transportista** (una sola dirección), **seguridad** (revisa el permiso antes de tocar los datos) y **traductor** (entrega siempre el mismo formato). |
-| 3:00 a 4:30 | **3. Caso exitoso** | Escena 1 (Brayan). | Explica los cuatro controles en verde, el expediente, los créditos. |
-| 4:30 a 6:00 | **4. Rechazos** | Escenas 2, 3 y 4. | Tres intentos fallidos, tres controles distintos. «Sin permiso no hay acceso». |
-| 6:00 a 7:00 | **5. Privacidad** | Escena 6 (Laura y Valentina). | El permiso es personal. |
-| 7:00 a 8:30 | **6. Red federada** | Escena 9 (tres universidades). | Una pantalla, tres universidades. Transparencia de acceso y de ubicación. |
-| 8:30 a 10:00 | **7. Homologación** | Escena 10 (Laura). | El caso de uso real: pasar de semanas a segundos. |
-| 10:00 a 10:45 | **8. Más estados** *(opcional)* | Escenas 11 y 12 (Andrés, Juan). | El mismo servicio atiende graduados, activos y retirados. |
-| 10:45 a 11:15 | **9. No existe** *(opcional)* | Escena 7 (`12345`). | Diferencia entre «sin permiso» (403) y «no existe» (404). |
-| 11:15 a 12:15 | **10. Mismo código en AWS** | Cambia a la pestaña de AWS y repite la escena 1. | Es el mismo programa corriendo en la nube de Amazon, sin servidores. Cambió la dirección, no el comportamiento. |
-| 12:15 a 13:15 | **11. Avance del proyecto final** *(opcional)* | En otra terminal: `.\run-app.cmd`, abre `http://127.0.0.1:8001/registro-nodo` y registra una universidad. | La historia HU-01 ya está terminada: una universidad solicita unirse y queda «pendiente de aprobación». |
-| 13:15 a 14:00 | **12. Cierre** | Diapositiva final. | Se demostró seguridad por consentimiento y transparencia de acceso y de ubicación sobre una arquitectura serverless. Falta: copia de respaldo ante caídas, bitácora de consultas y portal del estudiante. |
+- [ ] Los botones de **Simular al estudiante** y la lista **Estudiante de ejemplo** visibles (en AWS requieren `DemoMode=1`).
+- [ ] El navegador con el zoom adecuado para que se lea desde lejos (`Ctrl` + `+`).
+- [ ] La sección 10 (preguntas probables) leída por todos los que van a exponer.
 
 ---
 

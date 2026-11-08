@@ -193,66 +193,208 @@ Abre `http://127.0.0.1:8000/docs`. Es la documentación de la API generada autom
 
 ## 3. Levantar y probar en AWS
 
-Esta parte la hace quien administra la cuenta AWS. Resultado: una URL pública `https://xxxx.execute-api.us-east-1.amazonaws.com` que responde igual que el local. Se crea el stack **`rfha-demo`** (una Lambda + un API Gateway + logs a 7 días). No usa DynamoDB.
+Esta parte la hace **quien administra la cuenta AWS** (no necesita entender el código). Esta sección es completa: no hace falta abrir ningún otro documento.
 
-> Costo: dentro del Free Tier. Usa una cuenta con plan **Free** y la alerta de USD 0.01 (detalle en `docs/AWS_PASO_A_PASO.md`, pasos 1.1 a 1.5). Si ya hiciste esos pasos, ve directo al 3.2.
+### 3.0 Resumen
 
-### 3.1 Preparación (una sola vez)
-1. Cuenta AWS con plan Free y presupuesto de USD 0.01 (`AWS_PASO_A_PASO.md`, 1.1 y 1.2).
-2. Usuario IAM `rfha-deployer` con su Access Key (`AWS_PASO_A_PASO.md`, 1.3).
-3. Instalar herramientas (PowerShell): `winget install Amazon.AWSCLI` y `winget install Amazon.SAM-CLI`. Cerrar y abrir la terminal.
-4. `aws configure` → pegar Access Key, Secret, región `us-east-1`, formato `json`.
-5. Comprobar: `aws sts get-caller-identity` muestra la cuenta.
+| | |
+|---|---|
+| **Qué se despliega** | Un stack de CloudFormation llamado **`rfha-demo`** con: 1 función Lambda (`rfha-demo`, Python 3.11, 256 MB), 1 API Gateway tipo HTTP API y 1 grupo de logs de CloudWatch con retención de 7 días. **No usa DynamoDB ni S3 propios** (SAM crea un bucket interno para subir el código). |
+| **Qué entrega** | Una URL pública `https://xxxxxxxx.execute-api.us-east-1.amazonaws.com`. Al abrirla en el navegador aparece la interfaz de la demo, y la API responde igual que en local. |
+| **Qué necesita de Brayan** | El **secreto JWT** (texto de 32 caracteres o más). Se pasa al desplegar. |
+| **Región** | `us-east-1` (Virginia del Norte). |
+| **Costo** | USD 0 dentro del Free Tier. Con el plan *Free* de cuentas nuevas no se cobra nada; con una cuenta antigua el consumo de esta demo es insignificante. El API tiene un límite de 20 peticiones por segundo para evitar abusos. |
+| **Tiempo** | 30 a 45 minutos la primera vez; menos de 5 minutos al repetir. |
+| **Quién hace qué** | **Compañero de AWS:** pasos 1 a 10. **Brayan:** entrega el secreto (paso 7) y prueba al final (paso 11). |
 
-### 3.2 Desplegar
-En la raíz del proyecto:
+### 3.1 Qué necesita tener el compañero
+- Un computador con **Windows y PowerShell** (los comandos de abajo son para PowerShell), con internet.
+- Una **tarjeta** con pagos internacionales para crear la cuenta AWS (AWS la pide aunque no cobre).
+- Permiso para instalar programas.
 
-1. **Secreto.** Debe ser el mismo que usarás para generar tokens. Si ya tienes `.env` local con `JWT_SECRET`, úsalo. Si no:
-   ```
-   python -c "import secrets; print(secrets.token_urlsafe(48))"
-   ```
-   Guárdalo en `.env` como `JWT_SECRET=...`. No lo subas a git ni lo pegues en chats públicos.
-2. **Construir:**
-   ```
-   sam build --template-file demo/template.yaml
-   ```
-   Esperado: `Build Succeeded`.
-3. **Desplegar** (reemplaza `<SECRETO>`):
-   ```
-   sam deploy --template-file .aws-sam/build/template.yaml --stack-name rfha-demo --resolve-s3 --capabilities CAPABILITY_IAM --region us-east-1 --parameter-overrides "JwtSecret=<SECRETO>"
-   ```
-   Si pregunta *Deploy this changeset?* responde `y`. Esperado: `Successfully created/updated stack - rfha-demo`.
-4. **Copiar la URL.** Al final aparece en *Outputs*:
-   ```
-   Key    ApiUrl
-   Value  https://abc123.execute-api.us-east-1.amazonaws.com
-   ```
-   Si se pierde: `aws cloudformation describe-stacks --stack-name rfha-demo --query "Stacks[0].Outputs"`.
+### 3.2 Paso a paso
 
-Alternativa sin terminal local: en GitHub, *Actions → CD demo (manual) → Run workflow*. Requiere los secretos `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` y `DEMO_JWT_SECRET` en *Settings → Secrets and variables → Actions*.
+#### Paso 1. Crear o verificar la cuenta AWS
+- **Dónde:** navegador, https://aws.amazon.com
+- **Pasos:**
+  1. Pulsa *Crear una cuenta de AWS* (o entra con la cuenta existente).
+  2. Si la cuenta es nueva, cuando pregunte por el plan elige **Free account plan** (plan gratuito). No elijas el *Paid plan*.
+  3. Entra a la consola, abre *Billing and Cost Management* → *Free Tier* y comprueba que aparece el plan y el saldo de créditos.
+  4. Arriba a la derecha, en el selector de región, elige **US East (N. Virginia) us-east-1**.
+- **Resultado esperado:** ves el panel de Free Tier y la región `us-east-1`.
+- **Si falla:** la tarjeta se rechaza → prueba otra con pagos internacionales habilitados. Cuenta antigua sin plan Free → sigue igual y no te saltes el paso 2.
 
-### 3.3 Probar en AWS
-1. **Calentamiento** (cold start): la primera petición tras un rato sin uso tarda 1 a 3 segundos. Haz una antes de exponer:
-   ```
-   curl -i https://abc123.execute-api.us-east-1.amazonaws.com/api/v1/federated/academic-history/20262678029
-   ```
-   Debe devolver `403`. Eso es correcto: confirma que la Lambda responde.
-2. **Verificación automática** (con el mismo `JWT_SECRET` en tu `.env`):
-   ```
-   python scripts/check_demo.py https://abc123.execute-api.us-east-1.amazonaws.com
-   ```
-   Esperado: `TODO BIEN`.
-3. **Thunder Client:** *Env* → **AWS** → cambia `baseUrl` por la URL de `ApiUrl` (sin barra final) y pega los tokens generados con `python scripts/generate_token.py`. Ejecuta las mismas 3 requests.
+#### Paso 2. Alerta de presupuesto de USD 0.01
+- **Dónde:** consola web → *Billing and Cost Management* → *Budgets*.
+- **Pasos:**
+  1. *Create budget* → *Use a template (simplified)* → **Zero spend budget**.
+  2. Escribe los correos del compañero y de Brayan.
+  3. *Create budget*.
+- **Resultado esperado:** aparece «My Zero-Spend Budget» con estado activo; AWS avisará por correo ante cualquier gasto.
+- **Si falla:** si no aparece la plantilla, crea un *Customized (advanced)* → *Cost budget* mensual de USD 0.01.
 
-### 3.4 Ver logs si algo falla
-```
+#### Paso 3. Crear un usuario IAM para desplegar (no usar la cuenta raíz)
+- **Dónde:** consola web → *IAM* → *Users*.
+- **Pasos:**
+  1. *Create user* → nombre `rfha-deployer` → *Next*.
+  2. *Attach policies directly* y marca estas **6 políticas**:
+     `AWSCloudFormationFullAccess`, `AWSLambda_FullAccess`, `AmazonAPIGatewayAdministrator`, `AmazonS3FullAccess`, `CloudWatchLogsFullAccess`, `IAMFullAccess`.
+  3. *Create user*.
+  4. Abre el usuario → pestaña *Security credentials* → *Create access key* → caso de uso **Command Line Interface (CLI)** → confirma → *Create access key*.
+  5. Copia el **Access key ID** y el **Secret access key** a un gestor de contraseñas (el secreto solo se muestra una vez).
+- **Resultado esperado:** tienes el par de claves del usuario `rfha-deployer`.
+- **Si falla:** si luego el despliegue da `AccessDenied`, falta alguna de las 6 políticas. **Nunca** subas estas claves a git ni las pegues en chats.
+
+#### Paso 4. Instalar las herramientas
+- **Dónde:** PowerShell (abre una nueva).
+- **Pasos:**
+  ```powershell
+  winget install Amazon.AWSCLI
+  winget install Amazon.SAM-CLI
+  winget install Python.Python.3.11
+  winget install Git.Git
+  ```
+  Cierra PowerShell y ábrelo de nuevo. Comprueba:
+  ```powershell
+  aws --version
+  sam --version
+  py -3.11 --version
+  git --version
+  ```
+- **Resultado esperado:** los cuatro comandos muestran una versión (`py -3.11` debe decir `Python 3.11.x`).
+- **Si falla:** `comando no encontrado` → no cerraste y reabriste PowerShell. Sin `winget` → descarga los instaladores desde las páginas oficiales de AWS CLI, AWS SAM CLI, python.org y git-scm.com. **Python 3.11 es necesario**: `sam build` debe encontrar la misma versión que usa la Lambda.
+
+#### Paso 5. Conectar la terminal con la cuenta
+- **Dónde:** PowerShell.
+- **Pasos:**
+  ```powershell
+  aws configure
+  ```
+  Responde: `AWS Access Key ID` → la del paso 3; `AWS Secret Access Key` → la del paso 3; `Default region name` → `us-east-1`; `Default output format` → `json`. Luego:
+  ```powershell
+  aws sts get-caller-identity
+  ```
+- **Resultado esperado:** devuelve un JSON con `Account` (12 dígitos) y `Arn` que termina en `user/rfha-deployer`.
+- **Si falla:** `InvalidClientTokenId` o `SignatureDoesNotMatch` → clave mal copiada; repite `aws configure`.
+
+#### Paso 6. Descargar el código
+- **Dónde:** PowerShell.
+- **Pasos:**
+  ```powershell
+  git clone https://github.com/BrayanBMC/RFHA-IES_SD_TGS.git
+  cd RFHA-IES_SD_TGS
+  ```
+  Si Brayan indica que lo último está en la rama `dev` (todavía no se hizo el merge a `main`), añade: `git checkout dev`.
+- **Resultado esperado:** existe la carpeta `RFHA-IES_SD_TGS` con la subcarpeta `demo` que contiene `template.yaml` y `main.py`. Compruébalo con `dir demo`.
+- **Si falla:** `repository not found` → pide a Brayan que te dé acceso al repositorio.
+
+#### Paso 7. Obtener el secreto JWT
+- **Quién:** Brayan lo genera y se lo pasa al compañero **por un canal privado** (mensaje directo, no un grupo público).
+- **Cómo se genera** (cualquier PC con Python):
+  ```powershell
+  py -3.11 -c "import secrets; print(secrets.token_urlsafe(48))"
+  ```
+  Imprime un texto de unos 64 caracteres, por ejemplo `kQ3v...`. Ese texto es el **secreto**.
+- **Para el compañero:** guárdalo en una variable de la terminal (solo vive mientras la terminal esté abierta):
+  ```powershell
+  $secreto = "PEGA_AQUI_EL_SECRETO"
+  ```
+- **Reglas:** mínimo 32 caracteres; Brayan debe guardar el mismo valor en su archivo `.env` como `JWT_SECRET=...` para poder generar tokens que la Lambda acepte. No se sube a git.
+
+#### Paso 8. Construir el paquete
+- **Dónde:** PowerShell, dentro de la carpeta `RFHA-IES_SD_TGS`.
+- **Comando:**
+  ```powershell
+  sam build --template-file demo/template.yaml
+  ```
+- **Resultado esperado:** al final dice `Build Succeeded` y crea la carpeta `.aws-sam\build`.
+- **Si falla:**
+  - `Binary validation failed for python` → no está Python 3.11 en el PATH: repite el paso 4 y reabre PowerShell.
+  - `template.yaml not found` → no estás en la carpeta raíz del proyecto.
+
+#### Paso 9. Desplegar
+- **Dónde:** misma terminal (con `$secreto` definido en el paso 7).
+- **Comando:**
+  ```powershell
+  sam deploy --template-file .aws-sam/build/template.yaml --stack-name rfha-demo --resolve-s3 --capabilities CAPABILITY_IAM --region us-east-1 --no-confirm-changeset --no-fail-on-empty-changeset --parameter-overrides "JwtSecret=$secreto" "DemoMode=0"
+  ```
+  - `DemoMode=0` es lo normal y seguro: en la interfaz **no** aparecen los botones que generan tokens de prueba.
+  - `DemoMode=1` es solo para **ensayar con los botones** de la interfaz. Con `1`, cualquiera que conozca la URL puede generar tokens y saltarse la protección; vuelve a desplegar con `0` después.
+- **Resultado esperado:** tarda 2 a 4 minutos y termina con `Successfully created/updated stack - rfha-demo in us-east-1`. En la sección *Outputs* aparece:
+  ```
+  Key         ApiUrl
+  Description URL base para Thunder Client (variable baseUrl del entorno AWS)
+  Value       https://abc123xyz.execute-api.us-east-1.amazonaws.com
+  ```
+- **Si falla:**
+  - `AccessDenied` / `not authorized` → falta una política del paso 3.
+  - `Parameter JwtSecret ... length` → el secreto tiene menos de 32 caracteres.
+  - `ROLLBACK_COMPLETE` → mira el motivo en consola web → CloudFormation → stack `rfha-demo` → pestaña *Events*. Para reintentar, borra el stack fallido (`sam delete --stack-name rfha-demo --region us-east-1`) y repite el paso 9.
+  - `The security token included in the request is invalid` → repite el paso 5.
+
+#### Paso 10. Copiar la URL y comprobar que responde
+- **Dónde:** PowerShell y navegador.
+- **Pasos:**
+  1. Copia el `Value` de `ApiUrl`. Si se perdió:
+     ```powershell
+     aws cloudformation describe-stacks --stack-name rfha-demo --region us-east-1 --query "Stacks[0].Outputs"
+     ```
+  2. Abre la URL en el navegador: debe cargar la página **«Consulta federada de historial académico»**.
+  3. Primera petición a la API (calienta la Lambda):
+     ```powershell
+     curl.exe -i https://abc123xyz.execute-api.us-east-1.amazonaws.com/api/v1/federated/academic-history/20262678029
+     ```
+- **Resultado esperado:** la página carga y el `curl` devuelve `HTTP/1.1 403` con el texto `ACCESO DENEGADO: falta el token de consentimiento del estudiante.` El 403 es **correcto**: significa que la Lambda y el API Gateway funcionan y que la protección está activa.
+- **Si falla:**
+  - `{"message":"Not Found"}` → la URL está incompleta o con una ruta mal escrita.
+  - `{"message":"Internal Server Error"}` → error dentro de la Lambda: mira los logs (3.4).
+  - La primera petición tarda 1 a 3 segundos: es el arranque en frío, normal.
+
+#### Paso 11. Prueba completa (con el secreto)
+- **Quién:** Brayan, o el compañero si instala PyJWT.
+- **Dónde:** PowerShell en la carpeta del proyecto.
+- **Pasos:**
+  ```powershell
+  py -3.11 -m pip install PyJWT
+  $env:JWT_SECRET = $secreto
+  py -3.11 scripts/check_demo.py https://abc123xyz.execute-api.us-east-1.amazonaws.com
+  ```
+- **Resultado esperado:**
+  ```
+  [OK] Sin token: HTTP 403 (esperado 403)
+  [OK] Token expirado: HTTP 403 (esperado 403)
+  [OK] Token válido: HTTP 200 (esperado 200)
+  RESULTADO: TODO BIEN
+  ```
+- **Si falla:** `Token válido: HTTP 403` → el secreto de esta terminal no es el mismo que se desplegó; repite el paso 7 y el paso 9.
+
+#### Paso 12. Entregar a Brayan
+Envía a Brayan **la URL** (`ApiUrl`) y confirma si el despliegue fue con `DemoMode=0` o `1`. Con esa URL Brayan:
+1. Abre la URL en el navegador para exponer la interfaz.
+2. En Thunder Client, entorno **AWS**, cambia `baseUrl` por la URL (sin barra final).
+3. Genera los tokens en su PC con `python scripts/generate_token.py` (mismo `JWT_SECRET` en su `.env`).
+
+### 3.3 Despliegue alternativo desde GitHub (opcional)
+Evita instalar SAM en el PC del compañero. En el repositorio de GitHub:
+1. *Settings* → *Secrets and variables* → *Actions* → *New repository secret*. Crea tres: `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` (las claves del paso 3) y `DEMO_JWT_SECRET` (el secreto del paso 7).
+2. Pestaña *Actions* → workflow **CD demo (manual)** → *Run workflow*.
+3. Al terminar, la URL se consulta con el comando `aws cloudformation describe-stacks` del paso 10, o en la consola web de CloudFormation → stack `rfha-demo` → *Outputs*.
+El workflow nunca corre solo, y despliega con `DemoMode=0`.
+
+### 3.4 Ver los logs si algo falla
+```powershell
 sam logs --stack-name rfha-demo --region us-east-1
 ```
+También en la consola: *CloudWatch* → *Log groups* → `/aws/lambda/rfha-demo`.
 
-### 3.5 Borrar todo al terminar
-```
+### 3.5 Actualizar la demo (si Brayan cambia el código)
+Repite desde el paso 8 (`git pull`, `sam build`, `sam deploy` con el mismo secreto). La URL no cambia.
+
+### 3.6 Borrar todo al terminar (evita costos)
+```powershell
 sam delete --stack-name rfha-demo --region us-east-1
 ```
+Responde `y` a las preguntas. Después, en la consola → *S3*, borra el bucket que empieza por `aws-sam-cli-managed-default` si ya no vas a desplegar más. Finalmente, en *IAM*, desactiva o elimina la access key del usuario `rfha-deployer`.
 
 ---
 
@@ -416,7 +558,14 @@ Cubren: sin token (403 y no 422), válido (200), expirado, firma incorrecta, tex
 
 ## 6. Guion de la exposición
 
-Tiempo total: 7 minutos. Antes de empezar, revisa la lista de `docs/DEMO_MARTES.md`.
+Tiempo total: 7 minutos.
+
+**Lista de verificación 10 minutos antes:**
+- [ ] Plan A: `.\run-demo.cmd` ejecutándose y la página abierta en `http://127.0.0.1:8000`.
+- [ ] Los 3 escenarios probados en la interfaz (casos 1, 2 y 3 de la sección 2.3).
+- [ ] Plan B: URL de AWS abierta en el navegador y una petición de calentamiento hecha (paso 10 de la sección 3.2).
+- [ ] Un token válido y uno expirado generados el mismo día (`python scripts/generate_token.py`).
+- [ ] Thunder Client con el selector de entorno visible (`Local` y `AWS`).
 
 1. **Problema y rol del middleware (1.5 min).** Las universidades son islas de datos. El middleware es el transportista: una sola URL, sin IP ni motor de base de datos visibles.
 2. **Sin token → 403 (1.5 min).** Ejecuta la request 1. *"El middleware corta antes de tocar los datos."*
@@ -437,7 +586,7 @@ Tiempo total: 7 minutos. Antes de empezar, revisa la lista de `docs/DEMO_MARTES.
 | Token válido pero recibes 403 | Secreto distinto entre servidor y generador, o token expirado | Regenera el token con `generate_token.py`; en AWS verifica que `JwtSecret` sea igual al `.env` |
 | AWS tarda mucho la primera vez | Cold start | Haz una petición de calentamiento antes de exponer |
 | AWS responde 5xx | Error en la Lambda | `sam logs --stack-name rfha-demo --region us-east-1` |
-| `sam deploy` da `AccessDenied` | Faltan permisos del usuario IAM | Revisar `AWS_PASO_A_PASO.md`, paso 1.3 |
+| `sam deploy` da `AccessDenied` | Faltan permisos del usuario IAM | Revisar que `rfha-deployer` tenga las 6 políticas del paso 3 (sección 3.2) |
 | Thunder Client no muestra la colección | La extensión no leyó `thunder-tests/` | Usa los `curl` de la sección 4 |
 | Sin internet el día de la clase | | Usa solo el Plan A (local) |
 

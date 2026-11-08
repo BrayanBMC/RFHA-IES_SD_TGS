@@ -20,7 +20,14 @@ Copia esta plantilla al inicio de la sección «Entradas»:
 
 ## Entradas
 
+### 2026-11-08 · Guía de AWS autosuficiente en DEMO.md
+- **Qué se hizo:** la sección 3 de `docs/DEMO.md` se reescribió para que el compañero de AWS despliegue la demo sin abrir otro documento: resumen (qué se crea, costo, tiempo, quién hace qué), 12 pasos con comandos exactos de PowerShell (cuenta con plan Free, alerta de USD 0.01, usuario IAM con 6 políticas, instalación de AWS CLI, SAM CLI, Python 3.11 y Git, `aws configure`, clonar, secreto JWT, `sam build`, `sam deploy`, comprobar URL, prueba completa con `check_demo.py`, entrega a Brayan), despliegue alternativo desde GitHub Actions, logs, actualización y borrado. Se quitaron las referencias a otros `.md`.
+- **Por qué:** petición del usuario: el compañero debe poder levantar la demo en AWS solo con ese documento.
+- **Archivos:** `docs/DEMO.md`, `docs/BITACORA.md`.
+- **Pendiente / riesgos:** los comandos no se han ejecutado contra una cuenta AWS real. Riesgo conocido: `sam build` exige Python 3.11 local (se instala en el paso 4). Probar el despliegue completo con el compañero y corregir la guía si algo difiere.
+
 ### 2026-11-08 · Guía de casos de prueba y bitácora
+- **Commit / CI:** `ca500d3` · verde.
 - **Qué se hizo:** se documentó en `docs/DEMO.md` qué escribir en cada campo de la interfaz y 10 casos de prueba (éxito, sin token, expirado, firma alterada, texto basura, token de otro estudiante, estudiante inexistente, código no válido, servidor apagado, JSON y curl), con la variante para AWS, Swagger y Thunder Client. Se creó esta bitácora y se agregó al prompt la regla de mantenerla.
 - **Por qué:** el equipo necesita probar y exponer la demo sin adivinar valores; el prompt exige trazabilidad del desarrollo.
 - **Archivos:** `docs/DEMO.md`, `docs/BITACORA.md`, `docs/PROMPT-AGENTE-RFHA-IES.md`, `docs/DECISIONES.md`, `README.md`.

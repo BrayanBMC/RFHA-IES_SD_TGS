@@ -10,6 +10,7 @@ Contenido
 5. [Explicación del código](#5-explicación-del-código)
 6. [Guion de la exposición](#6-guion-de-la-exposición)
 7. [Si algo falla](#7-si-algo-falla)
+8. [Por qué cumple con la exposición y con la propuesta](#8-por-qué-cumple-con-la-exposición-y-con-la-propuesta)
 
 ---
 
@@ -101,7 +102,7 @@ La primera vez tarda 1 a 2 minutos (instala dependencias). Las siguientes arranc
 2. Crea y activa el entorno virtual:
    - Windows: `py -3.12 -m venv .venv` y luego `.\.venv\Scripts\Activate.ps1`
    - macOS/Linux: `python3.12 -m venv .venv` y luego `source .venv/bin/activate`
-3. Instala dependencias: `pip install -r demo/requirements.txt`
+3. Instala dependencias: `pip install -r demo/requirements-local.txt` (incluye `uvicorn`, que la Lambda no necesita)
 4. Crea el secreto. Crea un archivo `.env` en la raíz con una línea:
    ```
    JWT_SECRET=pon-aqui-un-texto-aleatorio-de-mas-de-32-caracteres
@@ -253,6 +254,7 @@ Pruebas extra opcionales: cambiar una letra del token (403 firma inválida); ped
 |---|---|
 | `demo/main.py` | **Toda la API.** Validación del token, datos simulados y endpoint. |
 | `demo/requirements.txt` | Librerías que necesita la Lambda en AWS. |
+| `demo/requirements-local.txt` | Las mismas más `uvicorn`, para correr en local. |
 | `demo/template.yaml` | Plantilla AWS SAM: crea la Lambda y el API Gateway. |
 | `demo/tests/test_demo_api.py` | Pruebas automáticas (las corre GitHub en cada push). |
 | `scripts/generate_token.py` | Crea tokens JWT válidos y expirados. |
@@ -321,7 +323,7 @@ Crea un JWT con tres datos: `student_id` (de quién es el consentimiento), `iat`
 Hace tres peticiones HTTP con la biblioteca estándar (sin instalar nada) y compara el código recibido con el esperado. Sirve igual para `http://127.0.0.1:8000` y para la URL de AWS; sale con error si algo no coincide.
 
 ### 5.5 `scripts/run_demo.py`
-Automatiza lo que se haría a mano: crea `.venv`, instala dependencias si el hash de `demo/requirements.txt` cambió, crea `.env`, lanza `uvicorn` como subproceso, espera a que responda, ejecuta `check_demo.py`, imprime los tokens y se queda esperando hasta `Ctrl+C`, momento en que apaga el servidor.
+Automatiza lo que se haría a mano: crea `.venv`, instala dependencias si cambió el hash de `demo/requirements-local.txt`, crea `.env`, lanza `uvicorn` como subproceso, espera a que responda, ejecuta `check_demo.py`, imprime los tokens y se queda esperando hasta `Ctrl+C`, momento en que apaga el servidor.
 
 ### 5.6 `demo/template.yaml` (AWS SAM)
 
@@ -372,3 +374,56 @@ Tiempo total: 7 minutos. Antes de empezar, revisa la lista de `docs/DEMO_MARTES.
 | `sam deploy` da `AccessDenied` | Faltan permisos del usuario IAM | Revisar `AWS_PASO_A_PASO.md`, paso 1.3 |
 | Thunder Client no muestra la colección | La extensión no leyó `thunder-tests/` | Usa los `curl` de la sección 4 |
 | Sin internet el día de la clase | | Usa solo el Plan A (local) |
+
+---
+
+## 8. Por qué cumple con la exposición y con la propuesta
+
+### 8.1 Cumple con la exposición de Middleware y Web Services
+
+La exposición pide mostrar un middleware y un web service funcionando. La demo lo hace así:
+
+| Lo que se espera | Cómo lo cumple la demo | Dónde se ve |
+|---|---|---|
+| **Middleware**: software intermedio que independiza las aplicaciones del hardware, del sistema operativo y de los protocolos, y da visión de sistema único | El cliente solo conoce una URL. No sabe en qué servidor, sistema operativo o base de datos está el dato. Funciona igual en local y en AWS sin cambiar el cliente. | `demo/main.py`, endpoint único; Thunder Client con entornos `Local` y `AWS` |
+| **Función de transportista**: recibe la petición y la encamina al destino | API Gateway recibe la petición HTTP y la entrega a la Lambda; FastAPI decide la ruta. | `demo/template.yaml` (`HttpApi` + `Function`), `Mangum` |
+| **Servicio de seguridad** en la capa intermedia | El middleware valida el token de consentimiento antes de tocar los datos. | `verify_student_token()` |
+| **Ocultar la heterogeneidad** de los datos | El cliente recibe siempre JSON estándar. Hoy el dato viene de un diccionario simulado; mañana vendrá de DynamoDB de cada universidad y el cliente no cambia. | `MOCK_DYNAMODB_NODES` |
+| **Web Service**: comunicación entre aplicaciones con estándares abiertos | API **REST** sobre **HTTP**, método `GET`, datos en **JSON**, códigos de estado estándar (200, 403, 404). | Endpoint `GET /api/v1/federated/academic-history/{student_id}` |
+| **Contrato documentado** | FastAPI genera la especificación OpenAPI/Swagger sola. | `/docs` |
+| **Interoperabilidad** | Cualquier cliente que hable HTTP (Thunder Client, curl, navegador, otra universidad) usa el servicio igual. | Pruebas con `curl` y Thunder Client |
+
+Transparencias de Sistemas Distribuidos que se pueden demostrar en vivo:
+- **De acceso:** una sola interfaz REST sin importar cómo se guarde el dato.
+- **De ubicación:** el cliente no conoce la IP, la región ni la base de datos. Se nota al cambiar de `Local` a `AWS`: cambia la URL y todo lo demás sigue igual.
+- **De escalado (se explica, no se mide):** en AWS, Lambda crea instancias según la demanda sin cambiar el código.
+
+### 8.2 Cumple con la propuesta del proyecto (RFHA-IES)
+
+La demo es un recorte funcional de la propuesta. Implementa la parte central: **consultar un historial solo con el consentimiento del estudiante**.
+
+| Requisito de la propuesta | Estado en la demo |
+|---|---|
+| **HU-06** Consulta federada: el funcionario consulta con el token del estudiante y recibe el historial | **Cumplido en su versión mínima.** `GET` con `X-Student-Consent-Token` devuelve el historial en JSON. |
+| **HU-07** Bloqueo de consultas no autorizadas: sin token o expirado, `403` sin consultar los datos | **Cumplido.** Sin token, token inválido, expirado o de otro estudiante dan `403` antes de buscar el dato. |
+| **RF-05** Consulta transparente por el middleware | **Cumplido (mínimo).** Una sola URL; el dato se obtiene detrás del middleware. |
+| **RF-06** Rechazo por ausencia o expiración del token con `HTTP 403` | **Cumplido.** Probado con tres casos en `demo/tests`. |
+| **RF-07** Visualización del historial (materias, créditos, calificaciones) | **Parcial.** Devuelve materias, calificaciones y promedio. Faltan los créditos por materia y la pantalla (llega en el frontend). |
+| **Token de consentimiento JWT firmado** (`student_auth_token`) | **Cumplido.** JWT firmado con HS256 y fecha de expiración obligatoria. |
+| **Arquitectura Serverless en AWS Free Tier** (API Gateway + Lambda, Python 3.11, FastAPI + Mangum) | **Cumplido.** Es exactamente el stack propuesto; la plantilla `demo/template.yaml` lo despliega. |
+| **HTTPS** | **Cumplido en AWS.** API Gateway entrega HTTPS por defecto. En local es HTTP porque es solo desarrollo. |
+| **Costo cero** | **Cumplido.** Solo Lambda y API Gateway, sin DynamoDB; logs a 7 días y límite de peticiones por segundo. |
+| **Escenarios de la sección K** (sin token → 403; con token → 200) | **Cumplido y ampliado**, con corrección: el documento original devolvía 422 en vez de 403 al faltar el header. |
+
+#### Lo que la demo todavía no cubre (se construye con HU-01 a HU-09)
+Para no sobreprometer en la exposición, esto es lo que **no** hace la demo:
+- Registro y aprobación de nodos universitarios y API Keys (HU-01 y HU-02). HU-01 ya está en `dev`.
+- Carga de historiales y datos en DynamoDB por universidad (HU-03). Los datos son simulados.
+- Generación y revocación del token por el estudiante (HU-04 y HU-05). Los tokens los genera un script.
+- Enrutamiento real entre varias universidades con catálogo de nodos (HU-06 completa).
+- Failover a réplica y `X-Data-Source` (HU-08).
+- Bitácora de auditoría (HU-09).
+- Que el token sirva solo para la universidad destino autorizada (HU-07 completa).
+
+#### Cómo decirlo en la exposición
+> "La demo implementa el corazón de la propuesta: el middleware que solo entrega el historial académico cuando el estudiante dio su consentimiento firmado. Usa el mismo stack del proyecto final, API Gateway, Lambda y FastAPI, y ya corre en AWS. Los demás módulos, como registro de universidades, DynamoDB por nodo, failover y auditoría, se construyen sobre esta base."

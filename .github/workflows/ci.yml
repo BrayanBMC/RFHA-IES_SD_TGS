@@ -21,6 +21,7 @@ jobs:
   demo-runner:
     # Comprueba el lanzador de un comando: crea venv, instala, levanta la API y verifica los 3 escenarios.
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

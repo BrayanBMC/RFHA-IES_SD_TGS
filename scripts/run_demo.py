@@ -6,7 +6,7 @@
 
 Qué hace, en orden:
   1. Crea el entorno virtual .venv si no existe.
-  2. Instala las dependencias de demo/requirements.txt (solo si cambiaron).
+  2. Instala las dependencias de demo/requirements-local.txt (solo si cambiaron).
   3. Crea .env con un JWT_SECRET aleatorio si no existe.
   4. Levanta la API con uvicorn.
   5. Verifica los 3 escenarios (403 / 403 / 200).
@@ -30,7 +30,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 VENV_DIR = ROOT / ".venv"
-REQUIREMENTS = ROOT / "demo" / "requirements.txt"
+REQUIREMENTS = ROOT / "demo" / "requirements-local.txt"
+LAMBDA_REQUIREMENTS = ROOT / "demo" / "requirements.txt"
 ENV_FILE = ROOT / ".env"
 DEPS_MARK = VENV_DIR / ".demo_deps_hash"
 
@@ -53,7 +54,9 @@ def ensure_venv() -> None:
 
 
 def ensure_dependencies() -> None:
-    current = hashlib.sha256(REQUIREMENTS.read_bytes()).hexdigest()
+    current = hashlib.sha256(
+        REQUIREMENTS.read_bytes() + LAMBDA_REQUIREMENTS.read_bytes()
+    ).hexdigest()
     if DEPS_MARK.exists() and DEPS_MARK.read_text().strip() == current:
         print("Dependencias: al día.")
         return

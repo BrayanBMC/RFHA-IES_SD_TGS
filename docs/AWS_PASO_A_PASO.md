@@ -107,4 +107,4 @@ Se agregan pasos por historia. El despliegue de la app final se arma con un `tem
 
 ### Interfaz web (frontend)
 - **Nada nuevo en AWS.** La interfaz (HTML, CSS y JS) se sirve desde la misma Lambda y el mismo API Gateway; no se crean S3 ni CloudFront ni costos adicionales. En la demo, la página queda en la URL raíz (`ApiUrl`).
-- Parámetro opcional `DemoMode` (`0` por defecto): con `1` la interfaz muestra los botones que generan tokens de prueba. Úsalo solo para ensayar y vuelve a desplegar con `0`. Ver `docs/DEMO.md`, sección 2.3.
+- Parámetro opcional `DemoMode` (`0` por defecto): con `1` la interfaz muestra los botones que generan tokens de prueba. Para la exposición se despliega con `1` y se borra todo al terminar (`sam delete`); si la demo va a quedar publicada, usa `0`. Ver `docs/DEMO.md`, sección 4.1.

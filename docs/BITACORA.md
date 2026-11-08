@@ -20,6 +20,16 @@ Copia esta plantilla al inicio de la sección «Entradas»:
 
 ## Entradas
 
+### 2026-11-08 · Declaración de uso de IA en la documentación
+- **Qué se hizo:** se agregó al `README.md` la sección 16 «Declaración de uso de herramientas de IA» (herramienta, para qué se usó, cómo se trabajó, qué decide el equipo, trazabilidad y responsabilidad). Se verificó con una búsqueda que ni el frontend (`demo/static`, `src/app/static`) ni el código de la API contienen menciones a herramientas de IA.
+- **Por qué:** la asignatura permite el uso de IA declarado; la declaración va en la documentación y no en la interfaz.
+- **Archivos:** `README.md`, `docs/BITACORA.md`.
+- **Decisiones:** D-24 (la declaración de IA vive solo en la documentación).
+
+### 2026-11-08 · Texto de ayuda del token retirado de la pantalla de la demo
+- **Qué se hizo:** se quitó el texto de ayuda bajo el campo del token («Se envía en el encabezado X-Student-Consent-Token. Déjalo vacío para probar el rechazo.»), porque es una indicación para quien presenta y no para el público. El campo conserva su etiqueta y un texto de ejemplo más corto.
+- **Archivos:** `demo/static/index.html`.
+
 ### 2026-11-08 · README completo
 - **Qué se hizo:** el `README.md` se reescribió con: ficha del proyecto, resumen y problema, alcance y actores, requerimientos funcionales (RF-01 a RF-19) y no funcionales con su estado, tabla de historias de usuario HU-01 a HU-10 con estado, arquitectura (diagrama Mermaid), stack, modelo de datos, mapeo con las 8 transparencias de Sistemas Distribuidos y con Teoría General de Sistemas, resumen de lo hecho, cronograma, riesgos y flujo de Git. La sección «Cómo ejecutarlo desde la terminal de VS Code» explica paso a paso cómo abrir la terminal y lanzar la demo y la app final, con comandos para **Windows y para macOS/Linux** (se mantienen ambos a pedido del usuario), problemas frecuentes y cómo correr las pruebas.
 - **Por qué:** el README debía reflejar el levantamiento de requerimientos, las historias de usuario y el avance real, y explicar la ejecución desde VS Code.

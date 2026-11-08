@@ -24,3 +24,4 @@ Cada decisión toma la opción más simple. Si no estás de acuerdo con alguna, 
 | D-18 | Se agrega HU-10 (interfaz web de la app final) después de HU-09, con los requerimientos RF-11 a RF-19 y RNF-F1 a RNF-F9 en `docs/ADENDA_FRONTEND.md`. El prompt (`docs/PROMPT-AGENTE-RFHA-IES.md`, v2) incorpora la sección 10 de frontend. | El alcance incluía una aplicación web sin historia de usuario. | Planeación |
 | D-19 | La interfaz se sirve desde la misma Lambda; no se crean S3 ni CloudFront. | Cero costo y cero recursos nuevos. | AWS |
 | D-20 | El documento original `levantamiento_de_requerimientos_proyecto_final.md` no estaba en el repo. Se mantiene fuera y la adenda lo complementa. | Evitar duplicar el documento. | Planeación |
+| D-21 | Todo desarrollo se registra en `docs/BITACORA.md` antes de cada commit; la regla quedó en el prompt (regla 11 y paso 7 del flujo). | Trazabilidad para el equipo y los docentes. | Proceso |

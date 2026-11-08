@@ -128,6 +128,54 @@ Qué incluye la interfaz: HTML semántico y accesible (etiquetas, foco visible, 
 
 En AWS la misma página está en la URL raíz. Allí los botones de simulación vienen **apagados** (por seguridad): pega un token generado con `python scripts/generate_token.py`. Para ensayar con los botones, despliega con `DemoMode=1` agregándolo a `--parameter-overrides` (`"JwtSecret=<SECRETO>" "DemoMode=1"`) y vuelve a desplegar con `0` después, porque con `1` cualquiera que tenga la URL puede generar tokens.
 
+#### Qué escribir en cada campo
+
+| Campo | Qué poner | Para qué sirve |
+|---|---|---|
+| **Código del estudiante** | `20262678029` (único estudiante con datos). Solo letras, números, guion y guion bajo, máximo 32 caracteres. | Identifica de quién se pide el historial. Va en la URL. |
+| **Token de consentimiento** | Un token JWT. Con los botones de **Simular al estudiante** se llena solo. También puedes pegar uno de `python scripts/generate_token.py`, o dejarlo vacío. | Es la autorización firmada del estudiante. Va en el encabezado `X-Student-Consent-Token`. |
+| Botón **Token válido** | Sin escribir nada más. | Genera un token vigente 24 h **para el código que tengas escrito en ese momento**. |
+| Botón **Token expirado** | Sin escribir nada más. | Genera un token ya vencido, para el código escrito. |
+| Botón **Sin token** | Sin escribir nada más. | Borra el campo del token. |
+| **Consultar expediente** | Pulsarlo al final. | Envía la solicitud y muestra el resultado. |
+
+#### Casos de prueba (interfaz web)
+
+Antes de cada caso, recarga la página o revisa los campos. Pulsa **Consultar expediente** al final de cada uno.
+
+| # | Caso | Código del estudiante | Token (qué hacer) | Resultado esperado | Pasos de validación |
+|---|---|---|---|---|---|
+| 1 | **Éxito** | `20262678029` | Pulsa **Token válido** | **HTTP 200**. «Acceso concedido». Aparece Brayan Acosta Parrado, promedio 4,52 y 2 asignaturas. | Los 4 en verde |
+| 2 | **Sin token** | `20262678029` | Pulsa **Sin token** (campo vacío) | **HTTP 403**. «ACCESO DENEGADO: falta el token de consentimiento del estudiante.» | Paso 1 rechazado; 2, 3 y 4 omitidos |
+| 3 | **Token expirado** | `20262678029` | Pulsa **Token expirado** | **HTTP 403**. «El token de consentimiento ha expirado.» | Paso 1 aprobado; paso 2 rechazado; 3 y 4 omitidos |
+| 4 | **Token con firma alterada** | `20262678029` | Pulsa **Token válido** y luego cambia o borra una letra del final del token | **HTTP 403**. «ACCESO DENEGADO: token de consentimiento inválido.» | Paso 2 rechazado |
+| 5 | **Texto que no es un token** | `20262678029` | Escribe `esto-no-es-un-jwt` | **HTTP 403**. «…token de consentimiento inválido.» | Paso 2 rechazado |
+| 6 | **Token de otro estudiante** | Escribe `99999999`, pulsa **Token válido**, y **vuelve a escribir** `20262678029` | Deja el token generado | **HTTP 403**. «ACCESO DENEGADO: el token no autoriza a este estudiante.» | Pasos 1 y 2 aprobados; paso 3 rechazado |
+| 7 | **Estudiante inexistente** | `12345` | Pulsa **Token válido** (con `12345` ya escrito) | **HTTP 404**. «Estudiante no encontrado en la red federada.» | Pasos 1, 2 y 3 aprobados; paso 4 rechazado |
+| 8 | **Código no válido** | `abc def` o `<script>` o vacío | Cualquiera | No se envía nada. Mensaje rojo bajo el campo: «Escribe un código válido: solo letras, números, guion o guion bajo (máximo 32).» | Sin cambios |
+| 9 | **Servidor apagado** | `20262678029` | Cualquiera | Insignia «Sin conexión» y «No se pudo conectar con el servidor. Verifica que la API esté en ejecución.» Para probarlo: detén la demo con `Ctrl+C` y pulsa Consultar. | Sin cambios |
+| 10 | **Ver JSON y curl** | `20262678029` | Haz el caso 1 | Abre *Ver respuesta JSON* para ver la respuesta cruda. Pulsa *Copiar como curl* y pégalo en una terminal: da el mismo resultado. | — |
+
+Nota del caso 6 y 7: **Token válido** firma el token con el código que esté escrito al pulsar el botón. Por eso en el caso 6 se cambia el código después de generar el token.
+
+#### Casos en AWS (sin botones de simulación)
+
+En AWS los botones no aparecen. Genera los tokens en tu PC con el **mismo `JWT_SECRET`** que tiene la Lambda y pégalos en el campo:
+
+| Caso | Comando para generar el token | Qué pegar |
+|---|---|---|
+| 1, 2, 3 | `python scripts/generate_token.py` | Token válido → caso 1. Token expirado → caso 3. Campo vacío → caso 2. |
+| 6 (otro estudiante) | `python scripts/generate_token.py 99999999` | El token **válido** impreso; consulta el código `20262678029`. |
+| 7 (inexistente) | `python scripts/generate_token.py 12345` | El token **válido** impreso; consulta el código `12345`. |
+| 4 y 5 | No necesita comando | Altera una letra de un token válido, o escribe `esto-no-es-un-jwt`. |
+
+Si ves 403 con un token que debería ser válido, casi siempre es porque el secreto de tu `.env` no coincide con el desplegado (ver sección 7).
+
+#### Casos en Swagger (`/docs`) y Thunder Client
+
+- **Swagger** (`http://127.0.0.1:8000/docs`): abre `GET /api/v1/federated/academic-history/{student_id}` → *Try it out* → en `student_id` escribe `20262678029` y en `X-Student-Consent-Token` pega el token (déjalo vacío para el caso 2) → *Execute*. Mira el *Code* de respuesta y el *Response body*.
+- **Thunder Client**: entorno **Local** (o **AWS**), variables `validToken` y `expiredToken` con los tokens del script. Request `1. Sin token` (403), `2. Token valido` (200), `3. Token expirado` (403). Para los casos 4 a 7 duplica la request 2 y cambia el token o el código en la URL.
+
 ### 2.4 Probar en local con Thunder Client
 
 1. Abre la extensión **Thunder Client** (icono del rayo).

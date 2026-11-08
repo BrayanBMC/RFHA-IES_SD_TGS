@@ -90,6 +90,7 @@ Guía completa (local, AWS, interfaz y explicación del código): `docs/DEMO.md`
 ## Documentación
 
 - `docs/DEMO.md`: demo paso a paso (local y AWS) y explicación del código.
+- `docs/BITACORA.md`: bitácora de desarrollo (qué se hizo, commits, incidencias).
 - `docs/PROMPT-AGENTE-RFHA-IES.md`: prompt de trabajo del agente (v2, incluye frontend).
 - `docs/ADENDA_FRONTEND.md`: requerimientos de la interfaz web (RF-11 a RF-19, RNF-F1 a F9, HU-10).
 - `docs/DECISIONES.md`: decisiones tomadas.

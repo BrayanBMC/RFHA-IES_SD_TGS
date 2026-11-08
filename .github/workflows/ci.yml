@@ -17,3 +17,13 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - run: pytest -v
+
+  demo-runner:
+    # Comprueba el lanzador de un comando: crea venv, instala, levanta la API y verifica los 3 escenarios.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python scripts/run_demo.py --once --port 8000

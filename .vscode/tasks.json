@@ -1,0 +1,14 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Demo: levantar en local",
+      "type": "shell",
+      "command": "bash run-demo.sh",
+      "windows": { "command": "powershell -ExecutionPolicy Bypass -File .\\run-demo.ps1" },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    }
+  ]
+}

@@ -20,6 +20,13 @@ Copia esta plantilla al inicio de la sección «Entradas»:
 
 ## Entradas
 
+### 2026-11-08 · Reescritura de la guía de la demo (DEMO.md) más clara y centrada en la pantalla
+- **Qué se hizo:** `docs/DEMO.md` se reescribió completo: resumen de 2 minutos; glosario que explica cada concepto con su ejemplo en la demo (IES, homologación, créditos, token, JWT, firma, middleware, API REST, JSON, códigos 200/403/404, serverless, Lambda, API Gateway, cold start, localhost, etc.); mapa de la pantalla con cada campo y botón; **15 escenas de prueba hechas solo con clics** (qué pulsar, qué se ve, qué decir) más una tabla resumen de rechazos; guion de 12 a 14 minutos que enlaza las escenas; tabla de fallos en vivo con salida por clics; y los comandos relegados a un apéndice de respaldo.
+- **Decisión de despliegue en AWS:** para poder hacer las pruebas con clics también en AWS, la guía recomienda desplegar con `DemoMode=1` para la exposición y borrar el paquete (`sam delete`) al terminar, explicando el riesgo (con `1`, quien conozca la URL puede generar tokens). Con `DemoMode=0` quedan los botones apagados.
+- **Por qué:** petición del usuario: más fácil de comprender, todos los conceptos explicados y pruebas hechas en el frontend delante del público.
+- **Archivos:** `docs/DEMO.md`, `docs/AWS_PASO_A_PASO.md`, `docs/DEMO_MARTES.md`, `docs/BITACORA.md`.
+- **Pendiente / riesgos:** las cifras de homologación y los mensajes que se citan en las escenas salen del código y de cálculos a mano; confirmar en pantalla. La guía de AWS sigue sin probarse contra una cuenta real.
+
 ### 2026-11-08 · Datos de prueba ampliados, guion de 12 a 14 minutos y HU-01 completa
 - **Qué se hizo:**
   - **Datos de la demo:** de 1 a 6 estudiantes ficticios en 4 universidades (`demo/students.py`), con estados académicos (activo, graduado, retirado), créditos, asignaturas por semestre, materias reprobadas y repetidas, y asignaturas en curso.

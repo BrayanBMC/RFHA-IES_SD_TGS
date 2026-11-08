@@ -1,285 +1,237 @@
 # Demo del Middleware RFHA-IES
 
-Guía completa de la demo para la exposición: qué es, cómo levantarla **en local** y **en AWS**, cómo probarla, cómo explicar el código y qué hacer si algo falla.
+Guía para preparar, probar y exponer la demo. Está escrita para que cualquier persona del equipo la entienda, aunque no haya programado la aplicación. **Las pruebas se hacen en la pantalla, con clics, delante del público.** Los comandos solo se usan para preparar y, si algo falla, como respaldo (apéndice al final).
 
-Contenido
-1. [Qué demuestra](#1-qué-demuestra)
-2. [Levantar y probar en local](#2-levantar-y-probar-en-local)
-3. [Levantar y probar en AWS](#3-levantar-y-probar-en-aws)
-4. [Cómo probar los tres escenarios](#4-cómo-probar-los-tres-escenarios)
-5. [Explicación del código](#5-explicación-del-código)
-6. [Guion de la exposición](#6-guion-de-la-exposición)
-7. [Si algo falla](#7-si-algo-falla)
+## Contenido
+
+0. [La demo en 2 minutos](#0-la-demo-en-2-minutos)
+1. [Conceptos explicados](#1-conceptos-explicados)
+2. [Qué demuestra la demo](#2-qué-demuestra-la-demo)
+3. [Plan A: levantar la demo en tu computador](#3-plan-a-levantar-la-demo-en-tu-computador)
+4. [Plan B: levantar la demo en AWS](#4-plan-b-levantar-la-demo-en-aws)
+5. [Conocer la pantalla](#5-conocer-la-pantalla)
+6. [Casos de prueba en la pantalla](#6-casos-de-prueba-en-la-pantalla)
+7. [Guion de la exposición (12 a 14 minutos)](#7-guion-de-la-exposición-12-a-14-minutos)
 8. [Por qué cumple con la exposición y con la propuesta](#8-por-qué-cumple-con-la-exposición-y-con-la-propuesta)
+9. [Cómo funciona el código](#9-cómo-funciona-el-código)
+10. [Preguntas probables de los docentes](#10-preguntas-probables-de-los-docentes)
+11. [Si algo falla en vivo](#11-si-algo-falla-en-vivo)
+12. [Apéndice: respaldo con comandos](#12-apéndice-respaldo-con-comandos)
 
 ---
 
-## 1. Qué demuestra
+## 0. La demo en 2 minutos
 
-Un **middleware** que protege el historial académico de un estudiante. Un funcionario de otra universidad pide el historial a una única URL. El middleware revisa el **token de consentimiento** del estudiante y solo entonces entrega los datos.
+**Qué es.** Una página web donde un funcionario de una universidad pide el historial académico de un estudiante. El sistema **solo lo entrega si el estudiante dio permiso**. Ese permiso es un código especial llamado *token*.
+
+**Qué se ve.** Una pantalla con tres zonas: arriba a la izquierda llenas la solicitud, arriba a la derecha ves cuatro controles de seguridad que se ponen en verde o en rojo, y abajo aparece la respuesta con el expediente.
+
+**Cómo se prueba.** Eliges un estudiante de una lista, pulsas el botón **Token válido** (simula que el estudiante dio permiso) y luego **Consultar expediente**. Para mostrar los rechazos pulsas **Sin token** o **Token expirado**. Todo con clics.
+
+**Dos formas de correrla** (con el mismo código):
+- **Plan A, en tu computador.** No necesita internet. Se levanta con un solo comando.
+- **Plan B, en AWS.** Queda en internet con una dirección pública. La despliega el compañero que maneja AWS.
+
+**Dos reglas para no perderse:**
+1. Todos los datos son **ficticios**. No hay personas reales.
+2. Si algo falla en vivo, pasa al otro plan (sección 11).
+
+---
+
+## 1. Conceptos explicados
+
+Cada concepto que aparece en este documento está aquí, con un ejemplo de la demo.
+
+### Sobre el problema
+
+| Concepto | Qué es, en simple | En la demo |
+|---|---|---|
+| **IES** | Institución de Educación Superior: una universidad. | Distrital, Nacional, Javeriana y Andes. |
+| **Historial académico** | El registro de un estudiante: materias, notas, créditos y promedio. | El expediente que aparece al consultar. |
+| **Homologación** | Cuando una universidad reconoce las materias que el estudiante ya aprobó en otra, para no repetirlas. Hoy tarda semanas por trámites en papel. | El panel «Apoyo a la homologación». |
+| **Créditos** | Medida del peso de una materia y del avance de la carrera. Una carrera suma un total de créditos. | «140 de 160 créditos». |
+| **Nota y promedio acumulado** | La nota va de 0,0 a 5,0 y **se aprueba con 3,0 o más**. El promedio acumulado resume todas las notas del estudiante. | «Promedio 4,52». |
+| **Nota mínima aceptada** | La nota por debajo de la cual la universidad que recibe no homologa una materia. Cada universidad fija la suya. | El campo del panel de homologación. |
+| **Red federada** | Varias universidades conectadas **sin juntar sus datos en un solo lugar**. Cada una guarda los suyos; la red solo permite consultarlos con permiso. | Los 4 «nodos» de la demo. |
+| **Nodo** | Cada universidad dentro de la red, con su propia base de datos. | «Universidad de origen» en el expediente. |
+
+### Sobre la seguridad
+
+| Concepto | Qué es, en simple | En la demo |
+|---|---|---|
+| **Consentimiento** | El permiso explícito del estudiante para que otra universidad vea su historial. | El token. |
+| **Token** | Un texto largo y raro que funciona como una **llave temporal**. Quien lo presenta demuestra que el estudiante lo autorizó. | El campo «Token de consentimiento». |
+| **JWT** | El formato del token. Lleva dentro quién es el estudiante y cuándo vence, y va firmado. Se lee «yot». | Los tokens que genera la demo. |
+| **Firma y secreto** | El token se firma con una clave que solo conoce el sistema, el **secreto**. Es como un sello: si alguien cambia una sola letra del token, el sello deja de coincidir y se rechaza. | La escena «Token alterado». |
+| **Vigencia / expiración** | El token **caduca**. Pasada la fecha, ya no sirve. Los de la demo duran 24 horas. | El botón «Token expirado». |
+| **Titular del consentimiento** | El token pertenece a **un** estudiante. Con el permiso de Laura no se puede ver a Valentina. | La escena «Token de otra persona». |
+| **Variable de entorno** | Un valor secreto que se entrega al programa desde fuera, sin escribirlo en el código. Así el secreto no queda en GitHub. | `JWT_SECRET`. |
+
+### Sobre la comunicación entre programas
+
+| Concepto | Qué es, en simple | En la demo |
+|---|---|---|
+| **Middleware** | Un programa **intermediario** entre el que pide (la universidad que consulta) y quien guarda los datos. Revisa los permisos, busca el dato y lo entrega siempre en el mismo formato. | Todo lo que hay detrás de la pantalla. |
+| **Web service** (servicio web) | Una forma de que dos programas se hablen por internet usando reglas estándar. | La dirección que consulta la pantalla. |
+| **API REST** | Un tipo de servicio web: se pide algo a una dirección (URL) y se recibe una respuesta. | `/api/v1/federated/academic-history/{código}` |
+| **JSON** | El formato de texto en que viaja la respuesta: pares «nombre: valor». Lo entienden todos los lenguajes. | El recuadro «Ver respuesta JSON». |
+| **HTTP y códigos de estado** | Es el idioma de la web. Cada respuesta trae un número: **200** = todo bien; **403** = «te reconozco, pero no tienes permiso»; **404** = «eso no existe». | La insignia «HTTP 200», «HTTP 403», «HTTP 404». |
+| **Transparencia de acceso** | Todas las universidades se consultan **de la misma manera**, sin importar cómo guarde cada una sus datos. | El mismo formulario para las 4 universidades. |
+| **Transparencia de ubicación** | Quien consulta **no sabe dónde** están los datos (qué servidor, qué ciudad). Solo conoce una dirección. | Una única página para todo. |
+
+### Sobre AWS y la ejecución
+
+| Concepto | Qué es, en simple | En la demo |
+|---|---|---|
+| **AWS** | La nube de Amazon: computadores que se alquilan por internet. | Plan B. |
+| **Serverless** | «Sin servidores que administrar»: Amazon enciende el programa **solo cuando llega una petición** y lo apaga después. | Todo el Plan B. |
+| **Lambda** | El servicio de AWS que ejecuta nuestro programa bajo demanda. | La función `rfha-demo`. |
+| **API Gateway** | La «puerta de entrada» pública de AWS. Recibe las peticiones de internet y las pasa a la Lambda. | La URL `https://....execute-api...amazonaws.com`. |
+| **DynamoDB** | La base de datos de AWS. | En la demo **no se usa**: los datos están en un archivo del programa. En el proyecto final sí. |
+| **Arranque en frío (cold start)** | Si la Lambda lleva rato sin usarse, la primera petición tarda 1 a 3 segundos en despertar. Es normal. | Haz una consulta de prueba antes de exponer. |
+| **Free Tier / plan Free** | Capa gratuita de AWS: dentro de ciertos límites no se cobra. | Costo de la demo: USD 0. |
+| **localhost y puerto** | `127.0.0.1` (o `localhost`) significa «este mismo computador». El puerto (`:8000`) es la puerta por la que responde el programa. | `http://127.0.0.1:8000` |
+| **Terminal** | Ventana donde se escriben comandos. Se usa solo para preparar. | PowerShell en VS Code. |
+
+---
+
+## 2. Qué demuestra la demo
 
 ```
-Cliente (Thunder Client / IES consultante)
-        │  GET /api/v1/federated/academic-history/20262678029
-        │  Header: X-Student-Consent-Token: <JWT>
-        ▼
-┌──────────────────────────────────────────────┐
-│ Middleware (FastAPI)                         │
-│  1. ¿Hay token?            no → 403          │
-│  2. ¿Firma válida y vigente? no → 403        │
-│  3. ¿El token es de ese estudiante? no → 403 │
-│  4. ¿Existe el estudiante? no → 404          │
-│  5. Entrega el historial en JSON → 200       │
-└──────────────────────────────────────────────┘
-        ▼
- Datos simulados en memoria (representan DynamoDB)
+ Funcionario (navegador)
+        |  Pide el historial del estudiante 20262678029
+        |  y presenta el token del estudiante
+        v
+ +------------------------------------------------+
+ |  MIDDLEWARE  (API Gateway + Lambda en AWS)     |
+ |                                                |
+ |  1. ¿Llegó el token?                no -> 403  |
+ |  2. ¿Firma buena y no vencido?      no -> 403  |
+ |  3. ¿Es el token de ESTE estudiante? no -> 403 |
+ |  4. ¿Existe el estudiante?          no -> 404  |
+ |  5. Entrega el historial en JSON       -> 200  |
+ +------------------------------------------------+
+        |
+        v
+ Datos de las universidades (en la demo: simulados en memoria)
 ```
 
-| Escenario | Resultado esperado |
+Estos cuatro controles son exactamente los cuatro pasos que se iluminan en la pantalla.
+
+| Escenario | Resultado |
 |---|---|
-| Sin token | **403** |
-| Token expirado (o inválido) | **403** |
-| Token válido | **200** con el historial JSON |
-| Estudiante inexistente con token válido para él | **404** |
-
-Misma aplicación, dos formas de correrla:
-- **Plan A, local:** en tu PC con `uvicorn`. No necesita internet ni AWS.
-- **Plan B, AWS:** API Gateway + Lambda. Es el mismo código; solo cambia la URL.
-
-Estudiante de la demo: `20262678029` (Brayan Acosta Parrado). Es el único con datos.
+| Sin token | **403**: acceso denegado |
+| Token vencido, alterado o falso | **403**: acceso denegado |
+| Token de otro estudiante | **403**: acceso denegado |
+| Estudiante que no existe | **404**: no encontrado |
+| Token válido del estudiante | **200**: se entrega el expediente |
 
 ---
 
-## 2. Levantar y probar en local
+## 3. Plan A: levantar la demo en tu computador
 
-### 2.1 Forma rápida: un solo comando
+**Necesitas:** Python 3.11 o 3.12 instalado y el proyecto descargado. No necesitas internet, AWS ni cuenta alguna.
 
-Requisito: tener Python 3.11 o 3.12 instalado. El lanzador crea el entorno virtual, instala las dependencias, crea el `.env` con un secreto aleatorio, levanta la API, verifica los 3 escenarios e imprime los tokens.
+### 3.1 Un solo comando
 
-**Windows (PowerShell), en la raíz del proyecto:**
+Abre una terminal de VS Code en la carpeta del proyecto (`Ctrl+ñ`) y escribe:
+
 ```powershell
-.\run-demo.ps1
-```
-Si PowerShell bloquea el script: `powershell -ExecutionPolicy Bypass -File .\run-demo.ps1`
-
-**macOS / Linux:**
-```bash
-bash run-demo.sh
+.\run-demo.cmd
 ```
 
-**Desde VS Code:** `Ctrl+Shift+P` → *Tasks: Run Task* → **Demo: levantar en local**.
+En macOS o Linux: `bash run-demo.sh`. Si usas VS Code, también sirve `Ctrl+Shift+P`, escribir *Tasks: Run Task* y elegir **Demo: levantar en local**.
 
-**Cualquier sistema (con Python en el PATH):**
-```bash
-python scripts/run_demo.py
-```
-Opciones: `--port 8010` (otro puerto), `--no-check` (omite la verificación inicial) y `--once` (levanta, verifica y termina; lo usa el CI de GitHub).
+**Qué hace por ti:** crea un espacio de trabajo aislado para Python, instala lo necesario, crea el secreto, enciende la demo, prueba por su cuenta los tres escenarios básicos y te dice cuando está lista.
 
-Al terminar verás algo así:
+**La primera vez tarda 1 a 2 minutos**; las siguientes, segundos. Sabrás que salió bien cuando veas:
+
 ```
-[OK] Sin token: HTTP 403 (esperado 403)
-[OK] Token expirado: HTTP 403 (esperado 403)
-[OK] Token válido: HTTP 200 (esperado 200)
 RESULTADO: TODO BIEN
-
-TOKEN VÁLIDO (24 h):
-eyJhbGciOi...
-TOKEN EXPIRADO:
-eyJhbGciOi...
-
 DEMO LISTA
-  API:            http://127.0.0.1:8000
-  Documentación:  http://127.0.0.1:8000/docs
-  Detener:        Ctrl+C
+  Interfaz web:   http://127.0.0.1:8000   <- abre esta en el navegador
 ```
-La primera vez tarda 1 a 2 minutos (instala dependencias). Las siguientes arrancan en segundos. **Deja esa terminal abierta mientras expones.**
 
-### 2.2 Forma manual, paso a paso
+### 3.2 Abrir la pantalla
 
-Úsala si el lanzador falla o quieres explicar cada paso.
+Abre el navegador en **http://127.0.0.1:8000**. Arriba a la derecha debe decir **Entorno: Local**.
 
-1. Abre una terminal en la raíz del proyecto.
-2. Crea y activa el entorno virtual:
-   - Windows: `py -3.12 -m venv .venv` y luego `.\.venv\Scripts\Activate.ps1`
-   - macOS/Linux: `python3.12 -m venv .venv` y luego `source .venv/bin/activate`
-3. Instala dependencias: `pip install -r demo/requirements-local.txt` (incluye `uvicorn`, que la Lambda no necesita)
-4. Crea el secreto. Crea un archivo `.env` en la raíz con una línea:
-   ```
-   JWT_SECRET=pon-aqui-un-texto-aleatorio-de-mas-de-32-caracteres
-   ```
-   (o copia `.env.example` a `.env`). Si no creas `.env`, la demo usa un secreto de desarrollo inseguro; sirve en local, nunca en AWS.
-5. Genera los tokens: `python scripts/generate_token.py`. Copia el **válido** y el **expirado**.
-6. Levanta la API: `uvicorn demo.main:app --port 8000`
-7. En otra terminal, verifica: `python scripts/check_demo.py http://127.0.0.1:8000` → debe decir `TODO BIEN`.
+> **No cierres la terminal** mientras expones: es la que mantiene la demo encendida. Para apagarla, `Ctrl+C`.
 
-### 2.3 Interfaz web (la forma recomendada de exponer)
+### 3.3 Si no funciona
 
-Con la demo en marcha, abre **http://127.0.0.1:8000** en el navegador.
-
-1. En **Simular al estudiante** pulsa **Token válido**. El token aparece en el campo.
-2. Pulsa **Consultar expediente**. La tarjeta *Validación del middleware* muestra los 4 pasos en verde y abajo aparece el expediente.
-3. Pulsa **Sin token** y consulta de nuevo: se rechaza en el paso 1 con `HTTP 403`.
-4. Pulsa **Token expirado** y consulta: se rechaza en el paso 2 con `HTTP 403`.
-5. *Ver respuesta JSON* muestra la respuesta cruda. *Copiar como curl* copia el comando equivalente.
-
-Los botones de **Simular al estudiante** solo existen en modo demostración, que el lanzador activa solo (`DEMO_MODE=1`). Representan el paso donde el estudiante da su consentimiento; en el proyecto final lo hará el propio estudiante (HU-04).
-
-Qué incluye la interfaz: HTML semántico y accesible (etiquetas, foco visible, lector de pantalla, contraste AA), diseño adaptable a celular, modo claro y oscuro automático según el sistema, política de seguridad de contenido (CSP) estricta, sin librerías externas ni fuentes de terceros, y todo el contenido dinámico insertado como texto (sin `innerHTML`). Archivos: `demo/static/{index.html,styles.css,app.js,favicon.svg}`.
-
-En AWS la misma página está en la URL raíz. Allí los botones de simulación vienen **apagados** (por seguridad): pega un token generado con `python scripts/generate_token.py`. Para ensayar con los botones, despliega con `DemoMode=1` agregándolo a `--parameter-overrides` (`"JwtSecret=<SECRETO>" "DemoMode=1"`) y vuelve a desplegar con `0` después, porque con `1` cualquiera que tenga la URL puede generar tokens.
-
-#### Datos de prueba (6 estudiantes ficticios en 4 universidades)
-
-Todos los datos son inventados. Cada código existe en la demo; cualquier otro código da 404.
-
-| Código | Estudiante | Universidad (nodo) | Programa | Estado | Promedio | Créditos | Para qué sirve en la exposición |
-|---|---|---|---|---|---|---|---|
-| `20262678029` | Brayan Acosta Parrado | Universidad Distrital | Ingeniería en Telemática | Activo | 4,52 | 140 de 160 | Caso principal: éxito, rechazos y AWS. 8 asignaturas, una en curso. |
-| `20251234501` | Laura Camila Ríos Herrera | Universidad Nacional | Ingeniería de Sistemas y Computación | Activo | 4,18 | 118 de 160 | **Homologación**: reprobó Cálculo Integral (2,6) y la repitió (3,4). 11 asignaturas. |
-| `20241122002` | Andrés Felipe Moreno Castro | Pontificia Universidad Javeriana | Ingeniería Electrónica | **Graduado** | 4,05 | 168 de 168 | Egresado: muestra título (Ingeniero Electrónico) y fecha de grado (12 dic 2025). |
-| `20231098763` | Valentina Torres Quintero | Universidad de los Andes | Economía | Activo | 4,62 | 90 de 140 | Promedio alto: candidata a beca o traslado. Dato de otro nodo. |
-| `20221050914` | Juan Sebastián Pardo Gil | Universidad Distrital | Ingeniería Industrial | **Retirado** | 3,21 | 64 de 160 | Retirado: promedio bajo y materias repetidas (Física I, Probabilidad). |
-| `20252345678` | María Fernanda Ospina Duarte | Universidad Nacional | Estadística | Activo | 3,88 | 52 de 150 | Primeros semestres con una asignatura en curso. |
-
-Para probar un código inexistente usa, por ejemplo, `12345` (resultado 404).
-
-En local, la lista desplegable **Estudiante de ejemplo** completa el código por ti. En AWS (modo demostración apagado) no aparece: escribe el código de la tabla.
-
-#### Qué escribir en cada campo
-
-| Campo | Qué poner | Para qué sirve |
-|---|---|---|
-| **Estudiante de ejemplo** (solo en modo demostración) | Elegir uno de la lista. | Completa el código del estudiante para no escribirlo. |
-| **Código del estudiante** | `20262678029` (único estudiante con datos). Solo letras, números, guion y guion bajo, máximo 32 caracteres. | Identifica de quién se pide el historial. Va en la URL. |
-| **Token de consentimiento** | Un token JWT. Con los botones de **Simular al estudiante** se llena solo. También puedes pegar uno de `python scripts/generate_token.py`, o dejarlo vacío. | Es la autorización firmada del estudiante. Va en el encabezado `X-Student-Consent-Token`. |
-| Botón **Token válido** | Sin escribir nada más. | Genera un token vigente 24 h **para el código que tengas escrito en ese momento**. |
-| Botón **Token expirado** | Sin escribir nada más. | Genera un token ya vencido, para el código escrito. |
-| Botón **Sin token** | Sin escribir nada más. | Borra el campo del token. |
-| **Consultar expediente** | Pulsarlo al final. | Envía la solicitud y muestra el resultado. |
-
-#### Casos de prueba (interfaz web)
-
-Antes de cada caso, recarga la página o revisa los campos. Pulsa **Consultar expediente** al final de cada uno.
-
-| # | Caso | Código del estudiante | Token (qué hacer) | Resultado esperado | Pasos de validación |
-|---|---|---|---|---|---|
-| 1 | **Éxito** | `20262678029` | Pulsa **Token válido** | **HTTP 200**. «Acceso concedido». Aparece Brayan Acosta Parrado (Activo), promedio 4,52, 140 de 160 créditos y 8 asignaturas, la última «En curso». | Los 4 en verde |
-| 2 | **Sin token** | `20262678029` | Pulsa **Sin token** (campo vacío) | **HTTP 403**. «ACCESO DENEGADO: falta el token de consentimiento del estudiante.» | Paso 1 rechazado; 2, 3 y 4 omitidos |
-| 3 | **Token expirado** | `20262678029` | Pulsa **Token expirado** | **HTTP 403**. «El token de consentimiento ha expirado.» | Paso 1 aprobado; paso 2 rechazado; 3 y 4 omitidos |
-| 4 | **Token con firma alterada** | `20262678029` | Pulsa **Token válido** y luego cambia o borra una letra del final del token | **HTTP 403**. «ACCESO DENEGADO: token de consentimiento inválido.» | Paso 2 rechazado |
-| 5 | **Texto que no es un token** | `20262678029` | Escribe `esto-no-es-un-jwt` | **HTTP 403**. «…token de consentimiento inválido.» | Paso 2 rechazado |
-| 6 | **Token de otro estudiante** | Escribe `99999999`, pulsa **Token válido**, y **vuelve a escribir** `20262678029` | Deja el token generado | **HTTP 403**. «ACCESO DENEGADO: el token no autoriza a este estudiante.» | Pasos 1 y 2 aprobados; paso 3 rechazado |
-| 7 | **Estudiante inexistente** | `12345` | Pulsa **Token válido** (con `12345` ya escrito) | **HTTP 404**. «Estudiante no encontrado en la red federada.» | Pasos 1, 2 y 3 aprobados; paso 4 rechazado |
-| 8 | **Código no válido** | `abc def` o `<script>` o vacío | Cualquiera | No se envía nada. Mensaje rojo bajo el campo: «Escribe un código válido: solo letras, números, guion o guion bajo (máximo 32).» | Sin cambios |
-| 9 | **Servidor apagado** | `20262678029` | Cualquiera | Insignia «Sin conexión» y «No se pudo conectar con el servidor. Verifica que la API esté en ejecución.» Para probarlo: detén la demo con `Ctrl+C` y pulsa Consultar. | Sin cambios |
-| 10 | **Ver JSON y curl** | `20262678029` | Haz el caso 1 | Abre *Ver respuesta JSON* para ver la respuesta cruda. Pulsa *Copiar como curl* y pégalo en una terminal: da el mismo resultado. | — |
-
-Nota del caso 6 y 7: **Token válido** firma el token con el código que esté escrito al pulsar el botón. Por eso en el caso 6 se cambia el código después de generar el token.
-
-#### Casos con los demás estudiantes
-
-Para cada uno: elígelo en **Estudiante de ejemplo** (o escribe su código), pulsa **Token válido** y **Consultar expediente**.
-
-| # | Estudiante | Qué observar | Resultado esperado |
-|---|---|---|---|
-| 11 | **Laura Ríos** `20251234501` | Dos filas de «Cálculo Integral» (2024-2 reprobada con 2,6 y 2025-1 aprobada con 3,4). En *Apoyo a la homologación* deja la nota mínima en 3,5 y luego pásala a 4,0. | HTTP 200. Con 3,5: 8 de 9 asignaturas aprobadas son candidatas (25 créditos); con 4,0: 7 de 9 (21 créditos). Cálculo Integral (3,4) no es candidata con una nota mínima de 3,5 o más. La fila reprobada sale en rojo y «Reprobada»; la de 2026-2 sale «En curso». |
-| 12 | **Andrés Moreno** `20241122002` | Aparecen *Título* y *Fecha de grado*. Estado «Graduado», créditos 168 de 168 (100 %). | HTTP 200. 6 asignaturas, todas aprobadas. |
-| 13 | **Valentina Torres** `20231098763` | Promedio 4,62 y notas altas; datos de la Universidad de los Andes. | HTTP 200. Con nota mínima 4,5: 7 de 8 aprobadas son candidatas (22 créditos); solo Econometría I (4,4) queda fuera. |
-| 14 | **Juan Pardo** `20221050914` | Estado «Retirado». Física I y Probabilidad reprobadas; Física I repetida y aprobada (3,4). | HTTP 200. Con nota mínima 3,5: solo 2 de 6 asignaturas aprobadas son candidatas (Química General 3,5 y Dibujo Técnico 3,8): 5 créditos. |
-| 15 | **María Ospina** `20252345678` | Primeros semestres, 52 de 150 créditos (35 %) y una asignatura en curso. | HTTP 200. Con nota mínima 3,5: 8 de 8 aprobadas son candidatas (26 créditos). Con 4,0: 4 de 8 (Introducción 4,2; Lógica 4,0; Programación en R 4,4; Inferencia 4,1) y 12 créditos. |
-| 16 | **Otro nodo, mismo servicio** | Consulta a Brayan (Distrital), Laura (Nacional) y Valentina (Andes) seguidas. | Mismo formato y mismos 4 pasos, sin cambiar nada: transparencia de ubicación. |
-
-Cálculos de referencia de los casos 11 a 15 (nota mínima = «3,5», salvo que se indique): se cuentan solo asignaturas **aprobadas** con nota mayor o igual a la mínima.
-
-#### Casos en AWS (sin botones de simulación)
-
-En AWS los botones no aparecen. Genera los tokens en tu PC con el **mismo `JWT_SECRET`** que tiene la Lambda y pégalos en el campo:
-
-| Caso | Comando para generar el token | Qué pegar |
-|---|---|---|
-| 1, 2, 3 | `python scripts/generate_token.py` | Token válido → caso 1. Token expirado → caso 3. Campo vacío → caso 2. |
-| 6 (otro estudiante) | `python scripts/generate_token.py 99999999` | El token **válido** impreso; consulta el código `20262678029`. |
-| 7 (inexistente) | `python scripts/generate_token.py 12345` | El token **válido** impreso; consulta el código `12345`. |
-| 4 y 5 | No necesita comando | Altera una letra de un token válido, o escribe `esto-no-es-un-jwt`. |
-
-Si ves 403 con un token que debería ser válido, casi siempre es porque el secreto de tu `.env` no coincide con el desplegado (ver sección 7).
-
-#### Casos en Swagger (`/docs`) y Thunder Client
-
-- **Swagger** (`http://127.0.0.1:8000/docs`): abre `GET /api/v1/federated/academic-history/{student_id}` → *Try it out* → en `student_id` escribe `20262678029` y en `X-Student-Consent-Token` pega el token (déjalo vacío para el caso 2) → *Execute*. Mira el *Code* de respuesta y el *Response body*.
-- **Thunder Client**: entorno **Local** (o **AWS**), variables `validToken` y `expiredToken` con los tokens del script. Request `1. Sin token` (403), `2. Token valido` (200), `3. Token expirado` (403). Para los casos 4 a 7 duplica la request 2 y cambia el token o el código en la URL.
-
-### 2.4 Probar en local con Thunder Client
-
-1. Abre la extensión **Thunder Client** (icono del rayo).
-2. Pestaña *Collections* → **RFHA-IES** → carpeta **Demo** (tres requests).
-3. Pestaña *Env* → selecciona **Local**. Pega los tokens en `validToken` y `expiredToken`.
-4. Ejecuta en orden: `1. Sin token (403)`, `3. Token expirado (403)`, `2. Token valido (200)`.
-
-Si no aparece la colección, usa `curl` (sección 4).
-
-### 2.5 Documentación Swagger
-
-Abre `http://127.0.0.1:8000/docs`. Es la documentación de la API generada automáticamente. Pulsa *Try it out* en el endpoint, escribe el `student_id` `20262678029` y el token en el campo del header.
+- «La ejecución de scripts está deshabilitada»: usa `.\run-demo.cmd` (ya evita ese bloqueo).
+- «El puerto 8000 está ocupado»: `.\run-demo.cmd -Port 8010` y abre `http://127.0.0.1:8010`.
+- Falla al instalar: instala Python 3.12 (con Python 3.14 o más nuevo puede fallar).
 
 ---
 
-## 3. Levantar y probar en AWS
+## 4. Plan B: levantar la demo en AWS
 
-Esta parte la hace **quien administra la cuenta AWS** (no necesita entender el código). Esta sección es completa: no hace falta abrir ningún otro documento.
+Esta parte la hace **el compañero que maneja AWS**. No necesita entender el código ni abrir otro documento: todo está aquí.
 
-### 3.0 Resumen
+### 4.0 Resumen
 
 | | |
 |---|---|
-| **Qué se despliega** | Un stack de CloudFormation llamado **`rfha-demo`** con: 1 función Lambda (`rfha-demo`, Python 3.11, 256 MB), 1 API Gateway tipo HTTP API y 1 grupo de logs de CloudWatch con retención de 7 días. **No usa DynamoDB ni S3 propios** (SAM crea un bucket interno para subir el código). |
-| **Qué entrega** | Una URL pública `https://xxxxxxxx.execute-api.us-east-1.amazonaws.com`. Al abrirla en el navegador aparece la interfaz de la demo, y la API responde igual que en local. |
-| **Qué necesita de Brayan** | El **secreto JWT** (texto de 32 caracteres o más). Se pasa al desplegar. |
-| **Región** | `us-east-1` (Virginia del Norte). |
-| **Costo** | USD 0 dentro del Free Tier. Con el plan *Free* de cuentas nuevas no se cobra nada; con una cuenta antigua el consumo de esta demo es insignificante. El API tiene un límite de 20 peticiones por segundo para evitar abusos. |
-| **Tiempo** | 30 a 45 minutos la primera vez; menos de 5 minutos al repetir. |
-| **Quién hace qué** | **Compañero de AWS:** pasos 1 a 10. **Brayan:** entrega el secreto (paso 7) y prueba al final (paso 11). |
+| **Qué se crea** | Un paquete llamado **`rfha-demo`** con una función Lambda (el programa), una puerta de entrada (API Gateway) y un registro de actividad que se borra a los 7 días. **No usa base de datos.** |
+| **Qué se obtiene** | Una dirección pública `https://xxxxxxxx.execute-api.us-east-1.amazonaws.com`. Al abrirla aparece **la misma pantalla** de la demo. |
+| **Qué necesita de Brayan** | Un **secreto**: un texto de más de 32 caracteres (paso 7). |
+| **Costo** | USD 0 dentro del Free Tier. |
+| **Tiempo** | 30 a 45 minutos la primera vez. |
+| **Quién hace qué** | Compañero de AWS: pasos 1 a 10. Brayan: da el secreto (paso 7) y prueba al final (paso 11). |
 
-### 3.1 Qué necesita tener el compañero
-- Un computador con **Windows y PowerShell** (los comandos de abajo son para PowerShell), con internet.
-- Una **tarjeta** con pagos internacionales para crear la cuenta AWS (AWS la pide aunque no cobre).
+### 4.1 Una decisión importante: el modo demostración
+
+La pantalla tiene unos botones, **Token válido**, **Token expirado** y **Sin token**, que **simulan al estudiante** para poder hacer las pruebas con clics. Esos botones solo aparecen si la demo se despliega con **`DemoMode=1`**.
+
+| Valor | Qué pasa | Cuándo usarlo |
+|---|---|---|
+| `DemoMode=1` | Aparecen los botones y la lista de estudiantes. **Cualquiera que conozca la dirección podría generar tokens**, es decir, la protección queda desactivada para quien tenga la URL. | **Para la exposición**, que es temporal. La dirección es larga y aleatoria. **Después de exponer, se borra todo** (paso 13). |
+| `DemoMode=0` | No aparecen los botones; solo se puede probar pegando tokens hechos a mano. | Si la demo va a quedar publicada mucho tiempo. |
+
+**Recomendación para la exposición: `DemoMode=1` y borrar el paquete al terminar.** En el paso 9 se indica exactamente dónde se escribe.
+
+### 4.2 Qué necesita tener el compañero
+- Un computador con **Windows y PowerShell**, con internet.
+- Una **tarjeta** con pagos internacionales (AWS la pide para crear la cuenta, aunque no cobre).
 - Permiso para instalar programas.
 
-### 3.2 Paso a paso
+### 4.3 Paso a paso
 
 #### Paso 1. Crear o verificar la cuenta AWS
+*Una cuenta AWS es el «usuario principal» donde viven todos los servicios y se factura el consumo.*
 - **Dónde:** navegador, https://aws.amazon.com
 - **Pasos:**
-  1. Pulsa *Crear una cuenta de AWS* (o entra con la cuenta existente).
-  2. Si la cuenta es nueva, cuando pregunte por el plan elige **Free account plan** (plan gratuito). No elijas el *Paid plan*.
-  3. Entra a la consola, abre *Billing and Cost Management* → *Free Tier* y comprueba que aparece el plan y el saldo de créditos.
-  4. Arriba a la derecha, en el selector de región, elige **US East (N. Virginia) us-east-1**.
+  1. Pulsa *Crear una cuenta de AWS* (o entra con la cuenta que ya existe).
+  2. Si la cuenta es nueva y pregunta por el plan, elige **Free account plan** (plan gratuito). **No** elijas *Paid plan*.
+  3. En la consola, abre *Billing and Cost Management* y luego *Free Tier*. Debe aparecer el plan y el saldo de créditos.
+  4. Arriba a la derecha elige la región **US East (N. Virginia) us-east-1**. *(Una región es la ubicación geográfica de los servidores.)*
 - **Resultado esperado:** ves el panel de Free Tier y la región `us-east-1`.
-- **Si falla:** la tarjeta se rechaza → prueba otra con pagos internacionales habilitados. Cuenta antigua sin plan Free → sigue igual y no te saltes el paso 2.
+- **Si falla:** si rechazan la tarjeta, prueba otra con pagos internacionales habilitados.
 
-#### Paso 2. Alerta de presupuesto de USD 0.01
-- **Dónde:** consola web → *Billing and Cost Management* → *Budgets*.
-- **Pasos:**
-  1. *Create budget* → *Use a template (simplified)* → **Zero spend budget**.
-  2. Escribe los correos del compañero y de Brayan.
-  3. *Create budget*.
-- **Resultado esperado:** aparece «My Zero-Spend Budget» con estado activo; AWS avisará por correo ante cualquier gasto.
-- **Si falla:** si no aparece la plantilla, crea un *Customized (advanced)* → *Cost budget* mensual de USD 0.01.
+#### Paso 2. Alerta de gasto de USD 0.01
+*Es una red de seguridad: AWS te escribe un correo si se cobra aunque sea un centavo.*
+- **Dónde:** consola web, *Billing and Cost Management*, *Budgets*.
+- **Pasos:** *Create budget*, *Use a template (simplified)*, **Zero spend budget**; escribe los correos del compañero y de Brayan; *Create budget*.
+- **Resultado esperado:** aparece «My Zero-Spend Budget» activo.
+- **Si falla:** si no aparece la plantilla, crea un *Customized (advanced)*, *Cost budget* mensual de USD 0.01.
 
-#### Paso 3. Crear un usuario IAM para desplegar (no usar la cuenta raíz)
-- **Dónde:** consola web → *IAM* → *Users*.
+#### Paso 3. Crear un usuario para desplegar
+*IAM es el servicio de usuarios y permisos de AWS. Se crea un usuario solo para esta tarea en lugar de usar la cuenta principal, que es más peligrosa.*
+- **Dónde:** consola web, *IAM*, *Users*.
 - **Pasos:**
-  1. *Create user* → nombre `rfha-deployer` → *Next*.
-  2. *Attach policies directly* y marca estas **6 políticas**:
-     `AWSCloudFormationFullAccess`, `AWSLambda_FullAccess`, `AmazonAPIGatewayAdministrator`, `AmazonS3FullAccess`, `CloudWatchLogsFullAccess`, `IAMFullAccess`.
+  1. *Create user*, nombre `rfha-deployer`, *Next*.
+  2. *Attach policies directly* y marca estas **6 políticas** *(una política es un permiso)*: `AWSCloudFormationFullAccess`, `AWSLambda_FullAccess`, `AmazonAPIGatewayAdministrator`, `AmazonS3FullAccess`, `CloudWatchLogsFullAccess`, `IAMFullAccess`.
   3. *Create user*.
-  4. Abre el usuario → pestaña *Security credentials* → *Create access key* → caso de uso **Command Line Interface (CLI)** → confirma → *Create access key*.
-  5. Copia el **Access key ID** y el **Secret access key** a un gestor de contraseñas (el secreto solo se muestra una vez).
-- **Resultado esperado:** tienes el par de claves del usuario `rfha-deployer`.
-- **Si falla:** si luego el despliegue da `AccessDenied`, falta alguna de las 6 políticas. **Nunca** subas estas claves a git ni las pegues en chats.
+  4. Abre el usuario, pestaña *Security credentials*, *Create access key*, caso de uso **Command Line Interface (CLI)**, confirma y *Create access key*.
+  5. Copia el **Access key ID** y el **Secret access key** a un gestor de contraseñas. *(Son el usuario y la contraseña del programa; el secreto solo se muestra una vez.)*
+- **Resultado esperado:** tienes las dos claves del usuario `rfha-deployer`.
+- **Si falla:** si luego sale `AccessDenied`, falta alguna de las 6 políticas. **Nunca** subas estas claves a GitHub ni las pegues en chats.
 
 #### Paso 4. Instalar las herramientas
-- **Dónde:** PowerShell (abre una nueva).
+*AWS CLI y SAM son los programas con los que se habla con AWS desde la terminal. Python 3.11 es la versión que usa la Lambda. Git descarga el código.*
+- **Dónde:** PowerShell (ábrelo nuevo).
 - **Pasos:**
   ```powershell
   winget install Amazon.AWSCLI
@@ -287,15 +239,15 @@ Esta parte la hace **quien administra la cuenta AWS** (no necesita entender el c
   winget install Python.Python.3.11
   winget install Git.Git
   ```
-  Cierra PowerShell y ábrelo de nuevo. Comprueba:
+  Cierra PowerShell, ábrelo de nuevo y comprueba:
   ```powershell
   aws --version
   sam --version
   py -3.11 --version
   git --version
   ```
-- **Resultado esperado:** los cuatro comandos muestran una versión (`py -3.11` debe decir `Python 3.11.x`).
-- **Si falla:** `comando no encontrado` → no cerraste y reabriste PowerShell. Sin `winget` → descarga los instaladores desde las páginas oficiales de AWS CLI, AWS SAM CLI, python.org y git-scm.com. **Python 3.11 es necesario**: `sam build` debe encontrar la misma versión que usa la Lambda.
+- **Resultado esperado:** los cuatro muestran una versión (`py -3.11` dice `Python 3.11.x`).
+- **Si falla:** «comando no encontrado» significa que no cerraste y reabriste PowerShell. Sin `winget`, descarga los instaladores de las páginas oficiales de AWS CLI, AWS SAM CLI, python.org y git-scm.com. **Python 3.11 es obligatorio.**
 
 #### Paso 5. Conectar la terminal con la cuenta
 - **Dónde:** PowerShell.
@@ -303,12 +255,12 @@ Esta parte la hace **quien administra la cuenta AWS** (no necesita entender el c
   ```powershell
   aws configure
   ```
-  Responde: `AWS Access Key ID` → la del paso 3; `AWS Secret Access Key` → la del paso 3; `Default region name` → `us-east-1`; `Default output format` → `json`. Luego:
+  Responde: *AWS Access Key ID* y *AWS Secret Access Key* con las del paso 3; *Default region name* `us-east-1`; *Default output format* `json`. Luego:
   ```powershell
   aws sts get-caller-identity
   ```
-- **Resultado esperado:** devuelve un JSON con `Account` (12 dígitos) y `Arn` que termina en `user/rfha-deployer`.
-- **Si falla:** `InvalidClientTokenId` o `SignatureDoesNotMatch` → clave mal copiada; repite `aws configure`.
+- **Resultado esperado:** devuelve un texto con tu número de cuenta y un `Arn` que termina en `user/rfha-deployer`.
+- **Si falla:** `InvalidClientTokenId` o `SignatureDoesNotMatch` significa que copiaste mal una clave; repite `aws configure`.
 
 #### Paso 6. Descargar el código
 - **Dónde:** PowerShell.
@@ -317,388 +269,474 @@ Esta parte la hace **quien administra la cuenta AWS** (no necesita entender el c
   git clone https://github.com/BrayanBMC/RFHA-IES_SD_TGS.git
   cd RFHA-IES_SD_TGS
   ```
-  Si Brayan indica que lo último está en la rama `dev` (todavía no se hizo el merge a `main`), añade: `git checkout dev`.
-- **Resultado esperado:** existe la carpeta `RFHA-IES_SD_TGS` con la subcarpeta `demo` que contiene `template.yaml` y `main.py`. Compruébalo con `dir demo`.
-- **Si falla:** `repository not found` → pide a Brayan que te dé acceso al repositorio.
+  Si Brayan indica que lo último aún está en la rama `dev`, escribe además: `git checkout dev`.
+- **Resultado esperado:** al escribir `dir demo` aparecen los archivos `main.py`, `students.py` y `template.yaml`.
+- **Si falla:** `repository not found` significa que Brayan debe darte acceso al repositorio.
 
-#### Paso 7. Obtener el secreto JWT
-- **Quién:** Brayan lo genera y se lo pasa al compañero **por un canal privado** (mensaje directo, no un grupo público).
-- **Cómo se genera** (cualquier PC con Python):
+#### Paso 7. Obtener el secreto
+*El secreto es la «tinta» con la que se firman los tokens. Sin él, nadie puede fabricar un token válido. Lo conocen solo Brayan y la Lambda.*
+- **Quién:** Brayan lo genera y se lo pasa al compañero **por un mensaje privado** (no por un grupo).
+- **Cómo se genera:**
   ```powershell
   py -3.11 -c "import secrets; print(secrets.token_urlsafe(48))"
   ```
-  Imprime un texto de unos 64 caracteres, por ejemplo `kQ3v...`. Ese texto es el **secreto**.
-- **Para el compañero:** guárdalo en una variable de la terminal (solo vive mientras la terminal esté abierta):
+  Imprime un texto de unos 64 caracteres. Ese texto es el secreto.
+- **Para el compañero:** guárdalo en una variable de la terminal (vive mientras la terminal esté abierta):
   ```powershell
   $secreto = "PEGA_AQUI_EL_SECRETO"
   ```
-- **Reglas:** mínimo 32 caracteres; Brayan debe guardar el mismo valor en su archivo `.env` como `JWT_SECRET=...` para poder generar tokens que la Lambda acepte. No se sube a git.
+- **Reglas:** mínimo 32 caracteres. Brayan lo guarda también en su archivo `.env` como `JWT_SECRET=...`. No se sube a GitHub.
 
 #### Paso 8. Construir el paquete
+*«Construir» (build) es empaquetar el programa con todo lo que necesita para subirlo a AWS.*
 - **Dónde:** PowerShell, dentro de la carpeta `RFHA-IES_SD_TGS`.
 - **Comando:**
   ```powershell
   sam build --template-file demo/template.yaml
   ```
-- **Resultado esperado:** al final dice `Build Succeeded` y crea la carpeta `.aws-sam\build`.
-- **Si falla:**
-  - `Binary validation failed for python` → no está Python 3.11 en el PATH: repite el paso 4 y reabre PowerShell.
-  - `template.yaml not found` → no estás en la carpeta raíz del proyecto.
+- **Resultado esperado:** al final dice `Build Succeeded`.
+- **Si falla:** «Binary validation failed for python» significa que Python 3.11 no está instalado: repite el paso 4 y reabre PowerShell. «template.yaml not found» significa que no estás en la carpeta del proyecto.
 
 #### Paso 9. Desplegar
-- **Dónde:** misma terminal (con `$secreto` definido en el paso 7).
-- **Comando:**
+*Desplegar es subir el paquete a AWS y dejarlo funcionando. SAM lo hace creando un «stack» (un conjunto de recursos que se crean y se borran juntos).*
+- **Dónde:** misma terminal (con `$secreto` definido).
+- **Comando para la exposición (con botones de simulación):**
   ```powershell
-  sam deploy --template-file .aws-sam/build/template.yaml --stack-name rfha-demo --resolve-s3 --capabilities CAPABILITY_IAM --region us-east-1 --no-confirm-changeset --no-fail-on-empty-changeset --parameter-overrides "JwtSecret=$secreto" "DemoMode=0"
+  sam deploy --template-file .aws-sam/build/template.yaml --stack-name rfha-demo --resolve-s3 --capabilities CAPABILITY_IAM --region us-east-1 --no-confirm-changeset --no-fail-on-empty-changeset --parameter-overrides "JwtSecret=$secreto" "DemoMode=1"
   ```
-  - `DemoMode=0` es lo normal y seguro: en la interfaz **no** aparecen los botones que generan tokens de prueba.
-  - `DemoMode=1` es solo para **ensayar con los botones** de la interfaz. Con `1`, cualquiera que conozca la URL puede generar tokens y saltarse la protección; vuelve a desplegar con `0` después.
-- **Resultado esperado:** tarda 2 a 4 minutos y termina con `Successfully created/updated stack - rfha-demo in us-east-1`. En la sección *Outputs* aparece:
+  Para desplegar **sin** botones de simulación cambia `"DemoMode=1"` por `"DemoMode=0"`.
+- **Resultado esperado:** tarda 2 a 4 minutos y termina con `Successfully created/updated stack - rfha-demo`. En *Outputs* aparece:
   ```
-  Key         ApiUrl
-  Description URL base para Thunder Client (variable baseUrl del entorno AWS)
-  Value       https://abc123xyz.execute-api.us-east-1.amazonaws.com
+  Key    ApiUrl
+  Value  https://abc123xyz.execute-api.us-east-1.amazonaws.com
   ```
 - **Si falla:**
-  - `AccessDenied` / `not authorized` → falta una política del paso 3.
-  - `Parameter JwtSecret ... length` → el secreto tiene menos de 32 caracteres.
-  - `ROLLBACK_COMPLETE` → mira el motivo en consola web → CloudFormation → stack `rfha-demo` → pestaña *Events*. Para reintentar, borra el stack fallido (`sam delete --stack-name rfha-demo --region us-east-1`) y repite el paso 9.
-  - `The security token included in the request is invalid` → repite el paso 5.
+  - `AccessDenied`: falta una política del paso 3.
+  - Error con `JwtSecret`: el secreto tiene menos de 32 caracteres.
+  - `ROLLBACK_COMPLETE`: en la consola web, *CloudFormation*, stack `rfha-demo`, pestaña *Events* está el motivo. Para reintentar, borra el fallido (`sam delete --stack-name rfha-demo --region us-east-1`) y repite este paso.
+  - `The security token ... is invalid`: repite el paso 5.
 
-#### Paso 10. Copiar la URL y comprobar que responde
-- **Dónde:** PowerShell y navegador.
+#### Paso 10. Comprobar en el navegador
+- **Dónde:** navegador.
 - **Pasos:**
-  1. Copia el `Value` de `ApiUrl`. Si se perdió:
-     ```powershell
-     aws cloudformation describe-stacks --stack-name rfha-demo --region us-east-1 --query "Stacks[0].Outputs"
-     ```
-  2. Abre la URL en el navegador: debe cargar la página **«Consulta federada de historial académico»**.
-  3. Primera petición a la API (calienta la Lambda):
-     ```powershell
-     curl.exe -i https://abc123xyz.execute-api.us-east-1.amazonaws.com/api/v1/federated/academic-history/20262678029
-     ```
-- **Resultado esperado:** la página carga y el `curl` devuelve `HTTP/1.1 403` con el texto `ACCESO DENEGADO: falta el token de consentimiento del estudiante.` El 403 es **correcto**: significa que la Lambda y el API Gateway funcionan y que la protección está activa.
+  1. Copia el `Value` de `ApiUrl`. Si se perdió: `aws cloudformation describe-stacks --stack-name rfha-demo --region us-east-1 --query "Stacks[0].Outputs"`.
+  2. Ábrelo en el navegador. Debe aparecer la pantalla **«Consulta federada de historial académico»** y arriba a la derecha **Entorno: Nube (AWS)**.
+  3. En *Estudiante de ejemplo* elige **Brayan Acosta Parrado**, pulsa **Token válido** y luego **Consultar expediente**.
+- **Resultado esperado:** los cuatro controles se ponen en verde, la insignia dice **HTTP 200** y aparece el expediente.
 - **Si falla:**
-  - `{"message":"Not Found"}` → la URL está incompleta o con una ruta mal escrita.
-  - `{"message":"Internal Server Error"}` → error dentro de la Lambda: mira los logs (3.4).
-  - La primera petición tarda 1 a 3 segundos: es el arranque en frío, normal.
+  - No aparecen los botones ni la lista: se desplegó con `DemoMode=0`. Repite el paso 9 con `DemoMode=1`.
+  - Pantalla con `{"message":"Internal Server Error"}`: error dentro de la Lambda; mira los logs (sección 4.5).
+  - La primera carga tarda 1 a 3 segundos: es el arranque en frío, normal.
 
-#### Paso 11. Prueba completa (con el secreto)
-- **Quién:** Brayan, o el compañero si instala PyJWT.
-- **Dónde:** PowerShell en la carpeta del proyecto.
-- **Pasos:**
-  ```powershell
-  py -3.11 -m pip install PyJWT
-  $env:JWT_SECRET = $secreto
-  py -3.11 scripts/check_demo.py https://abc123xyz.execute-api.us-east-1.amazonaws.com
-  ```
-- **Resultado esperado:**
-  ```
-  [OK] Sin token: HTTP 403 (esperado 403)
-  [OK] Token expirado: HTTP 403 (esperado 403)
-  [OK] Token válido: HTTP 200 (esperado 200)
-  RESULTADO: TODO BIEN
-  ```
-- **Si falla:** `Token válido: HTTP 403` → el secreto de esta terminal no es el mismo que se desplegó; repite el paso 7 y el paso 9.
+#### Paso 11. Prueba completa de Brayan
+Con la URL de AWS, Brayan repite en la pantalla las escenas 1, 2, 3, 4 y 6 de la sección 6. Si todas dan lo esperado, la demo está lista.
 
-#### Paso 12. Entregar a Brayan
-Envía a Brayan **la URL** (`ApiUrl`) y confirma si el despliegue fue con `DemoMode=0` o `1`. Con esa URL Brayan:
-1. Abre la URL en el navegador para exponer la interfaz.
-2. En Thunder Client, entorno **AWS**, cambia `baseUrl` por la URL (sin barra final).
-3. Genera los tokens en su PC con `python scripts/generate_token.py` (mismo `JWT_SECRET` en su `.env`).
+#### Paso 12. Entregar la URL
+El compañero envía a Brayan **la URL** y confirma con qué valor de `DemoMode` desplegó. Brayan la abre en una pestaña antes de exponer.
 
-### 3.3 Despliegue alternativo desde GitHub (opcional)
-Evita instalar SAM en el PC del compañero. En el repositorio de GitHub:
-1. *Settings* → *Secrets and variables* → *Actions* → *New repository secret*. Crea tres: `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` (las claves del paso 3) y `DEMO_JWT_SECRET` (el secreto del paso 7).
-2. Pestaña *Actions* → workflow **CD demo (manual)** → *Run workflow*.
-3. Al terminar, la URL se consulta con el comando `aws cloudformation describe-stacks` del paso 10, o en la consola web de CloudFormation → stack `rfha-demo` → *Outputs*.
-El workflow nunca corre solo, y despliega con `DemoMode=0`.
-
-### 3.4 Ver los logs si algo falla
-```powershell
-sam logs --stack-name rfha-demo --region us-east-1
-```
-También en la consola: *CloudWatch* → *Log groups* → `/aws/lambda/rfha-demo`.
-
-### 3.5 Actualizar la demo (si Brayan cambia el código)
-Repite desde el paso 8 (`git pull`, `sam build`, `sam deploy` con el mismo secreto). La URL no cambia.
-
-### 3.6 Borrar todo al terminar (evita costos)
+#### Paso 13. Borrar todo al terminar (importante)
+*Borrar evita costos y, con `DemoMode=1`, cierra la puerta que permite generar tokens.*
 ```powershell
 sam delete --stack-name rfha-demo --region us-east-1
 ```
-Responde `y` a las preguntas. Después, en la consola → *S3*, borra el bucket que empieza por `aws-sam-cli-managed-default` si ya no vas a desplegar más. Finalmente, en *IAM*, desactiva o elimina la access key del usuario `rfha-deployer`.
+Responde `y` a las preguntas. Después, en la consola web, *S3*: borra el bucket que empieza por `aws-sam-cli-managed-default`. Finalmente, en *IAM*, desactiva o elimina la access key de `rfha-deployer`.
 
----
+### 4.4 Despliegue alternativo desde GitHub (opcional)
+Evita instalar SAM en el computador. En el repositorio de GitHub:
+1. *Settings*, *Secrets and variables*, *Actions*, *New repository secret*. Crea tres: `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` (las del paso 3) y `DEMO_JWT_SECRET` (el secreto del paso 7).
+2. Pestaña *Actions*, flujo **CD demo (manual)**, *Run workflow*.
+3. La URL queda en la consola web de CloudFormation, stack `rfha-demo`, pestaña *Outputs*.
 
-## 4. Cómo probar los tres escenarios
+Este flujo despliega con `DemoMode=0`. Para la exposición con botones usa el paso 9.
 
-Reemplaza `BASE` por `http://127.0.0.1:8000` (local) o la URL de AWS. Usa los tokens de `python scripts/generate_token.py`.
-
-**macOS/Linux/Git Bash:**
-```bash
-BASE=http://127.0.0.1:8000
-URL=$BASE/api/v1/federated/academic-history/20262678029
-
-curl -i $URL                                                  # 1. sin token  → 403
-curl -i -H "X-Student-Consent-Token: <EXPIRADO>" $URL         # 2. expirado   → 403
-curl -i -H "X-Student-Consent-Token: <VALIDO>" $URL           # 3. válido     → 200
-```
-
-**Windows PowerShell** (usa `curl.exe`, porque `curl` es otro alias):
+### 4.5 Ver los logs si algo falla
 ```powershell
-$URL = "http://127.0.0.1:8000/api/v1/federated/academic-history/20262678029"
-curl.exe -i $URL
-curl.exe -i -H "X-Student-Consent-Token: <EXPIRADO>" $URL
-curl.exe -i -H "X-Student-Consent-Token: <VALIDO>" $URL
+sam logs --stack-name rfha-demo --region us-east-1
 ```
+O en la consola web: *CloudWatch*, *Log groups*, `/aws/lambda/rfha-demo`.
 
-Respuestas esperadas:
-
-```json
-// 1. Sin token → 403
-{"detail": "ACCESO DENEGADO: falta el token de consentimiento del estudiante."}
-
-// 2. Expirado → 403
-{"detail": "El token de consentimiento ha expirado."}
-
-// 3. Válido → 200
-{
-  "status": "SUCCESS",
-  "middleware_layer": "AWS API Gateway + AWS Lambda",
-  "transparency_verified": true,
-  "data": {
-    "student_id": "20262678029",
-    "full_name": "Brayan Acosta Parrado",
-    "university": "Universidad Distrital Francisco José de Caldas",
-    "program": "Ingeniería en Telemática",
-    "gpa": 4.52,
-    "courses": [
-      {"code": "165-301", "name": "Sistemas Distribuidos", "grade": 4.8},
-      {"code": "165-302", "name": "Teoría General de Sistemas", "grade": 4.5}
-    ]
-  }
-}
-```
-
-Pruebas extra opcionales: cambiar una letra del token (403 firma inválida); pedir otro `student_id` con el token de `20262678029` (403, el token no autoriza a otro estudiante).
+### 4.6 Actualizar la demo si Brayan cambia el código
+Repite los pasos 6 (`git pull`), 8 y 9 con el mismo secreto. La URL no cambia.
 
 ---
 
-## 5. Explicación del código
+## 5. Conocer la pantalla
 
-### 5.1 Mapa de archivos de la demo
+```
++----------------------------------------------------------------------+
+|  RFHA-IES                                       Entorno: Local       |
++----------------------------------------------------------------------+
+|  Consulta federada de historial académico                            |
+|                                                                      |
+|  +----------------------------+  +--------------------------------+  |
+|  | 1. SOLICITUD               |  | 2. VALIDACIÓN DEL MIDDLEWARE   |  |
+|  |  Estudiante de ejemplo [v] |  |  (1) Token presente            |  |
+|  |  Código del estudiante [ ] |  |  (2) Firma y vigencia          |  |
+|  |  Token de consentimiento   |  |  (3) Titular del consentimiento|  |
+|  |  [                       ] |  |  (4) Búsqueda del expediente   |  |
+|  |  Simular al estudiante:    |  |                                |  |
+|  |  [Token válido]            |  |  Cada uno: Pendiente /         |  |
+|  |  [Token expirado]          |  |  Aprobado / Rechazado / Omitido|  |
+|  |  [Sin token]               |  +--------------------------------+  |
+|  |  [Consultar expediente]    |                                      |
+|  +----------------------------+                                      |
+|  +----------------------------------------------------------------+  |
+|  | 3. RESPUESTA                                                   |  |
+|  |  [HTTP 200]  Acceso concedido...                               |  |
+|  |  Nombre · estado · universidad · programa · promedio · títulos |  |
+|  |  Avance de créditos  ████████░░  140 de 160                    |  |
+|  |  Apoyo a la homologación: Nota mínima aceptada [3.5]           |  |
+|  |  Tabla de asignaturas por semestre                             |  |
+|  |  > Ver respuesta JSON      [Copiar como curl]                  |  |
+|  +----------------------------------------------------------------+  |
++----------------------------------------------------------------------+
+```
 
-| Archivo | Para qué sirve |
+### Zona 1. Solicitud (lo que llenas)
+
+| Elemento | Qué es y qué poner |
 |---|---|
-| `demo/main.py` | **Toda la API.** Validación del token, datos simulados, endpoint, y sirve la interfaz web. |
-| `demo/students.py` | Los 6 estudiantes ficticios (datos de prueba) con sus asignaturas. Se editan aquí. |
-| `demo/static/` | Interfaz web: `index.html`, `styles.css`, `app.js`, `favicon.svg`. |
-| `demo/tests/test_demo_data.py` | Pruebas de los datos de prueba (6 estudiantes, estados coherentes con las notas). |
-| `demo/tests/test_demo_frontend.py` | Pruebas de la interfaz y del modo demostración. |
-| `demo/requirements.txt` | Librerías que necesita la Lambda en AWS. |
-| `demo/requirements-local.txt` | Las mismas más `uvicorn`, para correr en local. |
-| `demo/template.yaml` | Plantilla AWS SAM: crea la Lambda y el API Gateway. |
-| `demo/tests/test_demo_api.py` | Pruebas automáticas (las corre GitHub en cada push). |
-| `scripts/generate_token.py` | Crea tokens JWT válidos y expirados. |
-| `scripts/check_demo.py` | Prueba los 3 escenarios contra cualquier URL. |
-| `scripts/run_demo.py` | Lanzador de un comando para el modo local. |
-| `run-demo.ps1` / `run-demo.sh` | Atajos que buscan Python y llaman al lanzador. |
-| `thunder-tests/` | Requests y entornos de Thunder Client. |
-| `.github/workflows/ci.yml` | Corre las pruebas en GitHub. |
-| `.github/workflows/cd-demo.yml` | Despliegue manual a AWS desde GitHub. |
+| **Estudiante de ejemplo** | Lista desplegable con los 6 estudiantes ficticios. Al elegir uno, **se completa solo el código**. Solo aparece en modo demostración. |
+| **Código del estudiante** | El identificador de la persona (por ejemplo `20262678029`). Acepta letras, números, guion y guion bajo, hasta 32 caracteres. Para probar un estudiante que no existe, escribe `12345`. |
+| **Token de consentimiento** | El permiso del estudiante. Normalmente se llena solo al pulsar un botón; también puedes pegar o editar uno a mano. Vacío significa «sin permiso». |
+| **Token válido** | Crea un permiso vigente por 24 horas **para el código que esté escrito en ese momento**. |
+| **Token expirado** | Crea un permiso que ya venció, para el código escrito. |
+| **Sin token** | Borra el campo del token. |
+| **Consultar expediente** | Envía la solicitud. Úsalo siempre al final. |
 
-### 5.2 `demo/main.py` por partes
+> **Dato clave:** los botones de token firman **para el código que esté escrito en ese instante**. Si cambias el código después, el token seguirá siendo del primero. Eso se aprovecha en la escena 6.
 
-**Carga de configuración**
-```python
-def _load_dotenv(): ...
-_load_dotenv()
-JWT_SECRET = os.getenv("JWT_SECRET", "dev-only-insecure-secret-do-not-use-in-aws")
-```
-Lee el archivo `.env` (solo en local) y obtiene el secreto con el que se firman y validan los tokens. En AWS no hay `.env`: el secreto llega como variable de entorno de la Lambda. El valor por defecto existe solo para que la demo arranque en local sin configurar nada.
+### Zona 2. Validación del middleware (se ilumina sola)
 
-**La aplicación**
-```python
-app = FastAPI(title=..., description=...)
-```
-FastAPI crea el servidor web y la documentación en `/docs` automáticamente.
+Cuatro controles que se revisan en orden. Si uno falla, los siguientes quedan «Omitido», porque el sistema ya cortó.
 
-**Datos simulados**
-```python
-MOCK_DYNAMODB_NODES = { "20262678029": { ... } }
-```
-Un diccionario en memoria que hace de base de datos. Representa lo que luego será DynamoDB en cada nodo universitario. Por eso la demo no necesita ningún servicio de base de datos.
-
-**Validación del token: `verify_student_token(token, student_id)`**
-
-| Paso | Código | Resultado si falla |
-|---|---|---|
-| 1. ¿Llegó el token? | `if not token` | 403 "falta el token" |
-| 2. ¿Firma y vigencia? | `jwt.decode(..., algorithms=["HS256"], options={"require": ["exp"]})` | 403 "expirado" o "inválido" |
-| 3. ¿Es de este estudiante? | `payload.get("student_id") != student_id` | 403 "no autoriza a este estudiante" |
-
-- `HS256` es la firma con clave secreta compartida: solo quien conoce `JWT_SECRET` puede crear un token que pase.
-- PyJWT revisa solo la fecha de expiración (`exp`). `require: ["exp"]` rechaza tokens sin fecha, que serían eternos.
-- Se separa `ExpiredSignatureError` de `InvalidTokenError` para dar un mensaje distinto a cada caso. Ambos terminan en 403.
-
-**El endpoint**
-```python
-@app.get("/api/v1/federated/academic-history/{student_id}")
-async def get_academic_history(student_id: str, x_student_consent_token: str | None = Header(default=None, alias="X-Student-Consent-Token")):
-```
-- `{student_id}` viene de la URL.
-- El header es **opcional a propósito** (`default=None`). Si fuera obligatorio, FastAPI respondería **422** cuando falta, y lo correcto para seguridad es **403**. Así validamos nosotros y devolvemos 403.
-- Orden: primero se valida el token y **después** se busca el dato. Sin consentimiento, el middleware ni toca la "base de datos" (por eso un estudiante inexistente sin token da 403 y no 404; no revela quién existe).
-- Si pasa la validación y el estudiante no está: 404.
-- Si todo está bien: JSON con `status`, `middleware_layer`, `transparency_verified` y `data`.
-
-**Adaptador para AWS**
-```python
-handler = Mangum(app, lifespan="off")
-```
-API Gateway no habla "web" directamente con FastAPI; envía eventos a Lambda. **Mangum** traduce el evento de API Gateway a una petición normal y la respuesta de vuelta. Es una sola línea, y el resto del código es idéntico en local y en AWS. En AWS, el `Handler: main.handler` de la plantilla apunta aquí.
-
-### 5.3 `scripts/generate_token.py`
-Crea un JWT con tres datos: `student_id` (de quién es el consentimiento), `iat` (cuándo se emitió) y `exp` (cuándo vence), firmado con `JWT_SECRET`. Genera dos: uno que dura 24 h y otro que ya venció hace una hora (`expires_in=-3600`) para la demo del escenario 2. Reemplaza a jwt.io.
-
-### 5.4 `scripts/check_demo.py`
-Hace tres peticiones HTTP con la biblioteca estándar (sin instalar nada) y compara el código recibido con el esperado. Sirve igual para `http://127.0.0.1:8000` y para la URL de AWS; sale con error si algo no coincide.
-
-### 5.5 `scripts/run_demo.py`
-Automatiza lo que se haría a mano: crea `.venv`, instala dependencias si cambió el hash de `demo/requirements-local.txt`, crea `.env`, lanza `uvicorn` como subproceso, espera a que responda, ejecuta `check_demo.py`, imprime los tokens y se queda esperando hasta `Ctrl+C`, momento en que apaga el servidor.
-
-### 5.6 `demo/template.yaml` (AWS SAM)
-
-| Recurso | Qué crea |
+| Control | Qué revisa |
 |---|---|
-| `JwtSecret` (parámetro, `NoEcho`) | Recibe el secreto al desplegar; no se muestra en consola. Mínimo 32 caracteres. |
-| `DemoApi` (`HttpApi`) | El API Gateway. Límite de 20 peticiones/s (ráfaga 50) para evitar abusos y costos. |
-| `DemoFunction` | La Lambda `rfha-demo`: Python 3.11, 256 MB, 10 s. `JWT_SECRET` se pasa como variable de entorno. |
-| Evento `Any` en `/{proxy+}` | Todas las rutas y métodos llegan a la misma Lambda; FastAPI decide qué responder. |
-| `DemoLogGroup` | Logs en CloudWatch con retención de 7 días (evita costos ocultos). |
-| `Outputs.ApiUrl` | Imprime la URL pública al terminar. |
+| **1. Token presente** | Que se haya enviado un token. |
+| **2. Firma y vigencia** | Que el token no esté alterado y no haya vencido. |
+| **3. Titular del consentimiento** | Que el token sea de **ese** estudiante. |
+| **4. Búsqueda del expediente** | Que el estudiante exista en la red. |
 
-### 5.7 Pruebas automáticas (`demo/tests/test_demo_api.py`)
-Cubren: sin token (403 y no 422), válido (200), expirado, firma incorrecta, texto que no es JWT, token sin `exp`, token de otro estudiante, estudiante inexistente (404) y que exista el `handler`. GitHub las ejecuta en cada push a `dev` (`.github/workflows/ci.yml`).
+### Zona 3. Respuesta
 
-### 5.8 Conceptos de clase que muestra
-- **Middleware:** intermediario único que oculta dónde y cómo se guardan los datos.
-- **Transparencia de acceso:** todas las IES consultan con la misma API REST y JSON.
-- **Transparencia de ubicación:** el cliente solo conoce una URL, no el servidor ni la base de datos.
-- **Seguridad y privacidad:** sin consentimiento firmado, el middleware corta antes de tocar los datos.
-- **Serverless:** en AWS no hay servidores que administrar; la Lambda se ejecuta solo cuando llega una petición.
+| Elemento | Qué muestra |
+|---|---|
+| **Insignia HTTP** | `HTTP 200` (verde) si se entregó el expediente; `HTTP 403` o `HTTP 404` (rojo) si se rechazó. |
+| **Mensaje** | La razón en palabras. |
+| **Tarjeta del estudiante** | Nombre, estado (Activo, Graduado o Retirado), universidad de origen, programa, promedio acumulado y, si aplica, título y fecha de grado. |
+| **Avance de créditos** | Barra con créditos aprobados sobre el total de la carrera. |
+| **Apoyo a la homologación** | Campo **Nota mínima aceptada**. Al cambiarlo, la tabla resalta en verde las materias **aprobadas con esa nota o más** («candidata») y una frase resume cuántas son y cuántos créditos suman. |
+| **Tabla por semestre** | Semestre, código, asignatura, créditos, nota y estado (Aprobada, Reprobada o En curso). |
+| **Ver respuesta JSON** | Muestra el texto crudo que devolvió el servicio. Sirve para enseñar qué es una API. |
+| **Copiar como curl** | Copia el comando equivalente. Es opcional. |
 
 ---
 
-## 6. Guion de la exposición
+## 6. Casos de prueba en la pantalla
 
-Tiempo total: **12 a 14 minutos** (mínimo 10 minutos si se omiten los bloques marcados como opcionales). La demo usa 6 estudiantes ficticios de 4 universidades, así que hay material de sobra.
+Todos se hacen **con clics, delante del público**. Cada escena indica: qué clics dar, qué se ve y qué decir.
+
+### 6.1 Los 6 estudiantes de la demo (datos ficticios)
+
+| Código | Estudiante | Universidad | Programa | Estado | Promedio | Créditos | Sirve para |
+|---|---|---|---|---|---|---|---|
+| `20262678029` | **Brayan Acosta Parrado** | Distrital | Ingeniería en Telemática | Activo | 4,52 | 140 de 160 | Caso principal, rechazos y AWS. 8 materias, una en curso. |
+| `20251234501` | **Laura Camila Ríos Herrera** | Nacional | Ingeniería de Sistemas y Computación | Activo | 4,18 | 118 de 160 | **Homologación**: reprobó Cálculo Integral (2,6) y lo repitió (3,4). |
+| `20241122002` | **Andrés Felipe Moreno Castro** | Javeriana | Ingeniería Electrónica | **Graduado** | 4,05 | 168 de 168 | Título y fecha de grado. |
+| `20231098763` | **Valentina Torres Quintero** | Andes | Economía | Activo | 4,62 | 90 de 140 | Promedio alto. |
+| `20221050914` | **Juan Sebastián Pardo Gil** | Distrital | Ingeniería Industrial | **Retirado** | 3,21 | 64 de 160 | Promedio bajo y materias repetidas. |
+| `20252345678` | **María Fernanda Ospina Duarte** | Nacional | Estadística | Activo | 3,88 | 52 de 150 | Primeros semestres. |
+
+### 6.2 Antes de empezar cada escena
+Recarga la página (`F5`) para dejar todo limpio, salvo que la escena diga lo contrario.
+
+### Escenas de seguridad (los rechazos)
+
+#### Escena 1. Consulta exitosa
+- **Objetivo:** mostrar el camino feliz.
+- **Clics:**
+  1. En *Estudiante de ejemplo* elige **Brayan Acosta Parrado**.
+  2. Pulsa **Token válido**. El campo del token se llena.
+  3. Pulsa **Consultar expediente**.
+- **Qué se ve:** los 4 controles en **verde**, insignia **HTTP 200**, mensaje «Acceso concedido: el estudiante autorizó la consulta». Aparece Brayan (Activo), promedio 4,52, «140 de 160 (88 %)» y 8 materias; la última, «En curso».
+- **Qué decir:** «El estudiante dio su permiso; el middleware verificó cuatro cosas y entregó el expediente casi al instante».
+- **Extra:** abre *Ver respuesta JSON* y explica que eso es lo que viaja por la red.
+
+#### Escena 2. Sin token
+- **Clics:** Brayan elegido, pulsa **Sin token** (el campo del token queda vacío) y **Consultar expediente**.
+- **Qué se ve:** **HTTP 403**, mensaje «ACCESO DENEGADO: falta el token de consentimiento del estudiante». Control 1 en **rojo** y controles 2, 3 y 4 en «Omitido». **No aparece ningún dato.**
+- **Qué decir:** «Sin permiso no hay acceso, y el sistema ni siquiera busca el expediente».
+
+#### Escena 3. Token expirado
+- **Clics:** Brayan elegido, pulsa **Token expirado** y **Consultar expediente**.
+- **Qué se ve:** **HTTP 403**, «El token de consentimiento ha expirado». Control 1 verde, control 2 **rojo**, 3 y 4 «Omitido».
+- **Qué decir:** «El permiso caduca. Un token viejo ya no sirve aunque sea auténtico».
+
+#### Escena 4. Token alterado
+- **Clics:** Brayan elegido, pulsa **Token válido**. Luego haz clic dentro del recuadro del token y borra **una letra del final** (tecla Retroceso). Pulsa **Consultar expediente**.
+- **Qué se ve:** **HTTP 403**, «ACCESO DENEGADO: token de consentimiento inválido». Control 2 rojo.
+- **Qué decir:** «Alguien intentó manipular el token. Cambiar una sola letra rompe la firma y el sistema lo detecta».
+
+#### Escena 5. Texto que no es un token
+- **Clics:** Brayan elegido. En el recuadro del token escribe `esto-no-es-un-token` y pulsa **Consultar expediente**.
+- **Qué se ve:** **HTTP 403**, «token de consentimiento inválido». Control 2 rojo.
+- **Qué decir:** «Inventar un token tampoco funciona: no tiene la firma del sistema».
+
+#### Escena 6. El token es de una persona
+- **Objetivo:** mostrar privacidad entre estudiantes.
+- **Clics:**
+  1. Elige **Laura Camila Ríos Herrera**.
+  2. Pulsa **Token válido** (es el permiso de Laura).
+  3. **Sin tocar el token**, elige ahora **Valentina Torres Quintero** en la lista.
+  4. Pulsa **Consultar expediente**.
+- **Qué se ve:** **HTTP 403**, «ACCESO DENEGADO: el token no autoriza a este estudiante». Controles 1 y 2 verdes, control 3 **rojo**.
+- **Qué decir:** «El permiso de Laura sirve para ver a Laura, no a Valentina. Cada estudiante decide quién ve sus datos».
+
+#### Escena 7. Estudiante que no existe
+- **Clics:**
+  1. En *Código del estudiante* escribe `12345` (no uses la lista).
+  2. Pulsa **Token válido** (se firma para `12345`).
+  3. Pulsa **Consultar expediente**.
+- **Qué se ve:** **HTTP 404**, «Estudiante no encontrado en la red federada». Controles 1, 2 y 3 **verdes**, control 4 **rojo**.
+- **Qué decir:** «El permiso es válido, pero esa persona no existe. El sistema distingue "no tienes permiso" (403) de "no existe" (404)».
+
+#### Escena 8. Código mal escrito
+- **Clics:** en *Código del estudiante* escribe `abc def` (con espacio) y pulsa **Consultar expediente**.
+- **Qué se ve:** un mensaje rojo bajo el campo: «Escribe un código válido: solo letras, números, guion o guion bajo (máximo 32)». **No se envía nada** al servidor. Prueba también con el campo vacío.
+- **Qué decir:** «La pantalla valida lo escrito antes de enviarlo».
+
+### Escenas de la red federada y la homologación
+
+#### Escena 9. Tres universidades, una sola pantalla
+- **Objetivo:** transparencia de acceso y de ubicación.
+- **Clics:** repite los pasos de la escena 1 (elegir, **Token válido**, **Consultar expediente**) con **Laura** (Nacional), **Andrés Moreno** (Javeriana) y **Valentina Torres** (Andes). No hace falta recargar entre una y otra.
+- **Qué se ve:** cada vez cambia «Universidad de origen», pero el formato, los cuatro controles y la forma de consultar son idénticos.
+- **Qué decir:** «Son tres universidades distintas. La persona que consulta usa lo mismo y no sabe dónde viven los datos. Esa es la transparencia de acceso y de ubicación».
+
+#### Escena 10. Homologación con Laura
+- **Objetivo:** el uso real: decidir qué materias reconocer.
+- **Clics:** consulta a **Laura** (como en la escena 1). Baja a *Apoyo a la homologación*. Con **3,5** en *Nota mínima aceptada* lee la frase. Cambia el valor a **4,0** y vuelve a leerla.
+- **Qué se ve:**
+  - Con 3,5: «**8 de 9** asignaturas aprobadas tienen nota de 3,5 o más: **25 créditos** candidatos a homologar». Las filas candidatas se pintan en verde y dicen «candidata».
+  - Con 4,0: «**7 de 9** … **21 créditos**». Queda fuera Física Mecánica (3,9).
+  - Cálculo Integral aparece dos veces: 2024-2 en rojo «Reprobada» (2,6) y 2025-1 «Aprobada» (3,4), que **no** es candidata con 3,5.
+  - La materia de 2026-2 dice «En curso» y no cuenta.
+- **Qué decir:** «Cada universidad fija su criterio. Antes esto tomaba semanas de papeleo; aquí se ve en segundos qué se puede reconocer».
+
+#### Escena 11. Un graduado (Andrés)
+- **Clics:** elige **Andrés Felipe Moreno Castro**, **Token válido**, **Consultar expediente**.
+- **Qué se ve:** estado **Graduado**, además aparecen *Título* («Ingeniero Electrónico») y *Fecha de grado* («2025-12-12»). Créditos «168 de 168 (100 %)». Con nota mínima 3,5: 6 de 6 (20 créditos); con 4,0: 5 de 6 (16 créditos).
+- **Qué decir:** «El mismo servicio atiende egresados: sirve para verificar un título sin pedir un certificado».
+
+#### Escena 12. Un retirado (Juan)
+- **Clics:** elige **Juan Sebastián Pardo Gil**, **Token válido**, **Consultar expediente**.
+- **Qué se ve:** estado **Retirado** (en rojo), promedio 3,21, «64 de 160 (40 %)». Dos materias reprobadas: Física I (2,8) y Probabilidad (2,9); Física I aparece repetida y aprobada (3,4). Con nota mínima 3,5: **2 de 6** candidatas (Química General y Dibujo Técnico, **5 créditos**).
+- **Qué decir:** «Un estudiante que se va y quiere continuar en otra universidad: el sistema deja ver con honestidad qué se le puede reconocer».
+
+#### Escena 13. Promedio alto y primeros semestres
+- **Clics:** consulta a **Valentina** (promedio 4,62) y luego a **María Ospina** (52 de 150 créditos, 35 %).
+- **Qué se ve:** con nota mínima 4,5, Valentina tiene **7 de 8** candidatas (22 créditos; Econometría I con 4,4 queda fuera). María tiene **8 de 8** con 3,5 (26 créditos) y **4 de 8** con 4,0 (12 créditos).
+- **Qué decir:** «Se puede usar para becas o traslados: se compara el rendimiento sin pedir documentos».
+
+### Escenas de apoyo
+
+#### Escena 14. Qué es una API (opcional, 30 segundos)
+- **Clics:** en cualquier consulta exitosa, abre *Ver respuesta JSON*.
+- **Qué decir:** «Esto es lo que recibe cualquier programa de otra universidad: texto estructurado. La pantalla solo lo presenta bonito».
+
+#### Escena 15. Servidor apagado (NO hacerla en vivo)
+Apagar el servidor (`Ctrl+C`) y consultar muestra «Sin conexión: no se pudo conectar con el servidor». Es útil para probar en privado, pero **no la hagas delante del público**: tendrías que volver a encender la demo.
+
+### 6.3 Resumen: qué se rechaza y por qué
+
+| Escena | Clics clave | Resultado | Control que falla |
+|---|---|---|---|
+| 2. Sin token | Sin token | 403 | 1. Token presente |
+| 3. Token expirado | Token expirado | 403 | 2. Firma y vigencia |
+| 4. Token alterado | Borrar una letra del token | 403 | 2. Firma y vigencia |
+| 5. Texto que no es token | Escribir texto cualquiera | 403 | 2. Firma y vigencia |
+| 6. Token de otra persona | Generar token de Laura y consultar a Valentina | 403 | 3. Titular |
+| 7. No existe | Código `12345` y Token válido | 404 | 4. Búsqueda |
+| 8. Código mal escrito | `abc def` | Mensaje en pantalla, no se envía | (antes de enviar) |
+| 1. Todo bien | Token válido | 200 | Ninguno |
+
+---
+
+## 7. Guion de la exposición (12 a 14 minutos)
+
+Los bloques marcados *(opcional)* se pueden omitir: sin ellos la exposición dura unos 10 minutos.
 
 **Lista de verificación 10 minutos antes:**
-- [ ] Plan A: `.\run-demo.cmd` ejecutándose y la página abierta en `http://127.0.0.1:8000`.
-- [ ] Los 3 escenarios probados en la interfaz (casos 1, 2 y 3 de la sección 2.3).
-- [ ] Plan B: URL de AWS abierta en el navegador y una petición de calentamiento hecha (paso 10 de la sección 3.2).
-- [ ] Un token válido y uno expirado generados el mismo día (`python scripts/generate_token.py`).
-- [ ] Thunder Client con el selector de entorno visible (`Local` y `AWS`).
+- [ ] Plan A: la demo corriendo y la pantalla abierta en `http://127.0.0.1:8000` (sección 3).
+- [ ] Plan B: la URL de AWS abierta en **otra pestaña**, con una consulta de prueba hecha para calentar la Lambda (sección 4, paso 10).
+- [ ] Las escenas 1, 2 y 3 probadas una vez en cada plan.
+- [ ] La terminal de la demo abierta y sin cerrar.
+- [ ] Presentación con el esquema de la sección 2 lista.
 
-### Guion minuto a minuto
-
-| Minutos | Bloque | Qué haces en la pantalla | Qué dices |
+| Minutos | Bloque | Qué haces | Qué dices |
 |---|---|---|---|
-| 0:00 a 1:30 | **1. Apertura y problema** | Diapositiva o la página principal de la demo. | Cada universidad guarda el historial académico en su propia base de datos, aislada de las demás. Una homologación o una beca toma de 15 a 45 días hábiles por certificados en papel. RFHA-IES conecta las universidades sin centralizar los datos. |
-| 1:30 a 3:00 | **2. Qué es el middleware** | Muestra el esquema de la sección 1 de este documento y abre `/docs` (Swagger) unos segundos. | El middleware es un intermediario con tres funciones: transportista (una sola URL), seguridad (valida el consentimiento antes de tocar los datos) y traductor (entrega siempre el mismo JSON). El contrato REST se documenta solo en `/docs`. |
-| 3:00 a 4:30 | **3. Caso exitoso** | Estudiante de ejemplo: **Brayan Acosta Parrado**. Pulsa **Token válido** y **Consultar expediente**. | Aparecen los 4 pasos en verde: token presente, firma y vigencia, titular y búsqueda. Muestra el expediente: estado académico, promedio, créditos (140 de 160) y las asignaturas por semestre. Abre *Ver respuesta JSON*. |
-| 4:30 a 6:00 | **4. Rechazos** | Mismo estudiante. **Sin token** → consulta. **Token expirado** → consulta. **Token válido** y cambia una letra → consulta. | Los tres terminan en 403 y se detienen en un paso distinto. El middleware corta antes de tocar los datos: sin consentimiento vigente y firmado no hay acceso. |
-| 6:00 a 7:00 | **5. Privacidad: el token es de una persona** | Elige a **Laura Ríos**, pulsa **Token válido**, luego elige a **Valentina Torres** (sin generar otro token) y consulta. | El paso 3 rechaza: el consentimiento de Laura no sirve para ver a Valentina. Cada estudiante decide quién ve su información. |
-| 7:00 a 8:30 | **6. Federación: transparencia de ubicación** | Consulta con su propio token a **Laura** (Nacional), **Andrés Moreno** (Javeriana) y **Valentina** (Andes). | Tres universidades distintas, una sola URL, mismo formato. El cliente no sabe dónde viven los datos. Cada nodo tendrá su propia tabla en DynamoDB; la API no cambia. |
-| 8:30 a 10:00 | **7. Caso de uso: homologación** | **Laura**: tiene Cálculo Integral reprobada (2,6) y repetida (3,4). Cambia la **Nota mínima aceptada** de 3,5 a 4,0 y observa cuántos créditos son candidatos. | La universidad que recibe fija su criterio (por ejemplo, nota mínima). Pasa de semanas a segundos. Se ven las asignaturas candidatas resaltadas y el total de créditos. |
-| 10:00 a 10:45 | **8. Más estados académicos** *(opcional)* | **Andrés Moreno** (graduado): título y fecha de grado. **Juan Pardo** (retirado, promedio 3,21): materias repetidas. | El mismo servicio atiende egresados, activos y retirados. |
-| 10:45 a 11:15 | **9. Estudiante inexistente** *(opcional)* | Escribe el código `12345`, **Token válido**, consulta. | 404: el token es válido pero el estudiante no existe en la red. Se diferencia un acceso denegado de un dato inexistente. |
-| 11:15 a 12:15 | **10. Mismo código en AWS** | Abre la URL de AWS en otra pestaña (o cambia el entorno de Thunder Client a **AWS**). Repite el caso 3. | Es el mismo código sobre API Gateway y Lambda, sin servidores. Cambió la URL, no el comportamiento. Escala solo y entra en el Free Tier. |
-| 12:15 a 13:15 | **11. Avance del proyecto final** *(opcional)* | En otra terminal: `.\run-app.cmd` y abre `http://127.0.0.1:8001/registro-nodo`. Registra una universidad. | HU-01 ya está terminada: una universidad solicita su alta y queda pendiente de aprobación. Siguen HU-02 a HU-10. |
-| 13:15 a 14:00 | **12. Cierre** | Diapositiva final. | Transparencia de acceso y de ubicación demostradas, seguridad por consentimiento, serverless. Pendiente: failover a réplica, auditoría y portal del estudiante. |
-
-**Para recortar a 10 minutos:** omite los bloques 8, 9 y 11 (opcionales) y resume el bloque 5. **Si sobra tiempo:** repite el bloque 6 con el cuarto estudiante y muestra el `curl` con *Copiar como curl*.
-
-### Preguntas probables de los docentes
-
-| Pregunta | Respuesta corta |
-|---|---|
-| ¿Por qué un token JWT? | Está firmado: si alguien lo altera se rechaza (caso 4), lleva fecha de vencimiento y no necesita consultar una base de datos para validarlo. |
-| ¿Quién genera el token? | En la demo, los botones de simulación. En el proyecto final lo genera el propio estudiante (HU-04) y puede revocarlo (HU-05). |
-| ¿Dónde está el secreto? | En una variable de entorno de la Lambda, nunca en el código ni en git. |
-| ¿Qué pasa si un nodo se cae? | Se prevé un failover a una réplica con el encabezado `X-Data-Source` (HU-08). Todavía no está construido. |
-| ¿Quedan registros de quién consultó? | Está previsto en una bitácora de solo inserción (HU-09). Todavía no está construida. |
-| ¿Por qué serverless? | Sin servidores que administrar, escala sola de 0 a muchas peticiones y entra en el Free Tier. |
-| ¿Son datos reales? | No. Los 6 estudiantes y sus notas son ficticios. |
-| ¿Cómo se relaciona con Teoría General de Sistemas? | Es un sistema abierto con entradas (petición y token), proceso (validación), salidas (expediente) y retroalimentación (el rechazo y el failover); la sinergia es que la red vale más que cada universidad aislada. |
-
----
-
-## 7. Si algo falla
-
-| Síntoma | Causa probable | Qué hacer |
-|---|---|---|
-| El lanzador dice que el puerto está ocupado | Otra app usa el 8000 | `python scripts/run_demo.py --port 8010` y cambia `baseUrl` |
-| Falla la instalación de dependencias | Python 3.14+ sin paquetes compilados | Instala Python 3.12 y ejecuta de nuevo |
-| PowerShell no deja ejecutar `run-demo.ps1` | Política de ejecución | `powershell -ExecutionPolicy Bypass -File .\run-demo.ps1` |
-| Token válido pero recibes 403 | Secreto distinto entre servidor y generador, o token expirado | Regenera el token con `generate_token.py`; en AWS verifica que `JwtSecret` sea igual al `.env` |
-| AWS tarda mucho la primera vez | Cold start | Haz una petición de calentamiento antes de exponer |
-| AWS responde 5xx | Error en la Lambda | `sam logs --stack-name rfha-demo --region us-east-1` |
-| `sam deploy` da `AccessDenied` | Faltan permisos del usuario IAM | Revisar que `rfha-deployer` tenga las 6 políticas del paso 3 (sección 3.2) |
-| Thunder Client no muestra la colección | La extensión no leyó `thunder-tests/` | Usa los `curl` de la sección 4 |
-| Sin internet el día de la clase | | Usa solo el Plan A (local) |
+| 0:00 a 1:30 | **1. Apertura** | Diapositiva de inicio o la pantalla de la demo. | Las universidades guardan los historiales cada una por su lado. Una homologación puede tardar de 15 a 45 días hábiles por trámites en papel. RFHA-IES conecta las universidades **sin juntar los datos**. |
+| 1:30 a 3:00 | **2. Qué es el middleware** | Muestra el esquema de la sección 2. | El middleware es un intermediario con tres funciones: **transportista** (una sola dirección), **seguridad** (revisa el permiso antes de tocar los datos) y **traductor** (entrega siempre el mismo formato). |
+| 3:00 a 4:30 | **3. Caso exitoso** | Escena 1 (Brayan). | Explica los cuatro controles en verde, el expediente, los créditos. |
+| 4:30 a 6:00 | **4. Rechazos** | Escenas 2, 3 y 4. | Tres intentos fallidos, tres controles distintos. «Sin permiso no hay acceso». |
+| 6:00 a 7:00 | **5. Privacidad** | Escena 6 (Laura y Valentina). | El permiso es personal. |
+| 7:00 a 8:30 | **6. Red federada** | Escena 9 (tres universidades). | Una pantalla, tres universidades. Transparencia de acceso y de ubicación. |
+| 8:30 a 10:00 | **7. Homologación** | Escena 10 (Laura). | El caso de uso real: pasar de semanas a segundos. |
+| 10:00 a 10:45 | **8. Más estados** *(opcional)* | Escenas 11 y 12 (Andrés, Juan). | El mismo servicio atiende graduados, activos y retirados. |
+| 10:45 a 11:15 | **9. No existe** *(opcional)* | Escena 7 (`12345`). | Diferencia entre «sin permiso» (403) y «no existe» (404). |
+| 11:15 a 12:15 | **10. Mismo código en AWS** | Cambia a la pestaña de AWS y repite la escena 1. | Es el mismo programa corriendo en la nube de Amazon, sin servidores. Cambió la dirección, no el comportamiento. |
+| 12:15 a 13:15 | **11. Avance del proyecto final** *(opcional)* | En otra terminal: `.\run-app.cmd`, abre `http://127.0.0.1:8001/registro-nodo` y registra una universidad. | La historia HU-01 ya está terminada: una universidad solicita unirse y queda «pendiente de aprobación». |
+| 13:15 a 14:00 | **12. Cierre** | Diapositiva final. | Se demostró seguridad por consentimiento y transparencia de acceso y de ubicación sobre una arquitectura serverless. Falta: copia de respaldo ante caídas, bitácora de consultas y portal del estudiante. |
 
 ---
 
 ## 8. Por qué cumple con la exposición y con la propuesta
 
-### 8.1 Cumple con la exposición de Middleware y Web Services
+### 8.1 Exposición de Middleware y Web Services
 
-La exposición pide mostrar un middleware y un web service funcionando. La demo lo hace así:
-
-| Lo que se espera | Cómo lo cumple la demo | Dónde se ve |
+| Lo que pide la exposición | Cómo lo cumple la demo | Dónde se ve |
 |---|---|---|
-| **Middleware**: software intermedio que independiza las aplicaciones del hardware, del sistema operativo y de los protocolos, y da visión de sistema único | El cliente solo conoce una URL. No sabe en qué servidor, sistema operativo o base de datos está el dato. Funciona igual en local y en AWS sin cambiar el cliente. | `demo/main.py`, endpoint único; Thunder Client con entornos `Local` y `AWS` |
-| **Función de transportista**: recibe la petición y la encamina al destino | API Gateway recibe la petición HTTP y la entrega a la Lambda; FastAPI decide la ruta. | `demo/template.yaml` (`HttpApi` + `Function`), `Mangum` |
-| **Servicio de seguridad** en la capa intermedia | El middleware valida el token de consentimiento antes de tocar los datos. | `verify_student_token()` |
-| **Ocultar la heterogeneidad** de los datos | El cliente recibe siempre JSON estándar. Hoy el dato viene de un diccionario simulado; mañana vendrá de DynamoDB de cada universidad y el cliente no cambia. | `MOCK_DYNAMODB_NODES` |
-| **Web Service**: comunicación entre aplicaciones con estándares abiertos | API **REST** sobre **HTTP**, método `GET`, datos en **JSON**, códigos de estado estándar (200, 403, 404). | Endpoint `GET /api/v1/federated/academic-history/{student_id}` |
-| **Contrato documentado** | FastAPI genera la especificación OpenAPI/Swagger sola. | `/docs` |
-| **Interoperabilidad** | Cualquier cliente que hable HTTP (Thunder Client, curl, navegador, otra universidad) usa el servicio igual. | Pruebas con `curl` y Thunder Client |
+| **Middleware:** intermediario que da «visión de sistema único» y oculta la complejidad | El usuario usa una sola pantalla y una sola dirección; no sabe en qué servidor ni base de datos está cada dato. | Escena 9. |
+| **Transportista:** recibe la petición y la encamina | API Gateway recibe y entrega a la Lambda, que decide la respuesta. | Plan B. |
+| **Seguridad en la capa intermedia** | Se valida el permiso **antes** de tocar los datos. | Escenas 2 a 6. |
+| **Ocultar la diferencia entre sistemas** | Siempre se responde con el mismo formato (JSON), de cualquier universidad. | Escenas 9 y 14. |
+| **Web service** con estándares abiertos | API REST sobre HTTP, con JSON y códigos 200, 403 y 404. | La insignia HTTP y el JSON. |
+| **Contrato documentado** | La documentación se genera sola en `/docs`. | Pie de la pantalla. |
+| **Interoperabilidad** | Cualquier programa que hable HTTP puede usarlo, no solo esta pantalla. | Apéndice, sección 12. |
 
-Transparencias de Sistemas Distribuidos que se pueden demostrar en vivo:
-- **De acceso:** una sola interfaz REST sin importar cómo se guarde el dato.
-- **De ubicación:** el cliente no conoce la IP, la región ni la base de datos. Se nota al cambiar de `Local` a `AWS`: cambia la URL y todo lo demás sigue igual.
-- **De escalado (se explica, no se mide):** en AWS, Lambda crea instancias según la demanda sin cambiar el código.
+**Transparencias de Sistemas Distribuidos que se pueden mostrar:** *de acceso* (misma forma de consultar), *de ubicación* (no se sabe dónde están los datos) y, solo explicada, *de escalado* (Lambda crea más copias si hay más peticiones).
 
-### 8.2 Cumple con la propuesta del proyecto (RFHA-IES)
+### 8.2 Cumplimiento de la propuesta del proyecto
 
-La demo es un recorte funcional de la propuesta. Implementa la parte central: **consultar un historial solo con el consentimiento del estudiante**.
+La demo es un recorte funcional de la propuesta: **consultar un historial solo con el consentimiento del estudiante**.
 
 | Requisito de la propuesta | Estado en la demo |
 |---|---|
-| **HU-06** Consulta federada: el funcionario consulta con el token del estudiante y recibe el historial | **Cumplido en su versión mínima.** `GET` con `X-Student-Consent-Token` devuelve el historial en JSON. |
-| **HU-07** Bloqueo de consultas no autorizadas: sin token o expirado, `403` sin consultar los datos | **Cumplido.** Sin token, token inválido, expirado o de otro estudiante dan `403` antes de buscar el dato. |
-| **RF-05** Consulta transparente por el middleware | **Cumplido (mínimo).** Una sola URL; el dato se obtiene detrás del middleware. |
-| **RF-06** Rechazo por ausencia o expiración del token con `HTTP 403` | **Cumplido.** Probado con tres casos en `demo/tests`. |
-| **RF-07** Visualización del historial (materias, créditos, calificaciones) | **Parcial.** Devuelve materias, calificaciones y promedio. Faltan los créditos por materia y la pantalla (llega en el frontend). |
-| **Token de consentimiento JWT firmado** (`student_auth_token`) | **Cumplido.** JWT firmado con HS256 y fecha de expiración obligatoria. |
-| **Arquitectura Serverless en AWS Free Tier** (API Gateway + Lambda, Python 3.11, FastAPI + Mangum) | **Cumplido.** Es exactamente el stack propuesto; la plantilla `demo/template.yaml` lo despliega. |
-| **HTTPS** | **Cumplido en AWS.** API Gateway entrega HTTPS por defecto. En local es HTTP porque es solo desarrollo. |
-| **Costo cero** | **Cumplido.** Solo Lambda y API Gateway, sin DynamoDB; logs a 7 días y límite de peticiones por segundo. |
-| **Escenarios de la sección K** (sin token → 403; con token → 200) | **Cumplido y ampliado**, con corrección: el documento original devolvía 422 en vez de 403 al faltar el header. |
+| **HU-06** Consulta federada con token | **Cumplido en versión mínima.** |
+| **HU-07** Bloqueo de consultas sin permiso | **Cumplido.** Sin token, vencido, alterado o de otra persona dan 403. |
+| **RF-05** Consulta transparente por el middleware | **Cumplido (mínimo).** |
+| **RF-06** Rechazo por falta o expiración del token (403) | **Cumplido.** |
+| **RF-07** Ver el historial para homologar | **Cumplido y ampliado:** materias, créditos, notas, estados y panel de homologación. |
+| **Token firmado (JWT)** | **Cumplido.** Firma HS256 y fecha de vencimiento obligatoria. |
+| **Arquitectura serverless en AWS (API Gateway + Lambda, Python, FastAPI + Mangum)** | **Cumplido.** |
+| **HTTPS** | **Cumplido en AWS** (por defecto). En local es HTTP porque es solo desarrollo. |
+| **Costo cero** | **Cumplido.** Sin base de datos, con límite de peticiones y logs de 7 días. |
+| **Interfaz web responsiva** | **Cumplido** en la demo (accesible, claro/oscuro, celular). |
 
-#### Lo que la demo todavía no cubre (se construye con HU-01 a HU-09)
-Para no sobreprometer en la exposición, esto es lo que **no** hace la demo:
-- Registro y aprobación de nodos universitarios y API Keys (HU-01 y HU-02). HU-01 ya está en `dev`.
-- Carga de historiales y datos en DynamoDB por universidad (HU-03). Los datos son simulados.
-- Generación y revocación del token por el estudiante (HU-04 y HU-05). Los tokens los genera un script.
-- Enrutamiento real entre varias universidades con catálogo de nodos (HU-06 completa).
-- Failover a réplica y `X-Data-Source` (HU-08).
-- Bitácora de auditoría (HU-09).
-- Que el token sirva solo para la universidad destino autorizada (HU-07 completa).
+**Lo que la demo todavía NO hace** (no lo prometas en la exposición): registro y aprobación de universidades con clave de API (HU-02), carga de historiales en base de datos (HU-03), que el estudiante genere y revoque sus tokens (HU-04 y HU-05), enrutamiento real entre varias bases de datos (HU-06 completa), copia de respaldo ante caídas (HU-08) y bitácora de consultas (HU-09). El registro de universidades (HU-01) ya existe en el proyecto final.
 
-#### Cómo decirlo en la exposición
-> "La demo implementa el corazón de la propuesta: el middleware que solo entrega el historial académico cuando el estudiante dio su consentimiento firmado. Usa el mismo stack del proyecto final, API Gateway, Lambda y FastAPI, y ya corre en AWS. Los demás módulos, como registro de universidades, DynamoDB por nodo, failover y auditoría, se construyen sobre esta base."
+**Frase de cierre sugerida:** «La demo implementa el corazón de la propuesta: un middleware que solo entrega el historial cuando el estudiante dio su consentimiento firmado. Usa el mismo stack del proyecto final y ya corre en AWS. Los demás módulos se construyen sobre esta base».
+
+---
+
+## 9. Cómo funciona el código
+
+No necesitas leer el código para exponer, pero esto sirve para responder preguntas.
+
+### 9.1 Mapa de archivos
+
+| Archivo | Para qué sirve |
+|---|---|
+| `demo/main.py` | **El programa principal:** valida el token, busca al estudiante, entrega la respuesta y sirve la pantalla. |
+| `demo/students.py` | Los 6 estudiantes ficticios con sus materias. Aquí se editan los datos de prueba. |
+| `demo/static/` | La pantalla: `index.html` (estructura), `styles.css` (apariencia) y `app.js` (comportamiento). |
+| `demo/template.yaml` | La receta para AWS: crea la Lambda, la puerta de entrada y los registros. |
+| `demo/requirements.txt` | Lista de librerías que necesita la Lambda. |
+| `demo/requirements-local.txt` | Lo mismo más el servidor local. |
+| `scripts/run_demo.py` | El lanzador de un solo comando. |
+| `scripts/generate_token.py` y `scripts/check_demo.py` | Respaldo por comandos (apéndice). |
+| `demo/tests/` | Pruebas automáticas que GitHub ejecuta en cada subida de código. |
+
+### 9.2 `demo/main.py` por partes
+
+1. **Configuración.** Lee el secreto (`JWT_SECRET`) y si el modo demostración está activo (`DEMO_MODE`). En AWS llegan como variables de entorno; en el computador, de un archivo `.env`.
+2. **Datos.** Importa los 6 estudiantes de `students.py` y los guarda en memoria. Representan lo que cada universidad guardaría en su propia base de datos.
+3. **La validación del token** (`verify_student_token`). Son los tres controles de seguridad, en este orden:
+   - Si no hay token, rechaza con 403.
+   - Si la firma es mala o el token venció, rechaza con 403. La librería PyJWT hace la revisión; se exige que el token traiga fecha de vencimiento.
+   - Si el estudiante que dice el token no es el consultado, rechaza con 403.
+4. **El servicio principal.** `GET /api/v1/federated/academic-history/{código}`: primero valida, **después** busca. Si el estudiante no existe, responde 404. Si todo está bien, 200 con el historial.
+   *Detalle técnico:* el encabezado del token se declara opcional a propósito. Si fuera obligatorio, el framework respondería 422 cuando falta, y lo correcto en seguridad es 403.
+5. **Ayudas de la demo** (solo si `DEMO_MODE=1`): una para listar estudiantes de ejemplo y otra para fabricar tokens de prueba. Si está apagado, responden 404.
+6. **La pantalla.** Entrega `index.html` en la dirección raíz y los archivos de `static/`, con cabeceras de seguridad que impiden ejecutar código no autorizado.
+7. **`handler = Mangum(app)`.** Es el adaptador para AWS: API Gateway habla en un formato propio y Mangum lo traduce al que entiende el programa. El resto del código es idéntico en local y en AWS.
+
+### 9.3 La pantalla (`demo/static/`)
+- Está hecha con HTML, CSS y JavaScript puros, sin librerías externas: carga rápido y es más segura.
+- Los textos que vienen del servidor se insertan siempre como texto, nunca como código, para evitar ataques.
+- Es accesible: se puede usar con teclado, funciona con lector de pantalla, tiene buen contraste, se adapta al celular y cambia a modo oscuro según el sistema.
+
+### 9.4 `demo/template.yaml` (la receta de AWS)
+
+| Elemento | Qué hace |
+|---|---|
+| `JwtSecret` | Recibe el secreto al desplegar. No se muestra en pantalla. Mínimo 32 caracteres. |
+| `DemoMode` | `0` o `1`: apaga o enciende los botones de simulación (sección 4.1). |
+| `DemoApi` | La puerta de entrada pública. Límite de 20 peticiones por segundo para evitar abusos. |
+| `DemoFunction` | La Lambda `rfha-demo`: Python 3.11, 256 MB, 10 segundos máximo. |
+| `DemoLogGroup` | Registro de actividad que se borra a los 7 días (evita costos ocultos). |
+| `ApiUrl` | Imprime la dirección pública al terminar. |
+
+---
+
+## 10. Preguntas probables de los docentes
+
+| Pregunta | Respuesta corta |
+|---|---|
+| ¿Por qué un token JWT? | Va firmado: si alguien lo altera se rechaza (escena 4), lleva fecha de vencimiento y no hace falta consultar una base de datos para validarlo. |
+| ¿Quién genera el token? | En la demo, los botones de simulación. En el proyecto final lo genera el propio estudiante (HU-04) y puede revocarlo (HU-05). |
+| ¿Dónde está el secreto? | En una variable de entorno de la Lambda, nunca en el código ni en GitHub. |
+| ¿Qué pasa si una universidad se cae? | Está previsto un respaldo en una réplica con el encabezado `X-Data-Source` (HU-08). Todavía no está construido. |
+| ¿Se registra quién consultó? | Está previsto en una bitácora que solo permite agregar (HU-09). Todavía no está construida. |
+| ¿Por qué serverless? | No hay servidores que administrar, escala sola y entra en la capa gratuita. |
+| ¿Son datos reales? | No. Los 6 estudiantes y sus notas son inventados. |
+| ¿Dónde está la base de datos? | En la demo los datos están en memoria. En el proyecto final cada universidad tendrá su tabla en DynamoDB. |
+| ¿Cómo se relaciona con Teoría General de Sistemas? | Es un sistema abierto: entradas (petición y token), proceso (los cuatro controles), salidas (expediente) y retroalimentación (rechazos). La sinergia es que la red vale más que cada universidad por separado. |
+| ¿Qué es la homologación? | Que una universidad reconozca las materias que el estudiante aprobó en otra. Hoy es lento y en papel. |
+
+---
+
+## 11. Si algo falla en vivo
+
+Regla general: **cambia de plan sin disculparte ni perder tiempo** (de local a AWS o al revés), y retoma desde la escena donde ibas.
+
+| Qué ves | Qué significa | Qué hacer |
+|---|---|---|
+| La página no carga en local | La demo está apagada o la terminal se cerró. | Cambia a la pestaña de AWS (Plan B). Después, vuelve a ejecutar `.\run-demo.cmd`. |
+| La página de AWS no carga o da error | Puede ser internet o la Lambda. | Cambia a la pestaña local (Plan A). |
+| La primera consulta en AWS tarda unos segundos | Arranque en frío. | Es normal; espera. Para evitarlo, calienta antes de exponer. |
+| Salió 403 con un token que debía servir | Pulsaste **Token válido** y después cambiaste el código, o el token venció. | Pulsa **Token válido** otra vez con el código correcto ya escrito. |
+| En AWS no aparecen los botones ni la lista | Se desplegó con `DemoMode=0`. | Usa el Plan A para las pruebas con clics, o pide al compañero redesplegar con `DemoMode=1`. |
+| Los botones no hacen nada | La página quedó vieja en el navegador. | Recarga con `Ctrl+F5`. |
+| «Sin conexión» al consultar | La demo se apagó. | Vuelve a ejecutar `.\run-demo.cmd`. |
+| Una cifra de homologación no coincide con esta guía | Cambió el valor de la nota mínima. | Ajusta la nota mínima al valor de la escena (3,5 por defecto). |
+| Sin internet | Imposible usar AWS. | Usa solo el Plan A. |
+
+---
+
+## 12. Apéndice: respaldo con comandos
+
+Solo para cuando la pantalla no esté disponible. **No se usa en la exposición.**
+
+**Generar tokens** (con el mismo secreto de la demo):
+```powershell
+python scripts/generate_token.py                # token válido y token expirado de Brayan
+python scripts/generate_token.py 20251234501    # tokens de otro estudiante (por ejemplo, Laura)
+```
+
+**Probar una dirección** (local o AWS) y verificar los tres escenarios básicos:
+```powershell
+python scripts/check_demo.py http://127.0.0.1:8000
+python scripts/check_demo.py https://abc123xyz.execute-api.us-east-1.amazonaws.com
+```
+Debe terminar con `TODO BIEN`. Para AWS, antes: `py -3.11 -m pip install PyJWT` y `$env:JWT_SECRET = "<el secreto>"`.
+
+**Una consulta suelta** (en PowerShell se usa `curl.exe`):
+```powershell
+curl.exe -i -H "X-Student-Consent-Token: <TOKEN>" http://127.0.0.1:8000/api/v1/federated/academic-history/20262678029
+```
+Sin el encabezado `-H ...` la respuesta es 403.
+
+**Documentación interactiva de la API:** `http://127.0.0.1:8000/docs` (se puede probar el servicio desde ahí).
+
+**Pruebas automáticas:** las ejecuta GitHub en cada subida de código. Localmente: `pytest`.

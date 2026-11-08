@@ -4,6 +4,12 @@ name: CD demo (manual)
 # Requiere secretos en GitHub: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, DEMO_JWT_SECRET.
 on:
   workflow_dispatch:
+    inputs:
+      demo_mode:
+        description: "Modo demostración: 1 = botones de simulación visibles (solo para ensayar), 0 = apagados"
+        type: choice
+        options: ['0', '1']
+        default: '0'
 
 jobs:
   deploy:
@@ -23,4 +29,10 @@ jobs:
       - run: >
           sam deploy --stack-name rfha-demo --resolve-s3
           --capabilities CAPABILITY_IAM --no-confirm-changeset --no-fail-on-empty-changeset
-          --parameter-overrides JwtSecret=${{ secrets.DEMO_JWT_SECRET }}
+          --parameter-overrides JwtSecret=${{ secrets.DEMO_JWT_SECRET }} DemoMode=${{ inputs.demo_mode }}
+      - name: Mostrar la URL de la demo
+        run: |
+          URL=$(aws cloudformation describe-stacks --stack-name rfha-demo --region us-east-1 --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text)
+          echo "URL de la demo: $URL"
+          echo "### URL de la demo" >> "$GITHUB_STEP_SUMMARY"
+          echo "$URL" >> "$GITHUB_STEP_SUMMARY"

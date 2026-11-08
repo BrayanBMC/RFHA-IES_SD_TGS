@@ -30,7 +30,7 @@ Guía para preparar, probar y exponer la demo. Está escrita para que cualquier 
 
 **Dos formas de correrla** (con el mismo código):
 - **Plan A, en tu computador.** No necesita internet. Se levanta con un solo comando.
-- **Plan B, en AWS.** Queda en internet con una dirección pública. La despliega el compañero que maneja AWS.
+- **Plan B, en AWS.** Queda en internet con una dirección pública. La despliega quien tenga acceso a la cuenta de AWS del equipo.
 
 **Dos reglas para no perderse:**
 1. Todos los datos son **ficticios**. No hay personas reales.
@@ -168,195 +168,565 @@ Abre el navegador en **http://127.0.0.1:8000**. Arriba a la derecha debe decir *
 
 ## 4. Plan B: levantar la demo en AWS
 
-Esta parte la hace **el compañero que maneja AWS**. No necesita entender el código ni abrir otro documento: todo está aquí.
+Esta parte la puede hacer **cualquier integrante del equipo** que tenga acceso a la cuenta de AWS. No hace falta saber programar ni abrir otro documento: todo lo necesario está aquí. Sigue los pasos **en orden** y no te saltes las comprobaciones de «Resultado esperado».
 
 ### 4.0 Resumen
 
 | | |
 |---|---|
-| **Qué se crea** | Un paquete llamado **`rfha-demo`** con una función Lambda (el programa), una puerta de entrada (API Gateway) y un registro de actividad que se borra a los 7 días. **No usa base de datos.** |
+| **Qué se crea** | Un paquete llamado **`rfha-demo`** (en AWS se llama *stack*) con: una función **Lambda** (el programa), una **puerta de entrada** pública (API Gateway) y un **registro de actividad** (CloudWatch) que se borra solo a los 7 días. **No usa base de datos.** |
 | **Qué se obtiene** | Una dirección pública `https://xxxxxxxx.execute-api.us-east-1.amazonaws.com`. Al abrirla aparece **la misma pantalla** de la demo. |
-| **Qué necesita de Brayan** | Un **secreto**: un texto de más de 32 caracteres (paso 7). |
+| **Qué se necesita del equipo** | Un **secreto**: un texto de 32 o más caracteres que firma los tokens (paso 7). |
 | **Costo** | USD 0 dentro del Free Tier. |
-| **Tiempo** | 30 a 45 minutos la primera vez. |
-| **Quién hace qué** | Compañero de AWS: pasos 1 a 10. Brayan: da el secreto (paso 7) y prueba al final (paso 11). |
+| **Tiempo** | 45 a 60 minutos la primera vez. Después, 5 minutos. |
+| **Reparto sugerido** | La persona que administra la cuenta de AWS hace los pasos 1 a 14. Quien conoce el secreto y el código lo entrega en el paso 7 y revisa las pruebas del paso 12. Pueden ser la misma persona. |
 
-### 4.1 Una decisión importante: el modo demostración
+### 4.1 Cómo leer esta guía
 
-La pantalla tiene unos botones, **Token válido**, **Token expirado** y **Sin token**, que **simulan al estudiante** para poder hacer las pruebas con clics. Esos botones solo aparecen si la demo se despliega con **`DemoMode=1`**.
+- Los nombres de **botones y menús** de AWS aparecen en **negrita** y en inglés, tal como los muestra la consola (la consola de AWS está en inglés por defecto).
+- Lo que se escribe en la terminal va en bloques de código y se pega tal cual.
+- **AWS cambia el diseño de su consola con frecuencia.** Si un botón no está donde dice la guía, usa la **barra de búsqueda** de la parte superior de la consola y escribe el nombre del servicio (por ejemplo `IAM`, `CloudFormation`, `Billing`). El nombre de las opciones casi nunca cambia.
+- **Consola** = el sitio web de AWS en el navegador. **Terminal** = la ventana donde se escriben comandos (PowerShell).
+- Cada paso termina con **Resultado esperado** (cómo saber que salió bien) y **Si falla**.
+
+### 4.2 El mapa de lo que vas a hacer
+
+| Fase | Pasos | Dónde | Para qué |
+|---|---|---|---|
+| **A. Cuenta y seguridad** | 1 a 3 | Consola (navegador) | Tener una cuenta, una alerta de gasto y un usuario con llaves para desplegar. |
+| **B. Tu computador** | 4 a 6 | Terminal | Instalar las herramientas y descargar el código. |
+| **C. Despliegue** | 7 a 10 | Terminal y navegador | Subir la demo a AWS y abrirla. |
+| **D. Comprobación y cierre** | 11 a 14 | Consola y terminal | Entender lo que se creó, probar, y borrar todo al terminar. |
+
+### 4.3 Una decisión importante: el modo demostración
+
+La pantalla tiene unos botones, **Token válido**, **Token expirado** y **Sin token**, que **simulan al estudiante** para poder hacer las pruebas con clics. Esos botones y la lista de estudiantes de ejemplo solo aparecen si la demo se despliega con **`DemoMode=1`**.
 
 | Valor | Qué pasa | Cuándo usarlo |
 |---|---|---|
-| `DemoMode=1` | Aparecen los botones y la lista de estudiantes. **Cualquiera que conozca la dirección podría generar tokens**, es decir, la protección queda desactivada para quien tenga la URL. | **Para la exposición**, que es temporal. La dirección es larga y aleatoria. **Después de exponer, se borra todo** (paso 13). |
+| `DemoMode=1` | Aparecen los botones y la lista. **Cualquiera que conozca la dirección podría generar tokens**, es decir, la protección queda desactivada para quien tenga la URL. | **Para la exposición**, que es temporal. La dirección es larga y aleatoria. **Después de exponer, se borra todo** (paso 14). |
 | `DemoMode=0` | No aparecen los botones; solo se puede probar pegando tokens hechos a mano. | Si la demo va a quedar publicada mucho tiempo. |
 
-**Recomendación para la exposición: `DemoMode=1` y borrar el paquete al terminar.** En el paso 9 se indica exactamente dónde se escribe.
+**Recomendación para la exposición: `DemoMode=1` y borrar el paquete al terminar.** El valor se escribe en el paso 9.
 
-### 4.2 Qué necesita tener el compañero
+### 4.4 Qué se necesita antes de empezar
+
 - Un computador con **Windows y PowerShell**, con internet.
-- Una **tarjeta** con pagos internacionales (AWS la pide para crear la cuenta, aunque no cobre).
-- Permiso para instalar programas.
+- Un **correo** que puedas abrir (AWS envía un código de verificación).
+- Un **teléfono** que pueda recibir un SMS o una llamada (verificación de identidad).
+- Una **tarjeta de crédito o débito** con pagos internacionales. AWS la pide para crear la cuenta aunque no cobre.
+- Permiso para instalar programas en el computador.
 
-### 4.3 Paso a paso
+### 4.5 Paso a paso
 
-#### Paso 1. Crear o verificar la cuenta AWS
-*Una cuenta AWS es el «usuario principal» donde viven todos los servicios y se factura el consumo.*
-- **Dónde:** navegador, https://aws.amazon.com
-- **Pasos:**
-  1. Pulsa *Crear una cuenta de AWS* (o entra con la cuenta que ya existe).
-  2. Si la cuenta es nueva y pregunta por el plan, elige **Free account plan** (plan gratuito). **No** elijas *Paid plan*.
-  3. En la consola, abre *Billing and Cost Management* y luego *Free Tier*. Debe aparecer el plan y el saldo de créditos.
-  4. Arriba a la derecha elige la región **US East (N. Virginia) us-east-1**. *(Una región es la ubicación geográfica de los servidores.)*
-- **Resultado esperado:** ves el panel de Free Tier y la región `us-east-1`.
-- **Si falla:** si rechazan la tarjeta, prueba otra con pagos internacionales habilitados.
+---
+
+#### Paso 1. Crear o verificar la cuenta de AWS
+
+*Una cuenta de AWS es el «usuario principal» donde viven todos los servicios y se factura el consumo. Su correo y contraseña forman el **usuario raíz** (root), que es el más poderoso: se usa solo para crear la cuenta, nunca para trabajar a diario.*
+
+**Si el equipo ya tiene cuenta:** salta a 1.5 y verifica el plan.
+
+**1.1 Abrir el sitio.** En el navegador entra a https://aws.amazon.com y pulsa **Create an AWS Account** (arriba a la derecha).
+
+**1.2 Datos de acceso.** Completa el formulario:
+- **Root user email address**: un correo tuyo.
+- **AWS account name**: un nombre para reconocerla, por ejemplo `rfha-ies`.
+- Pulsa **Verify email address**. Revisa tu correo, copia el código de 6 dígitos y pégalo en **Verification code**. Pulsa **Verify**.
+- Escribe una contraseña dos veces (**Root user password** y **Confirm root user password**) y pulsa **Continue**.
+
+**1.3 Datos de contacto.** Elige **Personal** como tipo de cuenta (es para un proyecto académico) y completa nombre, teléfono, país y dirección. Pulsa **Continue**.
+
+**1.4 Facturación e identidad.** Escribe los datos de la tarjeta y pulsa **Verify and continue**. Luego AWS verifica tu teléfono: elige **Text message (SMS)** o **Voice call**, escribe el número, resuelve el código de seguridad (captcha) y escribe el código de 4 dígitos que recibas. Cuando pregunte por el plan de soporte elige **Basic support - Free**.
+
+> **Importante, el plan de la cuenta.** Las cuentas nuevas pueden elegir entre un plan gratuito (**Free**, con créditos y hasta 6 meses) y un plan de pago (**Paid**). **Elige el plan Free.** Con él no se cobra nada mientras dure el plan; cuando termina (por tiempo o por créditos), no se cobra a menos que decidas pasar a un plan de pago.
+
+**1.5 Entrar a la consola y verificar el plan.**
+1. Entra a https://console.aws.amazon.com. Elige **Root user**, escribe el correo y la contraseña.
+2. En la barra de búsqueda de arriba escribe `Billing and Cost Management` y entra a ese servicio.
+3. En el menú izquierdo busca **Free Tier** (o **Credits**). Debe mostrar el plan activo y el saldo de créditos.
+
+**1.6 Elegir la región.** En la esquina superior derecha de la consola hay un selector con un nombre de región (por ejemplo «N. Virginia»). Ábrelo y elige **US East (N. Virginia) us-east-1**. *(Una región es la ubicación geográfica de los servidores. Toda la guía usa esta región.)*
+
+- **Resultado esperado:** ves el panel de **Free Tier** y arriba a la derecha dice **N. Virginia**.
+- **Si falla:** si rechazan la tarjeta, prueba otra con pagos internacionales activados. Si no llega el correo o el SMS, espera unos minutos y usa **Resend**.
+
+---
 
 #### Paso 2. Alerta de gasto de USD 0.01
-*Es una red de seguridad: AWS te escribe un correo si se cobra aunque sea un centavo.*
-- **Dónde:** consola web, *Billing and Cost Management*, *Budgets*.
-- **Pasos:** *Create budget*, *Use a template (simplified)*, **Zero spend budget**; escribe los correos del compañero y de Brayan; *Create budget*.
-- **Resultado esperado:** aparece «My Zero-Spend Budget» activo.
-- **Si falla:** si no aparece la plantilla, crea un *Customized (advanced)*, *Cost budget* mensual de USD 0.01.
+
+*Es una red de seguridad: AWS te escribe un correo si se genera aunque sea un centavo de gasto.*
+
+1. En la barra de búsqueda escribe `Billing and Cost Management` y entra.
+2. En el menú izquierdo abre **Budgets**.
+3. Pulsa **Create budget** (botón naranja).
+4. En **Budget setup** elige **Use a template (simplified)**.
+5. En la lista de **Templates** elige **Zero spend budget**.
+6. En **Budget name** puedes dejar «My Zero-Spend Budget».
+7. En **Email recipients** escribe los correos del equipo que quieran recibir el aviso, separados por comas.
+8. Pulsa **Create budget** (abajo).
+
+- **Resultado esperado:** vuelves a la lista de **Budgets** y aparece «My Zero-Spend Budget» con el gasto actual en 0.
+- **Si falla:** si no aparece la plantilla, elige **Customized (advanced)**, luego **Cost budget** y **Next**. En **Period** elige **Monthly**, en **Budget amount** escribe `0.01`, pulsa **Next**, agrega una alerta (**Add an alert threshold**) con **Threshold** `100` % de **Actual** y tu correo en **Email recipients**, y pulsa **Create budget**.
+
+---
 
 #### Paso 3. Crear un usuario para desplegar
-*IAM es el servicio de usuarios y permisos de AWS. Se crea un usuario solo para esta tarea en lugar de usar la cuenta principal, que es más peligrosa.*
-- **Dónde:** consola web, *IAM*, *Users*.
-- **Pasos:**
-  1. *Create user*, nombre `rfha-deployer`, *Next*.
-  2. *Attach policies directly* y marca estas **6 políticas** *(una política es un permiso)*: `AWSCloudFormationFullAccess`, `AWSLambda_FullAccess`, `AmazonAPIGatewayAdministrator`, `AmazonS3FullAccess`, `CloudWatchLogsFullAccess`, `IAMFullAccess`.
-  3. *Create user*.
-  4. Abre el usuario, pestaña *Security credentials*, *Create access key*, caso de uso **Command Line Interface (CLI)**, confirma y *Create access key*.
-  5. Copia el **Access key ID** y el **Secret access key** a un gestor de contraseñas. *(Son el usuario y la contraseña del programa; el secreto solo se muestra una vez.)*
-- **Resultado esperado:** tienes las dos claves del usuario `rfha-deployer`.
-- **Si falla:** si luego sale `AccessDenied`, falta alguna de las 6 políticas. **Nunca** subas estas claves a GitHub ni las pegues en chats.
+
+*IAM es el servicio de usuarios y permisos de AWS. Se crea un usuario solo para esta tarea, con permisos limitados, en lugar de usar el usuario raíz, que es más peligroso. Una **política** es un permiso con nombre.*
+
+**3.1 Crear el usuario.**
+1. En la barra de búsqueda escribe `IAM` y entra.
+2. En el menú izquierdo abre **Users**.
+3. Pulsa **Create user**.
+4. En **User name** escribe `rfha-deployer`.
+5. **Deja sin marcar** la casilla «Provide user access to the AWS Management Console» (este usuario solo se usará desde la terminal).
+6. Pulsa **Next**.
+
+**3.2 Darle permisos.**
+1. En **Permissions options** elige **Attach policies directly**.
+2. Aparece una lista larga llamada **Permissions policies** con un cuadro de búsqueda. Escribe el nombre de cada política, **marca la casilla** de la fila exacta y sigue con la siguiente. Debes marcar estas **6**:
+
+   | Política (escríbela en el buscador) | Para qué la necesita |
+   |---|---|
+   | `AWSCloudFormationFullAccess` | Crear y borrar el paquete (*stack*). |
+   | `AWSLambda_FullAccess` | Crear la función Lambda. |
+   | `AmazonAPIGatewayAdministrator` | Crear la puerta de entrada. |
+   | `AmazonS3FullAccess` | Subir el código a un depósito temporal. |
+   | `CloudWatchLogsFullAccess` | Crear el registro de actividad. |
+   | `IAMFullAccess` | Crear el rol con que se ejecuta la Lambda. |
+
+3. Al cambiar de búsqueda, las casillas ya marcadas se conservan. Cuando termines, pulsa **Next**.
+
+**3.3 Revisar y crear.** En **Review and create**, en **Permissions summary** deben aparecer las 6 políticas. Pulsa **Create user**. Arriba aparece un aviso verde («User created successfully»).
+
+**3.4 Crear las llaves de acceso.**
+1. En la lista de **Users** pulsa el nombre `rfha-deployer`.
+2. Abre la pestaña **Security credentials**.
+3. Baja hasta la sección **Access keys** y pulsa **Create access key**.
+4. En **Use case** elige **Command Line Interface (CLI)**.
+5. Más abajo marca la casilla de confirmación («I understand the above recommendation and want to proceed to create an access key») y pulsa **Next**.
+6. En **Description tag value** puedes escribir `rfha-demo` (es opcional). Pulsa **Create access key**.
+7. Aparecen dos datos: **Access key** (empieza por `AKIA`) y **Secret access key** (pulsa **Show**). Pulsa **Download .csv file** y guárdalo, o copia ambos a un gestor de contraseñas. Después pulsa **Done**.
+
+> **El Secret access key solo se muestra ahora.** Si lo pierdes, hay que crear otra llave. Las dos son el usuario y la contraseña del programa: **nunca las subas a GitHub ni las pegues en chats**.
+
+- **Resultado esperado:** tienes guardados el **Access key ID** y el **Secret access key** del usuario `rfha-deployer`.
+- **Si falla:** si el despliegue da `AccessDenied` más adelante, falta alguna de las 6 políticas: entra al usuario, pestaña **Permissions**, y revisa que estén las 6.
+
+---
 
 #### Paso 4. Instalar las herramientas
-*AWS CLI y SAM son los programas con los que se habla con AWS desde la terminal. Python 3.11 es la versión que usa la Lambda. Git descarga el código.*
-- **Dónde:** PowerShell (ábrelo nuevo).
-- **Pasos:**
-  ```powershell
-  winget install Amazon.AWSCLI
-  winget install Amazon.SAM-CLI
-  winget install Python.Python.3.11
-  winget install Git.Git
-  ```
-  Cierra PowerShell, ábrelo de nuevo y comprueba:
-  ```powershell
-  aws --version
-  sam --version
-  py -3.11 --version
-  git --version
-  ```
-- **Resultado esperado:** los cuatro muestran una versión (`py -3.11` dice `Python 3.11.x`).
-- **Si falla:** «comando no encontrado» significa que no cerraste y reabriste PowerShell. Sin `winget`, descarga los instaladores de las páginas oficiales de AWS CLI, AWS SAM CLI, python.org y git-scm.com. **Python 3.11 es obligatorio.**
+
+*AWS CLI y SAM son los programas con los que se habla con AWS desde la terminal. **Python 3.11** es la versión que usa la Lambda y que SAM necesita para empaquetar. **Git** descarga el código.*
+
+**4.1 Abrir PowerShell.** Pulsa la tecla Windows, escribe `PowerShell` y presiona Enter. (También sirve la terminal de VS Code con `Ctrl + ñ`.)
+
+**4.2 Instalar.** Pega los cuatro comandos, uno por uno. Si pregunta «Do you agree to all the source agreements terms? [Y] Yes», escribe `Y` y Enter.
+```powershell
+winget install Amazon.AWSCLI
+winget install Amazon.SAM-CLI
+winget install Python.Python.3.11
+winget install Git.Git
+```
+
+**4.3 Reiniciar la terminal.** **Cierra PowerShell y ábrelo de nuevo** (si no, no reconoce los programas nuevos).
+
+**4.4 Comprobar.**
+```powershell
+aws --version
+sam --version
+py -3.11 --version
+git --version
+```
+
+- **Resultado esperado:** los cuatro muestran una versión. Por ejemplo `aws-cli/2.x.x`, `SAM CLI, version 1.x.x`, `Python 3.11.x` y `git version 2.x.x`.
+- **Si falla:**
+  - «El término ... no se reconoce»: no cerraste y reabriste PowerShell.
+  - `winget` no existe: instala «App Installer» desde la Microsoft Store, o descarga cada programa de su página oficial (AWS CLI y AWS SAM CLI en docs.aws.amazon.com, Python en python.org, Git en git-scm.com).
+  - `py -3.11` dice que no encuentra Python: la instalación de Python 3.11 no terminó; repítela. **Python 3.11 es obligatorio** (o consulta el cambio A del paso 6.2).
+
+---
 
 #### Paso 5. Conectar la terminal con la cuenta
-- **Dónde:** PowerShell.
-- **Pasos:**
-  ```powershell
-  aws configure
-  ```
-  Responde: *AWS Access Key ID* y *AWS Secret Access Key* con las del paso 3; *Default region name* `us-east-1`; *Default output format* `json`. Luego:
-  ```powershell
-  aws sts get-caller-identity
-  ```
-- **Resultado esperado:** devuelve un texto con tu número de cuenta y un `Arn` que termina en `user/rfha-deployer`.
-- **Si falla:** `InvalidClientTokenId` o `SignatureDoesNotMatch` significa que copiaste mal una clave; repite `aws configure`.
 
-#### Paso 6. Descargar el código
-- **Dónde:** PowerShell.
-- **Pasos:**
-  ```powershell
-  git clone https://github.com/BrayanBMC/RFHA-IES_SD_TGS.git
-  cd RFHA-IES_SD_TGS
+*Aquí se le entregan a la terminal las llaves del paso 3.*
+
+1. En PowerShell escribe:
+   ```powershell
+   aws configure
+   ```
+2. Responde las cuatro preguntas (lo que escribes va después de los dos puntos):
+   ```
+   AWS Access Key ID [None]: AKIA................
+   AWS Secret Access Key [None]: ........................................
+   Default region name [None]: us-east-1
+   Default output format [None]: json
+   ```
+3. Comprueba la conexión:
+   ```powershell
+   aws sts get-caller-identity
+   ```
+
+- **Resultado esperado:** muestra un texto parecido a este (los números cambian):
+  ```json
+  {
+      "UserId": "AIDA................",
+      "Account": "123456789012",
+      "Arn": "arn:aws:iam::123456789012:user/rfha-deployer"
+  }
   ```
-  Si Brayan indica que lo último aún está en la rama `dev`, escribe además: `git checkout dev`.
-- **Resultado esperado:** al escribir `dir demo` aparecen los archivos `main.py`, `students.py` y `template.yaml`.
-- **Si falla:** `repository not found` significa que Brayan debe darte acceso al repositorio.
+  El `Arn` debe terminar en `user/rfha-deployer`.
+- **Si falla:** `InvalidClientTokenId` o `SignatureDoesNotMatch` significa que una llave se copió mal (a veces con un espacio al inicio o al final). Repite `aws configure`.
+
+---
+
+#### Paso 6. Descargar el código y revisar la configuración
+
+**6.1 Descargar.** Elige una carpeta (por ejemplo Documentos) y descarga el proyecto:
+```powershell
+cd $HOME\Documents
+git clone https://github.com/BrayanBMC/RFHA-IES_SD_TGS.git
+cd RFHA-IES_SD_TGS
+```
+Si el equipo indica que lo último todavía está en la rama `dev` (porque aún no se ha unido a `main`), escribe además:
+```powershell
+git checkout dev
+```
+Comprueba que estás en la carpeta correcta:
+```powershell
+dir demo
+```
+- **Resultado esperado:** la lista incluye `main.py`, `students.py`, `template.yaml`, `requirements.txt` y las carpetas `static` y `tests`.
+- **Si falla:** «repository not found» significa que falta acceso al repositorio: pide que te lo den. «No existe la ruta» significa que el `cd` no se ejecutó: repite desde `cd $HOME\Documents`.
+
+**6.2 Revisar el archivo de configuración de AWS (`demo/template.yaml`).**
+
+**Para desplegar normalmente NO hace falta cambiar ningún archivo.** Este es el archivo que AWS lee para saber qué crear. Ábrelo en VS Code (`code .` y luego haz clic en `demo` y `template.yaml`) o en el Bloc de notas. Así debe verse (los comentarios `<-- ...` son solo guía y no van en el archivo):
+
+```yaml
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: RFHA-IES - Demo del middleware (stack rfha-demo, sin DynamoDB)
+
+Parameters:
+  JwtSecret:                          # el secreto (se escribe al desplegar, paso 9)
+    Type: String
+    NoEcho: true
+    MinLength: 32
+  DemoMode:                           # 0 = botones apagados, 1 = botones encendidos
+    Type: String
+    Default: '0'                      # <-- CAMBIO C: aquí se puede dejar '1' por defecto
+    AllowedValues: ['0', '1']
+
+Resources:
+  DemoApi:                            # la puerta de entrada pública
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 50      # <-- CAMBIO D: máximo de peticiones en ráfaga
+        ThrottlingRateLimit: 20       # <-- CAMBIO D: máximo de peticiones por segundo
+
+  DemoFunction:                       # el programa
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: rfha-demo         # <-- CAMBIO B: nombre de la función
+      CodeUri: .
+      Handler: main.handler           # NO CAMBIAR: apunta a "handler" en demo/main.py
+      Runtime: python3.11             # <-- CAMBIO A: versión de Python de la Lambda
+      MemorySize: 256
+      Timeout: 10                     # <-- CAMBIO E: segundos máximos por petición
+      Environment:
+        Variables:
+          JWT_SECRET: !Ref JwtSecret
+          DEMO_MODE: !Ref DemoMode
+      Events:
+        Root:                         # la pantalla principal ("/")
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref DemoApi
+            Path: /
+            Method: ANY
+        Any:                          # todas las demás rutas
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref DemoApi
+            Path: /{proxy+}
+            Method: ANY
+
+  DemoLogGroup:                       # el registro de actividad
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/rfha-demo   # <-- CAMBIO B: debe llevar el mismo nombre de la función
+      RetentionInDays: 7
+
+Outputs:
+  ApiUrl:                             # la dirección pública que se imprime al terminar
+    Value: !Sub https://${DemoApi}.execute-api.${AWS::Region}.amazonaws.com
+```
+
+**Cambios que solo se hacen si hace falta** (en cada uno: abrir `demo/template.yaml`, buscar la línea, cambiarla y guardar con `Ctrl + S`):
+
+| Cambio | Cuándo hace falta | Qué línea buscar | Cómo debe quedar |
+|---|---|---|---|
+| **A. Versión de Python** | Solo si no se pudo instalar Python 3.11 y hay 3.12. | `Runtime: python3.11` | `Runtime: python3.12` (y que `py -3.12 --version` funcione). Si se usa el despliegue desde GitHub, cambiar también `python-version: '3.11'` por `'3.12'` en `.github/workflows/cd-demo.yml`. |
+| **B. El nombre ya está en uso** | Si el paso 9 dice que `rfha-demo` ya existe (otro paquete con ese nombre). | `FunctionName: rfha-demo` **y** `LogGroupName: /aws/lambda/rfha-demo` | Cambiar **los dos** al mismo nombre nuevo, por ejemplo `rfha-demo-2` y `/aws/lambda/rfha-demo-2`. Después usar ese nombre en `--stack-name` del paso 9 (por ejemplo `rfha-demo-2`) y en los comandos de borrado. |
+| **C. Dejar los botones encendidos por defecto** | Si se prefiere no escribir `DemoMode` en el paso 9. | `Default: '0'` (debajo de `DemoMode`) | `Default: '1'` |
+| **D. Más o menos peticiones por segundo** | Si hay mucha audiencia probando a la vez, o se quiere más protección. | `ThrottlingRateLimit: 20` y `ThrottlingBurstLimit: 50` | Por ejemplo `30` y `60`. |
+| **E. Tiempo máximo por petición** | Si la primera consulta en AWS da error de tiempo agotado (*Task timed out*). | `Timeout: 10` | `Timeout: 20` |
+
+**No cambies** `Handler: main.handler` ni `CodeUri: .`: están ligados a la carpeta `demo` y al archivo `demo/main.py`. **Tampoco hace falta tocar ningún archivo Python** para desplegar.
+
+---
 
 #### Paso 7. Obtener el secreto
-*El secreto es la «tinta» con la que se firman los tokens. Sin él, nadie puede fabricar un token válido. Lo conocen solo Brayan y la Lambda.*
-- **Quién:** Brayan lo genera y se lo pasa al compañero **por un mensaje privado** (no por un grupo).
-- **Cómo se genera:**
-  ```powershell
-  py -3.11 -c "import secrets; print(secrets.token_urlsafe(48))"
-  ```
-  Imprime un texto de unos 64 caracteres. Ese texto es el secreto.
-- **Para el compañero:** guárdalo en una variable de la terminal (vive mientras la terminal esté abierta):
-  ```powershell
-  $secreto = "PEGA_AQUI_EL_SECRETO"
-  ```
-- **Reglas:** mínimo 32 caracteres. Brayan lo guarda también en su archivo `.env` como `JWT_SECRET=...`. No se sube a GitHub.
+
+*El secreto es la «tinta» con la que se firman los tokens. Sin él, nadie puede fabricar un token válido. Solo lo deben conocer el equipo y la Lambda.*
+
+1. Quien conoce el proyecto genera el secreto en cualquier computador con Python:
+   ```powershell
+   py -3.11 -c "import secrets; print(secrets.token_urlsafe(48))"
+   ```
+   Imprime un texto de unos 64 caracteres, por ejemplo `kQ3v9...`. **Ese texto es el secreto.**
+2. Se lo pasa a quien despliega **por un mensaje privado** (no por un grupo ni por una captura de pantalla pública).
+3. Quien despliega lo guarda en una variable de la terminal (vive mientras la terminal esté abierta). Escribe el texto entre comillas:
+   ```powershell
+   $secreto = "PEGA_AQUI_EL_SECRETO"
+   ```
+4. Comprueba que se guardó completo:
+   ```powershell
+   $secreto.Length
+   ```
+- **Resultado esperado:** imprime un número de **32 o más** (con el comando de arriba suele ser 64).
+- **Reglas:** mínimo 32 caracteres. Quien conoce el proyecto también lo guarda en su archivo `.env` como una línea `JWT_SECRET=...` para generar tokens iguales. **No se sube a GitHub.**
+- **Si falla:** si `$secreto.Length` da un número menor que 32, el texto se copió incompleto; pégalo de nuevo.
+
+---
 
 #### Paso 8. Construir el paquete
-*«Construir» (build) es empaquetar el programa con todo lo que necesita para subirlo a AWS.*
-- **Dónde:** PowerShell, dentro de la carpeta `RFHA-IES_SD_TGS`.
-- **Comando:**
-  ```powershell
-  sam build --template-file demo/template.yaml
+
+*«Construir» (*build*) es empaquetar el programa con todas las librerías que necesita, listo para subirlo a AWS.*
+
+1. Asegúrate de estar en la carpeta del proyecto (`RFHA-IES_SD_TGS`).
+2. Ejecuta:
+   ```powershell
+   sam build --template-file demo/template.yaml
+   ```
+- **Resultado esperado:** tras unos 30 a 60 segundos termina con un mensaje parecido a este, y aparece la carpeta `.aws-sam\build`:
   ```
-- **Resultado esperado:** al final dice `Build Succeeded`.
-- **Si falla:** «Binary validation failed for python» significa que Python 3.11 no está instalado: repite el paso 4 y reabre PowerShell. «template.yaml not found» significa que no estás en la carpeta del proyecto.
+  Build Succeeded
+
+  Built Artifacts  : .aws-sam\build
+  Built Template   : .aws-sam\build\template.yaml
+  ```
+- **Si falla:**
+
+  | Mensaje | Qué significa | Qué hacer |
+  |---|---|---|
+  | `Binary validation failed for python` | SAM no encuentra Python 3.11. | Repite el paso 4 y reabre PowerShell. O aplica el cambio A del paso 6.2 si usas 3.12. |
+  | `Template file not found` o `template.yaml not found` | No estás en la carpeta del proyecto. | `cd` hasta `RFHA-IES_SD_TGS` y repite. |
+  | Error instalando una librería (`pip`) | Sin internet o antivirus bloqueando. | Revisa la conexión y repite. |
+
+---
 
 #### Paso 9. Desplegar
-*Desplegar es subir el paquete a AWS y dejarlo funcionando. SAM lo hace creando un «stack» (un conjunto de recursos que se crean y se borran juntos).*
-- **Dónde:** misma terminal (con `$secreto` definido).
-- **Comando para la exposición (con botones de simulación):**
-  ```powershell
-  sam deploy --template-file .aws-sam/build/template.yaml --stack-name rfha-demo --resolve-s3 --capabilities CAPABILITY_IAM --region us-east-1 --no-confirm-changeset --no-fail-on-empty-changeset --parameter-overrides "JwtSecret=$secreto" "DemoMode=1"
-  ```
-  Para desplegar **sin** botones de simulación cambia `"DemoMode=1"` por `"DemoMode=0"`.
-- **Resultado esperado:** tarda 2 a 4 minutos y termina con `Successfully created/updated stack - rfha-demo`. En *Outputs* aparece:
-  ```
-  Key    ApiUrl
-  Value  https://abc123xyz.execute-api.us-east-1.amazonaws.com
-  ```
+
+*Desplegar es subir el paquete a AWS y dejarlo funcionando. SAM lo hace creando un *stack*: un conjunto de recursos que se crean y se borran juntos.*
+
+**9.1 Ejecutar el comando.** En la misma terminal (donde está definido `$secreto`), pega **una sola línea**:
+
+Para la exposición, **con botones de simulación**:
+```powershell
+sam deploy --template-file .aws-sam/build/template.yaml --stack-name rfha-demo --resolve-s3 --capabilities CAPABILITY_IAM --region us-east-1 --no-confirm-changeset --no-fail-on-empty-changeset --parameter-overrides "JwtSecret=$secreto" "DemoMode=1"
+```
+Para dejarla **sin botones**, cambia `"DemoMode=1"` por `"DemoMode=0"`.
+
+**9.2 Qué significa cada parte del comando.**
+
+| Parte | Para qué sirve |
+|---|---|
+| `--template-file .aws-sam/build/template.yaml` | Usa el paquete que construyó el paso 8. |
+| `--stack-name rfha-demo` | El nombre del paquete en AWS. |
+| `--resolve-s3` | SAM crea (o reutiliza) por su cuenta el depósito temporal donde sube el código. |
+| `--capabilities CAPABILITY_IAM` | Autoriza a SAM a crear el rol con que se ejecuta la Lambda. |
+| `--region us-east-1` | Dónde se crea todo. |
+| `--no-confirm-changeset` | No pregunta «¿desplegar?» antes de crear. |
+| `--no-fail-on-empty-changeset` | No da error si no hay cambios al repetir el comando. |
+| `--parameter-overrides "JwtSecret=$secreto" "DemoMode=1"` | Entrega el secreto y el modo demostración. |
+
+**9.3 Qué verás mientras corre** (tarda 2 a 4 minutos; la primera vez crea además el depósito temporal). Aparecen mensajes parecidos a estos:
+```
+Managed S3 bucket: aws-sam-cli-managed-default-samclisourcebucket-xxxxxxxx
+...
+CloudFormation events from stack operations
+CREATE_IN_PROGRESS   AWS::IAM::Role                   DemoFunctionRole
+CREATE_COMPLETE      AWS::IAM::Role                   DemoFunctionRole
+CREATE_COMPLETE      AWS::Lambda::Function            DemoFunction
+CREATE_COMPLETE      AWS::ApiGatewayV2::Api           DemoApi
+...
+CREATE_COMPLETE      AWS::CloudFormation::Stack       rfha-demo
+
+CloudFormation outputs from deployed stack
+Key         ApiUrl
+Value       https://abc123xyz.execute-api.us-east-1.amazonaws.com
+
+Successfully created/updated stack - rfha-demo in us-east-1
+```
+**Copia la dirección que aparece en `Value`: esa es la URL de la demo.**
+
+- **Resultado esperado:** termina con `Successfully created/updated stack - rfha-demo in us-east-1`.
 - **Si falla:**
-  - `AccessDenied`: falta una política del paso 3.
-  - Error con `JwtSecret`: el secreto tiene menos de 32 caracteres.
-  - `ROLLBACK_COMPLETE`: en la consola web, *CloudFormation*, stack `rfha-demo`, pestaña *Events* está el motivo. Para reintentar, borra el fallido (`sam delete --stack-name rfha-demo --region us-east-1`) y repite este paso.
-  - `The security token ... is invalid`: repite el paso 5.
 
-#### Paso 10. Comprobar en el navegador
-- **Dónde:** navegador.
-- **Pasos:**
-  1. Copia el `Value` de `ApiUrl`. Si se perdió: `aws cloudformation describe-stacks --stack-name rfha-demo --region us-east-1 --query "Stacks[0].Outputs"`.
-  2. Ábrelo en el navegador. Debe aparecer la pantalla **«Consulta federada de historial académico»** y arriba a la derecha **Entorno: Nube (AWS)**.
-  3. En *Estudiante de ejemplo* elige **Brayan Acosta Parrado**, pulsa **Token válido** y luego **Consultar expediente**.
-- **Resultado esperado:** los cuatro controles se ponen en verde, la insignia dice **HTTP 200** y aparece el expediente.
+  | Mensaje | Qué significa | Qué hacer |
+  |---|---|---|
+  | `AccessDenied` o `not authorized to perform` | Falta una política del usuario. | Paso 3.2: revisa las 6 políticas del usuario `rfha-deployer`. |
+  | `Parameter JwtSecret ... length` | El secreto tiene menos de 32 caracteres. | Repite el paso 7 y revisa con `$secreto.Length`. |
+  | `$secreto` aparece vacío (el error habla de «JwtSecret=») | Cerraste la terminal o no definiste la variable. | Repite el comando `$secreto = "..."` del paso 7. |
+  | `already exists` (la función o el grupo de registros) | El nombre `rfha-demo` ya está en uso. | Cambio B del paso 6.2. |
+  | `ROLLBACK_COMPLETE` | CloudFormation deshizo todo por un error. | Mira el motivo en la consola: **CloudFormation**, **Stacks**, `rfha-demo`, pestaña **Events**, y busca la fila con `CREATE_FAILED`; la columna **Status reason** explica el error. Luego borra el paquete fallido (`sam delete --stack-name rfha-demo --region us-east-1`) y repite el paso 9. |
+  | `The security token included in the request is invalid` | Las llaves del paso 5 están mal. | Repite el paso 5. |
+  | `Task timed out` al abrir la página | La primera consulta tardó más que el límite. | Recarga una vez; si persiste, aplica el cambio E del paso 6.2. |
+
+**9.4 Si se perdió la URL.** Se puede consultar en cualquier momento:
+```powershell
+aws cloudformation describe-stacks --stack-name rfha-demo --region us-east-1 --query "Stacks[0].Outputs"
+```
+
+---
+
+#### Paso 10. Abrir la demo en el navegador
+
+1. Copia la URL del paso 9 y ábrela en el navegador (sin añadir nada al final).
+2. Debe cargar la pantalla **«Consulta federada de historial académico»** y arriba a la derecha decir **Entorno: Nube (AWS)**. *La primera carga puede tardar de 1 a 3 segundos: es el «arranque en frío» de la Lambda, que se despierta al recibir la primera petición.*
+3. Haz la primera prueba: en **Estudiante de ejemplo** elige **Brayan Acosta Parrado**, pulsa **Token válido** y luego **Consultar expediente**.
+
+- **Resultado esperado:** los cuatro controles se ponen en verde, aparece la insignia **HTTP 200** y se muestra el expediente.
 - **Si falla:**
-  - No aparecen los botones ni la lista: se desplegó con `DemoMode=0`. Repite el paso 9 con `DemoMode=1`.
-  - Pantalla con `{"message":"Internal Server Error"}`: error dentro de la Lambda; mira los logs (sección 4.5).
-  - La primera carga tarda 1 a 3 segundos: es el arranque en frío, normal.
+  - Se ve `{"message":"Not Found"}`: la URL está incompleta, o se desplegó una versión antigua sin la ruta raíz. Descarga el código más reciente (`git pull`) y repite los pasos 8 y 9.
+  - Se ve `{"message":"Internal Server Error"}`: error dentro de la Lambda. Mira los registros (sección 4.7).
+  - No aparecen los botones ni la lista de estudiantes: se desplegó con `DemoMode=0`. Repite el paso 9 con `"DemoMode=1"`.
+  - La página carga pero «Sin conexión»: revisa que la URL no termine en una barra extra ni lleve espacios.
 
-#### Paso 11. Prueba completa de Brayan
-Con la URL de AWS, Brayan repite en la pantalla las escenas 1, 2, 3, 4 y 6 de la sección 6. Si todas dan lo esperado, la demo está lista.
+---
 
-#### Paso 12. Entregar la URL
-El compañero envía a Brayan **la URL** y confirma con qué valor de `DemoMode` desplegó. Brayan la abre en una pestaña antes de exponer.
+#### Paso 11. Recorrer la consola para ver lo que se creó (comprobación)
 
-#### Paso 13. Borrar todo al terminar (importante)
-*Borrar evita costos y, con `DemoMode=1`, cierra la puerta que permite generar tokens.*
+*No es obligatorio, pero ayuda a entender qué hay en AWS y a explicarlo en la exposición.*
+
+**11.1 El paquete (CloudFormation).**
+1. En la consola busca `CloudFormation` y entra. Confirma que arriba a la derecha sigue la región **N. Virginia**.
+2. En el menú izquierdo abre **Stacks** y pulsa **rfha-demo**.
+3. Mira el **Status** (arriba): debe decir `CREATE_COMPLETE` (o `UPDATE_COMPLETE`).
+4. Pestaña **Resources**: lista lo creado: la API (`AWS::ApiGatewayV2::Api`), la función Lambda, el rol, los permisos y el grupo de registros.
+5. Pestaña **Outputs**: aquí está `ApiUrl`. Pestaña **Parameters**: muestra `DemoMode` (el secreto aparece oculto con asteriscos).
+
+**11.2 El programa (Lambda).**
+1. Busca `Lambda` y entra. Menú izquierdo: **Functions**. Pulsa **rfha-demo**.
+2. Pestaña **Code**: se ve el código subido (`main.py`, `students.py`, carpeta `static`).
+3. Pestaña **Configuration**, menú lateral **Environment variables**: están `JWT_SECRET` y `DEMO_MODE`. *Ojo: el secreto se ve aquí a quien tenga acceso a la consola; por eso las llaves y el acceso a la cuenta deben cuidarse.*
+4. Pestaña **Configuration**, **General configuration**: muestra memoria (256 MB), tiempo máximo (10 s) y versión de Python (3.11).
+
+**11.3 La puerta de entrada (API Gateway).**
+1. Busca `API Gateway` y entra. Menú izquierdo: **APIs**. Pulsa la API cuyo nombre empieza con `rfha-demo` (o la que tenga la misma URL del paso 9).
+2. Menú **Routes**: deben verse dos rutas, `ANY /` y `ANY /{proxy+}`, ambas conectadas a la función `rfha-demo`.
+3. Menú **Stages**: aparece `$default` con su **Invoke URL**, que es la misma URL del paso 9.
+
+**11.4 El registro de actividad (CloudWatch).**
+1. Busca `CloudWatch` y entra. Menú izquierdo: **Logs** y luego **Log groups**.
+2. Abre `/aws/lambda/rfha-demo`: en **Retention** debe decir `1 week` (7 días). Dentro hay un *log stream* por cada ejecución con lo que imprimió la Lambda.
+
+---
+
+#### Paso 12. Prueba completa y entrega de la URL
+
+1. Quien conoce el proyecto abre la URL de AWS y repite en la pantalla las **escenas 1, 2, 3, 4, 6 y 7** de la sección 6. Si todas dan lo esperado, la demo en AWS está lista.
+2. Quien desplegó envía la **URL** y confirma con qué valor de `DemoMode` desplegó (`1` o `0`).
+3. Antes de exponer, abre la URL en una pestaña y haz una consulta de prueba, para que la Lambda esté «despierta».
+
+---
+
+#### Paso 13. Revisar que no se esté cobrando (recomendado)
+
+1. En la consola busca `Billing and Cost Management` y entra.
+2. En el menú izquierdo abre **Bills**: el total del mes debe ser **USD 0.00**.
+3. En **Free Tier** se ve el uso de los servicios frente a su límite gratuito.
+
+Una demo de este tamaño no debería acercarse a ningún límite. Si aparece algún gasto, ve de inmediato al paso 14 para borrar todo.
+
+---
+
+#### Paso 14. Borrar todo al terminar (importante)
+
+*Borrar evita costos y, si se usó `DemoMode=1`, cierra la puerta que permite generar tokens a quien conozca la URL.*
+
+**14.1 Borrar el paquete.** En PowerShell:
 ```powershell
 sam delete --stack-name rfha-demo --region us-east-1
 ```
-Responde `y` a las preguntas. Después, en la consola web, *S3*: borra el bucket que empieza por `aws-sam-cli-managed-default`. Finalmente, en *IAM*, desactiva o elimina la access key de `rfha-deployer`.
+Responde `y` a las preguntas. Esto elimina la Lambda, la API y el registro de actividad.
 
-### 4.4 Despliegue alternativo desde GitHub (opcional)
-Evita instalar SAM en el computador. En el repositorio de GitHub:
-1. *Settings*, *Secrets and variables*, *Actions*, *New repository secret*. Crea tres: `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` (las del paso 3) y `DEMO_JWT_SECRET` (el secreto del paso 7).
-2. Pestaña *Actions*, flujo **CD demo (manual)**, *Run workflow*.
-3. La URL queda en la consola web de CloudFormation, stack `rfha-demo`, pestaña *Outputs*.
+**14.2 Comprobar en la consola.** Entra a **CloudFormation**, **Stacks**: `rfha-demo` ya no debe aparecer en la lista (para verlo, el filtro **Deleted** lo muestra con estado `DELETE_COMPLETE`).
 
-Este flujo despliega con `DemoMode=0`. Para la exposición con botones usa el paso 9.
+**14.3 Borrar el depósito temporal (S3).**
+1. Busca `S3` y entra. En **General purpose buckets** busca el que empieza por `aws-sam-cli-managed-default-samclisourcebucket`.
+2. Selecciónalo y pulsa **Empty**. Escribe `permanently delete` para confirmar y pulsa **Empty**.
+3. Vuelve a la lista, selecciónalo otra vez y pulsa **Delete**. Escribe el nombre exacto del bucket y confirma.
 
-### 4.5 Ver los logs si algo falla
+**14.4 Desactivar las llaves del usuario.**
+1. Busca `IAM` y entra. Menú **Users**, pulsa `rfha-deployer`.
+2. Pestaña **Security credentials**, sección **Access keys**: pulsa **Actions** y luego **Deactivate**; después **Actions** y **Delete**. Confirma.
+
+- **Resultado esperado:** `rfha-demo` no existe, el bucket no existe y el usuario no tiene llaves activas.
+
+---
+
+### 4.6 Despliegue alternativo desde GitHub (opcional)
+
+Sirve para no instalar nada en el computador. Todo se hace en el sitio web de GitHub, en el repositorio del proyecto.
+
+**Guardar las llaves como secretos (una sola vez):**
+1. Abre el repositorio y pulsa la pestaña **Settings**.
+2. En el menú izquierdo abre **Secrets and variables** y luego **Actions**.
+3. Pulsa **New repository secret**. En **Name** escribe `AWS_ACCESS_KEY_ID` y en **Secret** la llave del paso 3. Pulsa **Add secret**.
+4. Repite para `AWS_SECRET_ACCESS_KEY` (el *Secret access key*) y para `DEMO_JWT_SECRET` (el secreto del paso 7).
+
+**Ejecutar el despliegue:**
+1. Pulsa la pestaña **Actions**.
+2. En la lista de la izquierda elige **CD demo (manual)**.
+3. Pulsa **Run workflow** (a la derecha). Elige la rama (`dev` o `main`) y, en **Modo demostración**, elige `1` (con botones) o `0` (sin botones). Pulsa **Run workflow**.
+4. Aparece una ejecución nueva con un círculo amarillo; púlsala. Cuando se pone verde (2 a 5 minutos), abre la parte **Summary**: abajo aparece **URL de la demo** con la dirección. También está en el último paso («Mostrar la URL de la demo»).
+
+Borrar todo sigue siendo el paso 14. Si el despliegue falla, abre el paso en rojo para leer el motivo; las causas son las mismas de la tabla del paso 9.
+
+### 4.7 Ver los registros si algo falla
+
+- **Por terminal:**
+  ```powershell
+  sam logs --stack-name rfha-demo --region us-east-1
+  ```
+- **Por consola:** **CloudWatch**, **Log groups**, `/aws/lambda/rfha-demo`, y abre el *log stream* más reciente. Busca líneas con `ERROR` o `Traceback`.
+
+### 4.8 Actualizar la demo si cambia el código
+
+Descarga lo nuevo y repite el despliegue con el mismo secreto:
 ```powershell
-sam logs --stack-name rfha-demo --region us-east-1
+git pull
+sam build --template-file demo/template.yaml
+sam deploy --template-file .aws-sam/build/template.yaml --stack-name rfha-demo --resolve-s3 --capabilities CAPABILITY_IAM --region us-east-1 --no-confirm-changeset --no-fail-on-empty-changeset --parameter-overrides "JwtSecret=$secreto" "DemoMode=1"
 ```
-O en la consola web: *CloudWatch*, *Log groups*, `/aws/lambda/rfha-demo`.
+La URL no cambia.
 
-### 4.6 Actualizar la demo si Brayan cambia el código
-Repite los pasos 6 (`git pull`), 8 y 9 con el mismo secreto. La URL no cambia.
+### 4.9 Problemas frecuentes en AWS
+
+| Qué ves | Causa probable | Qué hacer |
+|---|---|---|
+| La página principal da `{"message":"Not Found"}` | Se desplegó una versión sin la ruta raíz. | `git pull`, y repetir pasos 8 y 9. |
+| Aparece la página pero no los botones | `DemoMode=0`. | Redesplegar con `"DemoMode=1"` (sección 4.8). |
+| Salió 403 con un token que debía servir | El secreto de quien genera los tokens no coincide con el desplegado (solo ocurre al pegar tokens a mano). | Con los botones no pasa. Si se pegan tokens, usar el mismo secreto que en el paso 9. |
+| La primera carga tarda unos segundos | Arranque en frío de la Lambda. | Es normal. Cargar la página una vez antes de exponer. |
+| `AccessDenied` al desplegar | Falta una política al usuario. | Paso 3.2. |
+| `Task timed out` | La Lambda superó los 10 segundos. | Cambio E del paso 6.2 y redesplegar. |
+| Aparece un cobro en `Bills` | Algo quedó encendido o la cuenta no es de plan Free. | Paso 14 de inmediato y revisar el plan en `Free Tier`. |
 
 ---
 
@@ -777,7 +1147,7 @@ Regla general: **cambia de plan sin disculparte ni perder tiempo** (de local a A
 | La página de AWS no carga o da error | Puede ser internet o la Lambda. | Cambia a la pestaña local (Plan A). |
 | La primera consulta en AWS tarda unos segundos | Arranque en frío. | Es normal; espera. Para evitarlo, calienta antes de exponer. |
 | Salió 403 con un token que debía servir | Pulsaste **Token válido** y después cambiaste el código, o el token venció. | Pulsa **Token válido** otra vez con el código correcto ya escrito. |
-| En AWS no aparecen los botones ni la lista | Se desplegó con `DemoMode=0`. | Usa el Plan A para las pruebas con clics, o pide al compañero redesplegar con `DemoMode=1`. |
+| En AWS no aparecen los botones ni la lista | Se desplegó con `DemoMode=0`. | Usa el Plan A para las pruebas con clics, o redesplega con `DemoMode=1` (sección 4.8). |
 | Los botones no hacen nada | La página quedó vieja en el navegador. | Recarga con `Ctrl+F5`. |
 | «Sin conexión» al consultar | La demo se apagó. | Vuelve a ejecutar `.\run-demo.cmd`. |
 | Una cifra de homologación no coincide con esta guía | Cambió el valor de la nota mínima. | Ajusta la nota mínima al valor de la escena (3,5 por defecto). |

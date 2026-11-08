@@ -20,6 +20,17 @@ Copia esta plantilla al inicio de la sección «Entradas»:
 
 ## Entradas
 
+### 2026-11-08 · Guía de AWS detallada, redacción neutra y corrección de la ruta raíz
+- **Qué se hizo:**
+  - **Redacción neutra:** en `docs/DEMO.md`, el README, `AWS_PASO_A_PASO.md`, `BRECHAS.md` y el prompt se reemplazaron las menciones a una persona concreta («el compañero de AWS», «Brayan lo genera») por «quien despliega en AWS» y «quien conoce el proyecto», para evitar malentendidos en el equipo.
+  - **Sección 4 de `DEMO.md` reescrita a fondo:** mapa de fases; 14 pasos con el menú exacto de la consola de AWS donde entrar, qué botón pulsar y qué debe verse (cuenta y plan Free, alerta de USD 0.01, usuario IAM con las 6 políticas y llaves de acceso, instalación de herramientas, `aws configure`, descarga del código, secreto, `sam build`, `sam deploy` con cada parte del comando explicada, apertura de la demo, recorrido por CloudFormation, Lambda, API Gateway y CloudWatch, revisión de costos y borrado completo incluyendo S3 e IAM); despliegue alternativo desde GitHub paso a paso; tabla de problemas frecuentes.
+  - **Qué código modificar y dónde (paso 6.2):** `demo/template.yaml` mostrado completo y comentado, con 5 cambios posibles (A versión de Python, B nombre en uso, C botones encendidos por defecto, D límite de peticiones, E tiempo máximo) indicando la línea a buscar y cómo debe quedar.
+  - **Corrección de un error real:** la API de AWS solo enrutaba `/{proxy+}`, que **no cubre la ruta raíz `/`**; al abrir la URL pública habría salido `{"message":"Not Found"}` en vez de la pantalla. Se agregó el evento `Root` (`Path: /`) en `demo/template.yaml`.
+  - **Flujo de GitHub:** `cd-demo.yml` ahora permite elegir el modo demostración (0 o 1) y muestra la URL de la demo al terminar.
+- **Por qué:** petición del usuario: guía de AWS muy detallada con menús y código a modificar, y redacción general sin señalar a nadie.
+- **Archivos:** `docs/DEMO.md`, `demo/template.yaml`, `.github/workflows/cd-demo.yml`, `README.md`, `docs/AWS_PASO_A_PASO.md`, `docs/BRECHAS.md`, `docs/PROMPT-AGENTE-RFHA-IES.md`, `docs/BITACORA.md`.
+- **Pendiente / riesgos:** **no se ha desplegado en una cuenta real**. Los nombres de menús de la consola de AWS se escribieron de memoria y AWS cambia su diseño con frecuencia; la guía lo advierte y da la barra de búsqueda como respaldo. La corrección de la ruta raíz no se ha probado en AWS (en local no aplica). Verificar con el primer despliegue.
+
 ### 2026-11-08 · DEMO.md sin guion; el middleware explicado en cada escena
 - **Qué se hizo:** se eliminó de `docs/DEMO.md` la sección «Guion de la exposición» (tabla minuto a minuto) y los «Qué decir» de cada escena; en su lugar la sección 7 es una lista de verificación previa a exponer. En las pruebas se agregó la sección 6.2 «Cómo viaja una consulta» (recorrido navegador, API Gateway, Lambda, controles y respuesta, con una tabla de qué revisa cada uno de los 4 controles y qué responde si falla) y **cada una de las 15 escenas** ahora tiene «Cómo se refleja el middleware» (petición, qué control pasa o falla, decisión y respuesta) y «Conclusión». Se explicó para qué sirve «Copiar como curl» (escena 14) y la tabla resumen (6.4) incluye cómo lo resuelve el middleware en cada caso.
 - **Por qué:** petición del usuario: el documento debe mostrar cómo funciona y cómo se refleja el middleware en cada prueba, no un guion.
@@ -62,10 +73,10 @@ Copia esta plantilla al inicio de la sección «Entradas»:
 - **Pendiente / riesgos:** no se ha visto la interfaz en un navegador desde el agente; validar a mano. Las cifras de los casos 11 a 15 se calcularon a mano contra los datos; si alguna no coincide en pantalla, corregir la guía. Revisión con lector de pantalla pendiente.
 
 ### 2026-11-08 · Guía de AWS autosuficiente en DEMO.md
-- **Qué se hizo:** la sección 3 de `docs/DEMO.md` se reescribió para que el compañero de AWS despliegue la demo sin abrir otro documento: resumen (qué se crea, costo, tiempo, quién hace qué), 12 pasos con comandos exactos de PowerShell (cuenta con plan Free, alerta de USD 0.01, usuario IAM con 6 políticas, instalación de AWS CLI, SAM CLI, Python 3.11 y Git, `aws configure`, clonar, secreto JWT, `sam build`, `sam deploy`, comprobar URL, prueba completa con `check_demo.py`, entrega a Brayan), despliegue alternativo desde GitHub Actions, logs, actualización y borrado. Se quitaron las referencias a otros `.md`.
-- **Por qué:** petición del usuario: el compañero debe poder levantar la demo en AWS solo con ese documento.
+- **Qué se hizo:** la sección 3 de `docs/DEMO.md` se reescribió para que quien despliegue en AWS pueda hacerlo sin abrir otro documento: resumen (qué se crea, costo, tiempo, quién hace qué), 12 pasos con comandos exactos de PowerShell (cuenta con plan Free, alerta de USD 0.01, usuario IAM con 6 políticas, instalación de AWS CLI, SAM CLI, Python 3.11 y Git, `aws configure`, clonar, secreto JWT, `sam build`, `sam deploy`, comprobar URL, prueba completa con `check_demo.py`, entrega a Brayan), despliegue alternativo desde GitHub Actions, logs, actualización y borrado. Se quitaron las referencias a otros `.md`.
+- **Por qué:** petición del usuario: quien despliegue debe poder levantar la demo en AWS solo con ese documento.
 - **Archivos:** `docs/DEMO.md`, `docs/BITACORA.md`.
-- **Pendiente / riesgos:** los comandos no se han ejecutado contra una cuenta AWS real. Riesgo conocido: `sam build` exige Python 3.11 local (se instala en el paso 4). Probar el despliegue completo con el compañero y corregir la guía si algo difiere.
+- **Pendiente / riesgos:** los comandos no se han ejecutado contra una cuenta AWS real. Riesgo conocido: `sam build` exige Python 3.11 local (se instala en el paso 4). Probar el despliegue completo con el equipo y corregir la guía si algo difiere.
 
 ### 2026-11-08 · Guía de casos de prueba y bitácora
 - **Commit / CI:** `ca500d3` · verde.
@@ -111,7 +122,7 @@ Copia esta plantilla al inicio de la sección «Entradas»:
 - **Qué se hizo:** `POST /api/v1/nodes/register` (201 con `node_id` y estado `PENDIENTE_APROBACION`, 409 si el NIT ya existe, 422 si los datos son inválidos). Repositorio con implementación en memoria y DynamoDB.
 - **Archivos:** `src/app/{config,models,repositories,main}.py`, `src/app/routers/nodes.py`, `tests/test_hu01_register_node.py`, `docs/historias/HU-01.md`, `thunder-tests/`, `docs/AWS_PASO_A_PASO.md` (tabla `NodesTable`).
 - **Commit / CI:** `8810c54` · verde.
-- **Pendiente:** el usuario debe escribir «aprobado» para pasar a HU-02. El compañero de AWS debe crear `NodesTable`.
+- **Pendiente:** el usuario debe escribir «aprobado» para pasar a HU-02. Falta crear `NodesTable` en AWS.
 
 ### 2026-11-08 · Demo del middleware (Prioridad 0)
 - **Qué se hizo:** API de la demo con 403 (sin token, inválido, expirado, sin `exp`, token de otro estudiante), 200 y 404; plantilla SAM del stack `rfha-demo`; `scripts/generate_token.py` y `scripts/check_demo.py`; colección y entornos de Thunder Client; CI y CD manual. Etiqueta `demo-martes` sobre `1a1fd57`.
@@ -144,4 +155,4 @@ Copia esta plantilla al inicio de la sección «Entradas»:
 - **Rama de trabajo:** `dev`. Etiqueta `demo-martes` en `1a1fd57`.
 - **Historias:** HU-01 terminada, con API y formulario web (espera «aprobado»). HU-02 a HU-10 pendientes.
 - **Pruebas definidas en el código:** 61 = demo (9 de la API, 22 de los datos, 8 de la interfaz) + app final (12 de HU-01 API y 10 del formulario). Se ejecutan en GitHub Actions, más el job `demo-runner` (levanta la demo y la app final).
-- **AWS:** nada desplegado aún. Pendiente del compañero: cuenta con plan Free, presupuesto de USD 0.01, usuario IAM, CLI y SAM, despliegue de la demo (bloque 1 de `docs/AWS_PASO_A_PASO.md`) y tabla `NodesTable`.
+- **AWS:** nada desplegado aún. Pendiente en AWS: cuenta con plan Free, presupuesto de USD 0.01, usuario IAM, CLI y SAM, despliegue de la demo (bloque 1 de `docs/AWS_PASO_A_PASO.md`) y tabla `NodesTable`.

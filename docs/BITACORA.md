@@ -20,6 +20,12 @@ Copia esta plantilla al inicio de la sección «Entradas»:
 
 ## Entradas
 
+### 2026-11-08 · Declaración de uso de IA en la documentación
+- **Qué se hizo:** se agregó al `README.md` la sección 16 «Declaración de uso de herramientas de IA» (herramienta, para qué se usó, cómo se trabajó, qué decide el equipo, trazabilidad y responsabilidad). Se verificó con una búsqueda que ni el frontend (`demo/static`, `src/app/static`) ni el código de la API contienen menciones a herramientas de IA.
+- **Por qué:** la asignatura permite el uso de IA declarado; la declaración va en la documentación y no en la interfaz.
+- **Archivos:** `README.md`, `docs/BITACORA.md`.
+- **Decisiones:** D-24 (la declaración de IA vive solo en la documentación).
+
 ### 2026-11-08 · Texto de ayuda del token retirado de la pantalla de la demo
 - **Qué se hizo:** se quitó el texto de ayuda bajo el campo del token («Se envía en el encabezado X-Student-Consent-Token. Déjalo vacío para probar el rechazo.»), porque es una indicación para quien presenta y no para el público. El campo conserva su etiqueta y un texto de ejemplo más corto.
 - **Archivos:** `demo/static/index.html`.

@@ -7,8 +7,8 @@ Fuente de verdad: `levantamiento_de_requerimientos_proyecto_final.md`.
 
 | Carpeta | Contenido |
 |---|---|
-| `demo/` | Demo del middleware para la exposición. Autónoma, puerto **8000**. |
-| `src/app/` | App final. Puerto **8001**. |
+| `demo/` | Demo del middleware para la exposición. Autónoma, puerto **8000**. Incluye la interfaz web en `demo/static/`. |
+| `src/app/` | App final. Puerto **8001**. Su interfaz web (`src/app/static/`) llega con HU-10. |
 | `tests/` | Pruebas de la app final. |
 | `scripts/` | Utilidades (`generate_token.py`, `check_demo.py`). |
 | `thunder-tests/` | Colecciones de Thunder Client (carpetas "Demo" y "App final"). |
@@ -83,11 +83,15 @@ pytest tests           # solo app final
 bash run-demo.sh        # macOS / Linux
 ```
 
-Guía completa (local, AWS y explicación del código): `docs/DEMO.md`.
+Si PowerShell bloquea scripts: `.\run-demo.cmd`. Cuando salga "DEMO LISTA", abre **http://127.0.0.1:8000** (interfaz web).
+
+Guía completa (local, AWS, interfaz y explicación del código): `docs/DEMO.md`.
 
 ## Documentación
 
 - `docs/DEMO.md`: demo paso a paso (local y AWS) y explicación del código.
+- `docs/PROMPT-AGENTE-RFHA-IES.md`: prompt de trabajo del agente (v2, incluye frontend).
+- `docs/ADENDA_FRONTEND.md`: requerimientos de la interfaz web (RF-11 a RF-19, RNF-F1 a F9, HU-10).
 - `docs/DECISIONES.md`: decisiones tomadas.
 - `docs/BRECHAS.md`: faltantes y ambigüedades del documento.
 - `docs/AWS_PASO_A_PASO.md`: guía para el compañero de AWS (se crea con la demo).

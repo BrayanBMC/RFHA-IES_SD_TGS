@@ -30,6 +30,10 @@ curl -i -H "X-Student-Consent-Token: <TOKEN_VALIDO>" $URL        # 200 con histo
 
 En PowerShell usa `curl.exe` (no `curl`, que es un alias de otra cosa).
 
+## Interfaz web (recomendada para exponer)
+
+Con la demo en marcha, abre `http://127.0.0.1:8000` y usa los botones **Token válido**, **Token expirado** y **Sin token** de «Simular al estudiante». La tarjeta «Validación del middleware» muestra en qué paso se acepta o rechaza cada consulta. Detalle en `docs/DEMO.md`, sección 2.3. Los `curl` y Thunder Client siguen siendo el respaldo.
+
 ## Qué decir en cada paso (7 minutos)
 
 1. **Problema y rol del middleware (1.5 min).** Las IES son islas de datos. El middleware es el *transportista*: el cliente llama a una sola URL y no conoce IP, ubicación ni motor de base de datos del nodo.

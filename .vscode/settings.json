@@ -4,5 +4,6 @@
   "python.testing.unittestEnabled": false,
   "python.testing.pytestArgs": ["."],
   "thunder-client.saveToWorkspace": true,
-  "files.eol": "\n"
+  "files.eol": "\n",
+  "python.terminal.useEnvFile": true
 }

@@ -104,3 +104,7 @@ Se agregan pasos por historia. El despliegue de la app final se arma con un `tem
 - **Variables de la Lambda (cuando exista el despliegue de la app):** `REPOSITORY_BACKEND=dynamodb`, `NODES_TABLE=NodesTable`.
 - **Permisos de la Lambda:** `dynamodb:PutItem`, `GetItem`, `Scan` sobre `NodesTable`.
 - Por definir en próximas historias: `ADMIN_KEY` (HU-02), nuevas tablas.
+
+### Interfaz web (frontend)
+- **Nada nuevo en AWS.** La interfaz (HTML, CSS y JS) se sirve desde la misma Lambda y el mismo API Gateway; no se crean S3 ni CloudFront ni costos adicionales. En la demo, la página queda en la URL raíz (`ApiUrl`).
+- Parámetro opcional `DemoMode` (`0` por defecto): con `1` la interfaz muestra los botones que generan tokens de prueba. Úsalo solo para ensayar y vuelve a desplegar con `0`. Ver `docs/DEMO.md`, sección 2.3.

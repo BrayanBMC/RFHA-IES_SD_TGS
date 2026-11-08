@@ -3,11 +3,15 @@
 Autónoma: no importa nada de src/app. Corre con uvicorn (local) o en AWS Lambda (Mangum).
 """
 import os
+import time
 from pathlib import Path
 
 import jwt
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from mangum import Mangum
+from pydantic import BaseModel, Field
 
 
 def _load_dotenv() -> None:
@@ -26,6 +30,20 @@ _load_dotenv()
 
 # Valor por defecto SOLO para desarrollo local. En AWS se define JWT_SECRET en la Lambda.
 JWT_SECRET = os.getenv("JWT_SECRET", "dev-only-insecure-secret-do-not-use-in-aws")
+
+# Modo demostración: habilita los botones que simulan el consentimiento del estudiante.
+# Apagado por defecto. En AWS solo se activa si se despliega con DemoMode=1.
+DEMO_MODE = os.getenv("DEMO_MODE") == "1"
+
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+PAGE_HEADERS = {
+    "Content-Security-Policy": (
+        "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; "
+        "base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+    ),
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+}
 
 app = FastAPI(
     title="Middleware RFHA-IES - Demo Web Services",
@@ -100,6 +118,41 @@ async def get_academic_history(
         "transparency_verified": True,
         "data": record,
     }
+
+
+class ConsentTokenRequest(BaseModel):
+    student_id: str = Field(pattern=r"^[0-9A-Za-z_-]{1,32}$")
+    expired: bool = False
+
+
+@app.get("/api/v1/demo/config")
+async def demo_config():
+    """Le dice a la interfaz si debe mostrar las herramientas de demostración."""
+    return {"demo_mode": DEMO_MODE}
+
+
+@app.post("/api/v1/demo/consent-token")
+async def demo_consent_token(body: ConsentTokenRequest):
+    """Simula el paso en que el estudiante autoriza la consulta (en el proyecto final será HU-04)."""
+    if not DEMO_MODE:
+        raise HTTPException(status_code=404, detail="No disponible.")
+    now = int(time.time())
+    exp = now - 3600 if body.expired else now + 86400
+    token = jwt.encode(
+        {"student_id": body.student_id, "iat": now, "exp": exp},
+        JWT_SECRET,
+        algorithm="HS256",
+    )
+    return {"token": token, "expires_at": exp}
+
+
+# Interfaz web (HTML/CSS/JS estáticos, sin build).
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.get("/", include_in_schema=False)
+async def home():
+    return FileResponse(STATIC_DIR / "index.html", headers=PAGE_HEADERS)
 
 
 # Punto de entrada para AWS Lambda.

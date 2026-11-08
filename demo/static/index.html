@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RFHA-IES · Consulta federada de historial académico</title>
+  <meta name="description" content="Demostración del middleware que entrega el historial académico solo con el consentimiento firmado del estudiante.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script type="module" src="/static/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/" aria-label="RFHA-IES, inicio">
+        <img src="/static/favicon.svg" alt="" width="32" height="32">
+        <span>RFHA-IES</span>
+      </a>
+      <p class="env" id="env-badge">Entorno: <strong id="env-name">…</strong></p>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <section class="hero">
+      <p class="eyebrow">Middleware de Web Services</p>
+      <h1>Consulta federada de historial académico</h1>
+      <p class="lead">Una sola URL para consultar el expediente de un estudiante. El middleware entrega los datos <strong>solo si el estudiante dio su consentimiento firmado</strong>.</p>
+    </section>
+
+    <div class="grid">
+      <section class="card" aria-labelledby="query-title">
+        <h2 id="query-title">1. Solicitud</h2>
+        <form id="query-form" novalidate>
+          <div class="field">
+            <label for="student-id">Código del estudiante</label>
+            <input id="student-id" name="student" type="text" inputmode="numeric" autocomplete="off" required value="20262678029" aria-describedby="student-hint student-error">
+            <p class="hint" id="student-hint">En la demo existe el estudiante 20262678029.</p>
+            <p class="error" id="student-error" hidden></p>
+          </div>
+
+          <div class="field">
+            <label for="token">Token de consentimiento</label>
+            <textarea id="token" name="token" rows="4" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="Pega aquí el token JWT del estudiante" aria-describedby="token-hint"></textarea>
+            <p class="hint" id="token-hint">Se envía en el encabezado <code>X-Student-Consent-Token</code>. Déjalo vacío para probar el rechazo.</p>
+          </div>
+
+          <fieldset class="tools" id="demo-tools" hidden>
+            <legend>Simular al estudiante</legend>
+            <div class="btn-row">
+              <button type="button" class="btn" id="btn-valid">Token válido</button>
+              <button type="button" class="btn" id="btn-expired">Token expirado</button>
+              <button type="button" class="btn ghost" id="btn-clear">Sin token</button>
+            </div>
+          </fieldset>
+
+          <button type="submit" class="btn primary" id="btn-submit">Consultar expediente</button>
+        </form>
+      </section>
+
+      <section class="card" aria-labelledby="pipe-title">
+        <h2 id="pipe-title">2. Validación del middleware</h2>
+        <ol class="pipeline" id="pipeline">
+          <li data-step="token" data-state="idle">
+            <span class="dot" aria-hidden="true"></span>
+            <div><strong>Token presente</strong><span class="desc">Llegó el encabezado de consentimiento.</span></div>
+            <span class="state">Pendiente</span>
+          </li>
+          <li data-step="signature" data-state="idle">
+            <span class="dot" aria-hidden="true"></span>
+            <div><strong>Firma y vigencia</strong><span class="desc">Firma HS256 válida y token sin vencer.</span></div>
+            <span class="state">Pendiente</span>
+          </li>
+          <li data-step="owner" data-state="idle">
+            <span class="dot" aria-hidden="true"></span>
+            <div><strong>Titular del consentimiento</strong><span class="desc">El token autoriza a este estudiante.</span></div>
+            <span class="state">Pendiente</span>
+          </li>
+          <li data-step="lookup" data-state="idle">
+            <span class="dot" aria-hidden="true"></span>
+            <div><strong>Búsqueda del expediente</strong><span class="desc">El nodo de origen devuelve el historial.</span></div>
+            <span class="state">Pendiente</span>
+          </li>
+        </ol>
+      </section>
+    </div>
+
+    <section class="card result" aria-labelledby="result-title" id="result">
+      <h2 id="result-title">3. Respuesta</h2>
+      <p class="empty" id="result-empty">Aún no hay consultas. Completa la solicitud y pulsa «Consultar expediente».</p>
+
+      <div id="result-body" hidden aria-live="polite">
+        <div class="status-row">
+          <span class="http" id="http-badge">—</span>
+          <p id="http-message"></p>
+        </div>
+
+        <article class="student" id="student-card" hidden>
+          <h3 id="student-name"></h3>
+          <dl>
+            <div><dt>Universidad</dt><dd id="student-university"></dd></div>
+            <div><dt>Programa</dt><dd id="student-program"></dd></div>
+            <div><dt>Promedio acumulado</dt><dd id="student-gpa"></dd></div>
+          </dl>
+          <div class="table-wrap" role="region" aria-labelledby="courses-title" tabindex="0">
+            <table>
+              <caption id="courses-title">Asignaturas cursadas</caption>
+              <thead><tr><th scope="col">Código</th><th scope="col">Asignatura</th><th scope="col" class="num">Nota</th></tr></thead>
+              <tbody id="courses-body"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <details>
+          <summary>Ver respuesta JSON</summary>
+          <pre id="json-view" tabindex="0"></pre>
+        </details>
+        <button type="button" class="btn ghost" id="btn-curl">Copiar como curl</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Universidad Distrital Francisco José de Caldas · Sistemas Distribuidos y Teoría General de Sistemas.</p>
+      <p><a href="/docs">Documentación de la API (Swagger)</a></p>
+    </div>
+  </footer>
+
+  <p class="sr-only" id="sr-status" role="status" aria-live="polite"></p>
+</body>
+</html>

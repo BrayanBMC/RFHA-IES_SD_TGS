@@ -112,7 +112,23 @@ La primera vez tarda 1 a 2 minutos (instala dependencias). Las siguientes arranc
 6. Levanta la API: `uvicorn demo.main:app --port 8000`
 7. En otra terminal, verifica: `python scripts/check_demo.py http://127.0.0.1:8000` → debe decir `TODO BIEN`.
 
-### 2.3 Probar en local con Thunder Client
+### 2.3 Interfaz web (la forma recomendada de exponer)
+
+Con la demo en marcha, abre **http://127.0.0.1:8000** en el navegador.
+
+1. En **Simular al estudiante** pulsa **Token válido**. El token aparece en el campo.
+2. Pulsa **Consultar expediente**. La tarjeta *Validación del middleware* muestra los 4 pasos en verde y abajo aparece el expediente.
+3. Pulsa **Sin token** y consulta de nuevo: se rechaza en el paso 1 con `HTTP 403`.
+4. Pulsa **Token expirado** y consulta: se rechaza en el paso 2 con `HTTP 403`.
+5. *Ver respuesta JSON* muestra la respuesta cruda. *Copiar como curl* copia el comando equivalente.
+
+Los botones de **Simular al estudiante** solo existen en modo demostración, que el lanzador activa solo (`DEMO_MODE=1`). Representan el paso donde el estudiante da su consentimiento; en el proyecto final lo hará el propio estudiante (HU-04).
+
+Qué incluye la interfaz: HTML semántico y accesible (etiquetas, foco visible, lector de pantalla, contraste AA), diseño adaptable a celular, modo claro y oscuro automático según el sistema, política de seguridad de contenido (CSP) estricta, sin librerías externas ni fuentes de terceros, y todo el contenido dinámico insertado como texto (sin `innerHTML`). Archivos: `demo/static/{index.html,styles.css,app.js,favicon.svg}`.
+
+En AWS la misma página está en la URL raíz. Allí los botones de simulación vienen **apagados** (por seguridad): pega un token generado con `python scripts/generate_token.py`. Para ensayar con los botones, despliega con `DemoMode=1` agregándolo a `--parameter-overrides` (`"JwtSecret=<SECRETO>" "DemoMode=1"`) y vuelve a desplegar con `0` después, porque con `1` cualquiera que tenga la URL puede generar tokens.
+
+### 2.4 Probar en local con Thunder Client
 
 1. Abre la extensión **Thunder Client** (icono del rayo).
 2. Pestaña *Collections* → **RFHA-IES** → carpeta **Demo** (tres requests).
@@ -121,9 +137,9 @@ La primera vez tarda 1 a 2 minutos (instala dependencias). Las siguientes arranc
 
 Si no aparece la colección, usa `curl` (sección 4).
 
-### 2.4 Probar desde el navegador
+### 2.5 Documentación Swagger
 
-Abre `http://127.0.0.1:8000/docs`. Es la documentación Swagger generada automáticamente. Pulsa *Try it out* en el endpoint, escribe el `student_id` `20262678029` y el token en el campo del header.
+Abre `http://127.0.0.1:8000/docs`. Es la documentación de la API generada automáticamente. Pulsa *Try it out* en el endpoint, escribe el `student_id` `20262678029` y el token en el campo del header.
 
 ---
 
@@ -252,7 +268,9 @@ Pruebas extra opcionales: cambiar una letra del token (403 firma inválida); ped
 
 | Archivo | Para qué sirve |
 |---|---|
-| `demo/main.py` | **Toda la API.** Validación del token, datos simulados y endpoint. |
+| `demo/main.py` | **Toda la API.** Validación del token, datos simulados, endpoint, y sirve la interfaz web. |
+| `demo/static/` | Interfaz web: `index.html`, `styles.css`, `app.js`, `favicon.svg`. |
+| `demo/tests/test_demo_frontend.py` | Pruebas de la interfaz y del modo demostración. |
 | `demo/requirements.txt` | Librerías que necesita la Lambda en AWS. |
 | `demo/requirements-local.txt` | Las mismas más `uvicorn`, para correr en local. |
 | `demo/template.yaml` | Plantilla AWS SAM: crea la Lambda y el API Gateway. |

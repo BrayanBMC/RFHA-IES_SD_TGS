@@ -125,6 +125,7 @@ def main() -> int:
     server = subprocess.Popen(
         [str(venv_python()), "-m", "uvicorn", "demo.main:app", "--port", str(args.port)],
         cwd=ROOT,
+        env={**os.environ, "DEMO_MODE": "1"},  # activa los botones de simulación en la interfaz
     )
     try:
         if not wait_until_up(base_url):
@@ -144,7 +145,8 @@ def main() -> int:
 
         print(
             f"\nDEMO LISTA\n"
-            f"  API:            {base_url}\n"
+            f"  Interfaz web:   {base_url}   <- abre esta en el navegador\n"
+            f"  API:            {base_url}/api/v1/federated/academic-history/20262678029\n"
             f"  Documentación:  {base_url}/docs\n"
             f"  Detener:        Ctrl+C\n",
             flush=True,

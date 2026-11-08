@@ -8,6 +8,11 @@ Parameters:
     NoEcho: true
     MinLength: 32
     Description: Secreto para firmar y validar tokens. Debe ser el mismo que usa scripts/generate_token.py
+  DemoMode:
+    Type: String
+    Default: '0'
+    AllowedValues: ['0', '1']
+    Description: "1 = la interfaz web puede generar tokens de prueba. Solo para ensayar; con 1 cualquiera con la URL puede generar tokens."
 
 Resources:
   DemoApi:
@@ -29,6 +34,7 @@ Resources:
       Environment:
         Variables:
           JWT_SECRET: !Ref JwtSecret
+          DEMO_MODE: !Ref DemoMode
       Events:
         Any:
           Type: HttpApi

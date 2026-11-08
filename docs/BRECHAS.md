@@ -28,7 +28,7 @@ Estados: `Abierta` · `Resuelta (propuesta)` · `Cerrada`.
 | B7 | Réplica (HU-08) sin diseño. | No se puede probar el failover. | Segunda tabla en la misma región, escrita al sincronizar. Simular caída con variable `SIMULATE_NODE_DOWN=<institution_id>` que fuerza timeout. | Abierta (HU-08) |
 | B8 | Inmutabilidad de bitácora (HU-09). | DynamoDB permite borrar/actualizar. | Rol IAM de la Lambda solo con `dynamodb:PutItem` sobre `AuditLogsTable`. | Abierta (HU-09) |
 | B9 | "Notifica" en RF-02 y RF-04 sin servicio. | Requisito incumplible tal cual. | La respuesta de la API entrega la credencial una sola vez. SES queda opcional (fuera de alcance). | Abierta |
-| B10 | Frontend (SPA) sin historia de usuario. | Alcance incluye interfaz pero no se planifica. | Thunder Client como interfaz durante las 9 HU. Después, HTML/JS estático opcional. Requiere decisión. | Abierta |
+| B10 | Frontend (SPA) sin historia de usuario. | Alcance incluye interfaz pero no se planifica. | Demo: interfaz hecha (D-16). App final: frontend estático tras la HU-09 con el mismo diseño (D-17). | Resuelta (propuesta) |
 | B11 | CORS, validación de entradas y tope de tamaño en `sync-records`. | Riesgo de abuso. | Pydantic con límites; máx. 100 estudiantes por petición; CORS restringido por variable de entorno. | Abierta (HU-03) |
 | B12 | El `batch` de HU-03 no define si reemplaza o fusiona. | Datos inconsistentes. | Upsert por `PK`+`SK`. | Abierta (HU-03) |
 | B13 | Roles ausentes: el funcionario consultante (IES) no tiene autenticación. | Cualquiera con un token podría consultar. | Con `aud` en el JWT más `X-Node-API-Key` de la IES consultante, el token solo sirve a esa IES. Se aplica desde HU-06/07. | Abierta |

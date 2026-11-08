@@ -89,6 +89,18 @@ Para quien no conoce el código. Orden recomendado: el bloque 1 es la prioridad 
 
 ## BLOQUE 2: App final
 
-Aún sin pasos. Se agregan por historia:
-- HU-01: tablas DynamoDB de nodos (pendiente).
-- Por definir: `template.yaml` raíz, variable `ADMIN_KEY`, retención de logs de 7 días (ya aplicada en la demo).
+Se agregan pasos por historia. El despliegue de la app final se arma con un `template.yaml` raíz cuando haya varias historias listas.
+
+### HU-01: tabla de nodos
+- **Objetivo:** guardar las solicitudes de registro de universidades.
+- **Quién:** compañero AWS. **Dónde:** consola, DynamoDB.
+- **Pasos:**
+  1. *DynamoDB → Tables → Create table*.
+  2. Nombre: `NodesTable`. Partition key: `node_id` (String). Sin sort key.
+  3. Table settings: *Customize settings* → capacity mode **On-demand**. Dejar el cifrado por defecto (clave propiedad de AWS, sin costo).
+  4. Crear.
+- **Resultado esperado:** tabla `NodesTable` en estado Active.
+- **Si falla:** nombre ya existe → usarlo tal cual o borrar la tabla vieja. Región distinta → crearla en `us-east-1`, igual que la Lambda.
+- **Variables de la Lambda (cuando exista el despliegue de la app):** `REPOSITORY_BACKEND=dynamodb`, `NODES_TABLE=NodesTable`.
+- **Permisos de la Lambda:** `dynamodb:PutItem`, `GetItem`, `Scan` sobre `NodesTable`.
+- Por definir en próximas historias: `ADMIN_KEY` (HU-02), nuevas tablas.

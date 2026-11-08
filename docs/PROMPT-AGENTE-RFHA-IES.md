@@ -34,6 +34,7 @@ La fuente de verdad es el documento de requerimientos y su adenda de frontend. *
 8. **La demo y la app final conviven.** La demo no frena el desarrollo de la app final (sección 3).
 9. **Todo debe funcionar en cualquier PC con VS Code** sin configuración manual escondida (sección 2.1).
 10. **La interfaz es parte del producto.** La demo y la app final deben tener un frontend agradable, accesible y moderno (sección 10).
+11. **Bitácora obligatoria.** Todo desarrollo se documenta en `docs/BITACORA.md` (qué, por qué, archivos, commit y CI, decisiones, pendientes) **antes de cada commit**. Las incidencias y lecciones van en su tabla final.
 
 ---
 
@@ -99,7 +100,7 @@ Cuando una historia ya esté parcialmente hecha, no la rehagas: complétala.
 4. **Commit y push a `dev`** (Conventional Commits, ej. `feat(hu-02): aprobar nodo y emitir api key`). El CI de GitHub ejecuta las pruebas.
 5. **Verifica el resultado del CI** y repórtalo (verde o rojo, con el error si falla). Si falla, corrige y vuelve a subir.
 6. **Documenta** en `docs/historias/HU-XX.md`: qué se hizo y por qué, archivos, cómo ejecutarlo y probarlo, checklist de criterios, decisiones y pendientes en AWS. Si la historia toca la interfaz, incluye qué pantalla cambia.
-7. **Actualiza** `docs/DECISIONES.md`, `docs/BRECHAS.md` y `docs/AWS_PASO_A_PASO.md` si algo cambió (si no hay nada nuevo en AWS, dilo).
+7. **Actualiza** `docs/DECISIONES.md`, `docs/BRECHAS.md` y `docs/AWS_PASO_A_PASO.md` si algo cambió (si no hay nada nuevo en AWS, dilo), y **agrega la entrada en `docs/BITACORA.md`**.
 8. **DETENTE y pide mi "aprobado"** con un resumen de máximo 15 líneas: qué hiciste, resultado del CI, decisiones, dudas. Solo con "aprobado" avanzas a la siguiente historia.
 9. El pull request `dev` → `main` lo abro yo; tú me dejas el enlace.
 

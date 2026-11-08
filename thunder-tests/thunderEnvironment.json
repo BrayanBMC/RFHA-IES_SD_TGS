@@ -1,0 +1,28 @@
+[
+  {
+    "_id": "env-local-0001",
+    "name": "Local",
+    "default": true,
+    "sortNum": 10000,
+    "created": "2026-11-08T00:00:00.000Z",
+    "modified": "2026-11-08T00:00:00.000Z",
+    "data": [
+      { "name": "baseUrl", "value": "http://127.0.0.1:8000" },
+      { "name": "validToken", "value": "PEGA_AQUI_EL_TOKEN_VALIDO" },
+      { "name": "expiredToken", "value": "PEGA_AQUI_EL_TOKEN_EXPIRADO" }
+    ]
+  },
+  {
+    "_id": "env-aws-0001",
+    "name": "AWS",
+    "default": false,
+    "sortNum": 20000,
+    "created": "2026-11-08T00:00:00.000Z",
+    "modified": "2026-11-08T00:00:00.000Z",
+    "data": [
+      { "name": "baseUrl", "value": "https://REEMPLAZAR.execute-api.us-east-1.amazonaws.com" },
+      { "name": "validToken", "value": "PEGA_AQUI_EL_TOKEN_VALIDO" },
+      { "name": "expiredToken", "value": "PEGA_AQUI_EL_TOKEN_EXPIRADO" }
+    ]
+  }
+]

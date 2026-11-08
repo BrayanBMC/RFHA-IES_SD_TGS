@@ -1,6 +1,9 @@
-# Levanta la demo en Windows con un solo comando:  .\run-demo.ps1
+# Levanta la demo (o la app final) en Windows con un solo comando:
+#   .\run-demo.ps1            demo en el puerto 8000
+#   .\run-demo.ps1 -App       app final en el puerto 8001
+#   .\run-demo.ps1 -Port 8010 otro puerto
 # Busca un Python 3.12 / 3.11 instalado y ejecuta scripts/run_demo.py.
-param([int]$Port = 8000)
+param([int]$Port = 0, [switch]$App)
 
 $candidates = @(
     "$env:LOCALAPPDATA\Python\pythoncore-3.12-64\python.exe",
@@ -16,5 +19,9 @@ if (-not $python) {
     exit 1
 }
 
+$arguments = @("$PSScriptRoot\scripts\run_demo.py")
+if ($App) { $arguments += "--app" }
+if ($Port -gt 0) { $arguments += @("--port", $Port) }
+
 Write-Host "Usando Python: $python"
-& $python "$PSScriptRoot\scripts\run_demo.py" --port $Port
+& $python @arguments

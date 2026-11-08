@@ -20,6 +20,17 @@ Copia esta plantilla al inicio de la sección «Entradas»:
 
 ## Entradas
 
+### 2026-11-08 · Datos de prueba ampliados, guion de 12 a 14 minutos y HU-01 completa
+- **Qué se hizo:**
+  - **Datos de la demo:** de 1 a 6 estudiantes ficticios en 4 universidades (`demo/students.py`), con estados académicos (activo, graduado, retirado), créditos, asignaturas por semestre, materias reprobadas y repetidas, y asignaturas en curso.
+  - **Interfaz de la demo:** selector «Estudiante de ejemplo» (solo modo demostración, endpoint `GET /api/v1/demo/students`), estado académico, barra de créditos, título y fecha de grado, tabla con créditos, nota y estado, y panel «Apoyo a la homologación» con nota mínima ajustable.
+  - **Guion:** `docs/DEMO.md` ahora trae la tabla de datos de prueba, los casos 11 a 16 y un guion minuto a minuto de 12 a 14 minutos (10 minutos recortando los bloques opcionales), con preguntas probables de los docentes.
+  - **HU-01 terminada:** formulario web `/registro-nodo` en la app final (HTML accesible, validación en pantalla con las mismas reglas del servidor, errores por campo, confirmación con el código del nodo), CSP estricta, lanzador `run-app.cmd` / `--app` (puerto 8001) y job de CI que levanta la app final. `docs/historias/HU-01.md` reescrita con todos los cambios, 12 casos de prueba del formulario y la matriz de criterios.
+- **Por qué:** la demo debía durar al menos 10 minutos y tener más de un dato; HU-01 pedía un formulario y solo existía la API.
+- **Archivos:** `demo/students.py`, `demo/main.py`, `demo/static/*`, `demo/tests/test_demo_data.py`, `demo/tests/test_demo_api.py`, `src/app/main.py`, `src/app/static/*`, `tests/test_hu01_frontend.py`, `scripts/run_demo.py`, `run-demo.ps1`, `run-app.cmd`, `.github/workflows/ci.yml`, `thunder-tests/thunderclient.json`, `docs/DEMO.md`, `docs/historias/HU-01.md`, `README.md`.
+- **Decisiones:** D-22 (datos ficticios y selector solo en modo demostración), D-23 (HU-01 incluye el formulario web).
+- **Pendiente / riesgos:** no se ha visto la interfaz en un navegador desde el agente; validar a mano. Las cifras de los casos 11 a 15 se calcularon a mano contra los datos; si alguna no coincide en pantalla, corregir la guía. Revisión con lector de pantalla pendiente.
+
 ### 2026-11-08 · Guía de AWS autosuficiente en DEMO.md
 - **Qué se hizo:** la sección 3 de `docs/DEMO.md` se reescribió para que el compañero de AWS despliegue la demo sin abrir otro documento: resumen (qué se crea, costo, tiempo, quién hace qué), 12 pasos con comandos exactos de PowerShell (cuenta con plan Free, alerta de USD 0.01, usuario IAM con 6 políticas, instalación de AWS CLI, SAM CLI, Python 3.11 y Git, `aws configure`, clonar, secreto JWT, `sam build`, `sam deploy`, comprobar URL, prueba completa con `check_demo.py`, entrega a Brayan), despliegue alternativo desde GitHub Actions, logs, actualización y borrado. Se quitaron las referencias a otros `.md`.
 - **Por qué:** petición del usuario: el compañero debe poder levantar la demo en AWS solo con ese documento.
@@ -101,6 +112,6 @@ Copia esta plantilla al inicio de la sección «Entradas»:
 ## Estado actual
 
 - **Rama de trabajo:** `dev`. Etiqueta `demo-martes` en `1a1fd57`.
-- **Historias:** HU-01 hecha (espera «aprobado»). HU-02 a HU-10 pendientes.
-- **Pruebas definidas en el código:** 9 (API de la demo) + 8 (interfaz de la demo) + 12 (HU-01). Se ejecutan en GitHub Actions, más el job `demo-runner`.
+- **Historias:** HU-01 terminada, con API y formulario web (espera «aprobado»). HU-02 a HU-10 pendientes.
+- **Pruebas definidas en el código:** 61 = demo (9 de la API, 22 de los datos, 8 de la interfaz) + app final (12 de HU-01 API y 10 del formulario). Se ejecutan en GitHub Actions, más el job `demo-runner` (levanta la demo y la app final).
 - **AWS:** nada desplegado aún. Pendiente del compañero: cuenta con plan Free, presupuesto de USD 0.01, usuario IAM, CLI y SAM, despliegue de la demo (bloque 1 de `docs/AWS_PASO_A_PASO.md`) y tabla `NodesTable`.

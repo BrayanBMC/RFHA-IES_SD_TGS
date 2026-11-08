@@ -50,20 +50,13 @@ app = FastAPI(
     description="API Gateway + Lambda: consulta federada de historiales académicos (demo).",
 )
 
-# Repositorio simulado en memoria (representa DynamoDB).
-MOCK_DYNAMODB_NODES = {
-    "20262678029": {
-        "student_id": "20262678029",
-        "full_name": "Brayan Acosta Parrado",
-        "university": "Universidad Distrital Francisco José de Caldas",
-        "program": "Ingeniería en Telemática",
-        "gpa": 4.52,
-        "courses": [
-            {"code": "165-301", "name": "Sistemas Distribuidos", "grade": 4.8},
-            {"code": "165-302", "name": "Teoría General de Sistemas", "grade": 4.5},
-        ],
-    }
-}
+# Repositorio simulado en memoria (representa DynamoDB de cada universidad). Datos ficticios.
+try:
+    from .students import STUDENTS  # al correr como paquete: demo.main
+except ImportError:  # en AWS Lambda el módulo se llama "main" y está en la raíz del paquete
+    from students import STUDENTS
+
+MOCK_DYNAMODB_NODES = STUDENTS
 
 
 def verify_student_token(token: str | None, student_id: str) -> dict:
@@ -118,6 +111,22 @@ async def get_academic_history(
         "transparency_verified": True,
         "data": record,
     }
+
+
+@app.get("/api/v1/demo/students")
+async def demo_students():
+    """Lista de estudiantes de ejemplo para el selector de la interfaz. Solo en modo demostración."""
+    if not DEMO_MODE:
+        raise HTTPException(status_code=404, detail="No disponible.")
+    return [
+        {
+            "student_id": s["student_id"],
+            "full_name": s["full_name"],
+            "university": s["university"],
+            "academic_status": s["academic_status"],
+        }
+        for s in MOCK_DYNAMODB_NODES.values()
+    ]
 
 
 class ConsentTokenRequest(BaseModel):

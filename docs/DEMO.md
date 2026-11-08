@@ -128,10 +128,28 @@ Qué incluye la interfaz: HTML semántico y accesible (etiquetas, foco visible, 
 
 En AWS la misma página está en la URL raíz. Allí los botones de simulación vienen **apagados** (por seguridad): pega un token generado con `python scripts/generate_token.py`. Para ensayar con los botones, despliega con `DemoMode=1` agregándolo a `--parameter-overrides` (`"JwtSecret=<SECRETO>" "DemoMode=1"`) y vuelve a desplegar con `0` después, porque con `1` cualquiera que tenga la URL puede generar tokens.
 
+#### Datos de prueba (6 estudiantes ficticios en 4 universidades)
+
+Todos los datos son inventados. Cada código existe en la demo; cualquier otro código da 404.
+
+| Código | Estudiante | Universidad (nodo) | Programa | Estado | Promedio | Créditos | Para qué sirve en la exposición |
+|---|---|---|---|---|---|---|---|
+| `20262678029` | Brayan Acosta Parrado | Universidad Distrital | Ingeniería en Telemática | Activo | 4,52 | 140 de 160 | Caso principal: éxito, rechazos y AWS. 8 asignaturas, una en curso. |
+| `20251234501` | Laura Camila Ríos Herrera | Universidad Nacional | Ingeniería de Sistemas y Computación | Activo | 4,18 | 118 de 160 | **Homologación**: reprobó Cálculo Integral (2,6) y la repitió (3,4). 11 asignaturas. |
+| `20241122002` | Andrés Felipe Moreno Castro | Pontificia Universidad Javeriana | Ingeniería Electrónica | **Graduado** | 4,05 | 168 de 168 | Egresado: muestra título (Ingeniero Electrónico) y fecha de grado (12 dic 2025). |
+| `20231098763` | Valentina Torres Quintero | Universidad de los Andes | Economía | Activo | 4,62 | 90 de 140 | Promedio alto: candidata a beca o traslado. Dato de otro nodo. |
+| `20221050914` | Juan Sebastián Pardo Gil | Universidad Distrital | Ingeniería Industrial | **Retirado** | 3,21 | 64 de 160 | Retirado: promedio bajo y materias repetidas (Física I, Probabilidad). |
+| `20252345678` | María Fernanda Ospina Duarte | Universidad Nacional | Estadística | Activo | 3,88 | 52 de 150 | Primeros semestres con una asignatura en curso. |
+
+Para probar un código inexistente usa, por ejemplo, `12345` (resultado 404).
+
+En local, la lista desplegable **Estudiante de ejemplo** completa el código por ti. En AWS (modo demostración apagado) no aparece: escribe el código de la tabla.
+
 #### Qué escribir en cada campo
 
 | Campo | Qué poner | Para qué sirve |
 |---|---|---|
+| **Estudiante de ejemplo** (solo en modo demostración) | Elegir uno de la lista. | Completa el código del estudiante para no escribirlo. |
 | **Código del estudiante** | `20262678029` (único estudiante con datos). Solo letras, números, guion y guion bajo, máximo 32 caracteres. | Identifica de quién se pide el historial. Va en la URL. |
 | **Token de consentimiento** | Un token JWT. Con los botones de **Simular al estudiante** se llena solo. También puedes pegar uno de `python scripts/generate_token.py`, o dejarlo vacío. | Es la autorización firmada del estudiante. Va en el encabezado `X-Student-Consent-Token`. |
 | Botón **Token válido** | Sin escribir nada más. | Genera un token vigente 24 h **para el código que tengas escrito en ese momento**. |
@@ -145,7 +163,7 @@ Antes de cada caso, recarga la página o revisa los campos. Pulsa **Consultar ex
 
 | # | Caso | Código del estudiante | Token (qué hacer) | Resultado esperado | Pasos de validación |
 |---|---|---|---|---|---|
-| 1 | **Éxito** | `20262678029` | Pulsa **Token válido** | **HTTP 200**. «Acceso concedido». Aparece Brayan Acosta Parrado, promedio 4,52 y 2 asignaturas. | Los 4 en verde |
+| 1 | **Éxito** | `20262678029` | Pulsa **Token válido** | **HTTP 200**. «Acceso concedido». Aparece Brayan Acosta Parrado (Activo), promedio 4,52, 140 de 160 créditos y 8 asignaturas, la última «En curso». | Los 4 en verde |
 | 2 | **Sin token** | `20262678029` | Pulsa **Sin token** (campo vacío) | **HTTP 403**. «ACCESO DENEGADO: falta el token de consentimiento del estudiante.» | Paso 1 rechazado; 2, 3 y 4 omitidos |
 | 3 | **Token expirado** | `20262678029` | Pulsa **Token expirado** | **HTTP 403**. «El token de consentimiento ha expirado.» | Paso 1 aprobado; paso 2 rechazado; 3 y 4 omitidos |
 | 4 | **Token con firma alterada** | `20262678029` | Pulsa **Token válido** y luego cambia o borra una letra del final del token | **HTTP 403**. «ACCESO DENEGADO: token de consentimiento inválido.» | Paso 2 rechazado |
@@ -157,6 +175,21 @@ Antes de cada caso, recarga la página o revisa los campos. Pulsa **Consultar ex
 | 10 | **Ver JSON y curl** | `20262678029` | Haz el caso 1 | Abre *Ver respuesta JSON* para ver la respuesta cruda. Pulsa *Copiar como curl* y pégalo en una terminal: da el mismo resultado. | — |
 
 Nota del caso 6 y 7: **Token válido** firma el token con el código que esté escrito al pulsar el botón. Por eso en el caso 6 se cambia el código después de generar el token.
+
+#### Casos con los demás estudiantes
+
+Para cada uno: elígelo en **Estudiante de ejemplo** (o escribe su código), pulsa **Token válido** y **Consultar expediente**.
+
+| # | Estudiante | Qué observar | Resultado esperado |
+|---|---|---|---|
+| 11 | **Laura Ríos** `20251234501` | Dos filas de «Cálculo Integral» (2024-2 reprobada con 2,6 y 2025-1 aprobada con 3,4). En *Apoyo a la homologación* deja la nota mínima en 3,5 y luego pásala a 4,0. | HTTP 200. Con 3,5: 8 de 9 asignaturas aprobadas son candidatas (25 créditos); con 4,0: 7 de 9 (21 créditos). Cálculo Integral (3,4) no es candidata con una nota mínima de 3,5 o más. La fila reprobada sale en rojo y «Reprobada»; la de 2026-2 sale «En curso». |
+| 12 | **Andrés Moreno** `20241122002` | Aparecen *Título* y *Fecha de grado*. Estado «Graduado», créditos 168 de 168 (100 %). | HTTP 200. 6 asignaturas, todas aprobadas. |
+| 13 | **Valentina Torres** `20231098763` | Promedio 4,62 y notas altas; datos de la Universidad de los Andes. | HTTP 200. Con nota mínima 4,5: 7 de 8 aprobadas son candidatas (22 créditos); solo Econometría I (4,4) queda fuera. |
+| 14 | **Juan Pardo** `20221050914` | Estado «Retirado». Física I y Probabilidad reprobadas; Física I repetida y aprobada (3,4). | HTTP 200. Con nota mínima 3,5: solo 2 de 6 asignaturas aprobadas son candidatas (Química General 3,5 y Dibujo Técnico 3,8): 5 créditos. |
+| 15 | **María Ospina** `20252345678` | Primeros semestres, 52 de 150 créditos (35 %) y una asignatura en curso. | HTTP 200. Con nota mínima 3,5: 8 de 8 aprobadas son candidatas (26 créditos). Con 4,0: 4 de 8 (Introducción 4,2; Lógica 4,0; Programación en R 4,4; Inferencia 4,1) y 12 créditos. |
+| 16 | **Otro nodo, mismo servicio** | Consulta a Brayan (Distrital), Laura (Nacional) y Valentina (Andes) seguidas. | Mismo formato y mismos 4 pasos, sin cambiar nada: transparencia de ubicación. |
+
+Cálculos de referencia de los casos 11 a 15 (nota mínima = «3,5», salvo que se indique): se cuentan solo asignaturas **aprobadas** con nota mayor o igual a la mínima.
 
 #### Casos en AWS (sin botones de simulación)
 
@@ -459,7 +492,9 @@ Pruebas extra opcionales: cambiar una letra del token (403 firma inválida); ped
 | Archivo | Para qué sirve |
 |---|---|
 | `demo/main.py` | **Toda la API.** Validación del token, datos simulados, endpoint, y sirve la interfaz web. |
+| `demo/students.py` | Los 6 estudiantes ficticios (datos de prueba) con sus asignaturas. Se editan aquí. |
 | `demo/static/` | Interfaz web: `index.html`, `styles.css`, `app.js`, `favicon.svg`. |
+| `demo/tests/test_demo_data.py` | Pruebas de los datos de prueba (6 estudiantes, estados coherentes con las notas). |
 | `demo/tests/test_demo_frontend.py` | Pruebas de la interfaz y del modo demostración. |
 | `demo/requirements.txt` | Librerías que necesita la Lambda en AWS. |
 | `demo/requirements-local.txt` | Las mismas más `uvicorn`, para correr en local. |
@@ -558,7 +593,7 @@ Cubren: sin token (403 y no 422), válido (200), expirado, firma incorrecta, tex
 
 ## 6. Guion de la exposición
 
-Tiempo total: 7 minutos.
+Tiempo total: **12 a 14 minutos** (mínimo 10 minutos si se omiten los bloques marcados como opcionales). La demo usa 6 estudiantes ficticios de 4 universidades, así que hay material de sobra.
 
 **Lista de verificación 10 minutos antes:**
 - [ ] Plan A: `.\run-demo.cmd` ejecutándose y la página abierta en `http://127.0.0.1:8000`.
@@ -567,12 +602,37 @@ Tiempo total: 7 minutos.
 - [ ] Un token válido y uno expirado generados el mismo día (`python scripts/generate_token.py`).
 - [ ] Thunder Client con el selector de entorno visible (`Local` y `AWS`).
 
-1. **Problema y rol del middleware (1.5 min).** Las universidades son islas de datos. El middleware es el transportista: una sola URL, sin IP ni motor de base de datos visibles.
-2. **Sin token → 403 (1.5 min).** Ejecuta la request 1. *"El middleware corta antes de tocar los datos."*
-3. **Token expirado → 403 (1 min).** Request 3. *"El consentimiento del estudiante es temporal."*
-4. **Token válido → 200 (2 min).** Request 2. Muestra el JSON. *"Se validó la firma, se localizó el dato y se serializó en JSON."*
-5. **Mismo código en AWS (0.5 min).** Cambia el entorno de Thunder Client a **AWS**; repite una request. *"Cambió la URL, no el código."*
-6. **Cierre (0.5 min).** Transparencia de acceso y de ubicación.
+### Guion minuto a minuto
+
+| Minutos | Bloque | Qué haces en la pantalla | Qué dices |
+|---|---|---|---|
+| 0:00 a 1:30 | **1. Apertura y problema** | Diapositiva o la página principal de la demo. | Cada universidad guarda el historial académico en su propia base de datos, aislada de las demás. Una homologación o una beca toma de 15 a 45 días hábiles por certificados en papel. RFHA-IES conecta las universidades sin centralizar los datos. |
+| 1:30 a 3:00 | **2. Qué es el middleware** | Muestra el esquema de la sección 1 de este documento y abre `/docs` (Swagger) unos segundos. | El middleware es un intermediario con tres funciones: transportista (una sola URL), seguridad (valida el consentimiento antes de tocar los datos) y traductor (entrega siempre el mismo JSON). El contrato REST se documenta solo en `/docs`. |
+| 3:00 a 4:30 | **3. Caso exitoso** | Estudiante de ejemplo: **Brayan Acosta Parrado**. Pulsa **Token válido** y **Consultar expediente**. | Aparecen los 4 pasos en verde: token presente, firma y vigencia, titular y búsqueda. Muestra el expediente: estado académico, promedio, créditos (140 de 160) y las asignaturas por semestre. Abre *Ver respuesta JSON*. |
+| 4:30 a 6:00 | **4. Rechazos** | Mismo estudiante. **Sin token** → consulta. **Token expirado** → consulta. **Token válido** y cambia una letra → consulta. | Los tres terminan en 403 y se detienen en un paso distinto. El middleware corta antes de tocar los datos: sin consentimiento vigente y firmado no hay acceso. |
+| 6:00 a 7:00 | **5. Privacidad: el token es de una persona** | Elige a **Laura Ríos**, pulsa **Token válido**, luego elige a **Valentina Torres** (sin generar otro token) y consulta. | El paso 3 rechaza: el consentimiento de Laura no sirve para ver a Valentina. Cada estudiante decide quién ve su información. |
+| 7:00 a 8:30 | **6. Federación: transparencia de ubicación** | Consulta con su propio token a **Laura** (Nacional), **Andrés Moreno** (Javeriana) y **Valentina** (Andes). | Tres universidades distintas, una sola URL, mismo formato. El cliente no sabe dónde viven los datos. Cada nodo tendrá su propia tabla en DynamoDB; la API no cambia. |
+| 8:30 a 10:00 | **7. Caso de uso: homologación** | **Laura**: tiene Cálculo Integral reprobada (2,6) y repetida (3,4). Cambia la **Nota mínima aceptada** de 3,5 a 4,0 y observa cuántos créditos son candidatos. | La universidad que recibe fija su criterio (por ejemplo, nota mínima). Pasa de semanas a segundos. Se ven las asignaturas candidatas resaltadas y el total de créditos. |
+| 10:00 a 10:45 | **8. Más estados académicos** *(opcional)* | **Andrés Moreno** (graduado): título y fecha de grado. **Juan Pardo** (retirado, promedio 3,21): materias repetidas. | El mismo servicio atiende egresados, activos y retirados. |
+| 10:45 a 11:15 | **9. Estudiante inexistente** *(opcional)* | Escribe el código `12345`, **Token válido**, consulta. | 404: el token es válido pero el estudiante no existe en la red. Se diferencia un acceso denegado de un dato inexistente. |
+| 11:15 a 12:15 | **10. Mismo código en AWS** | Abre la URL de AWS en otra pestaña (o cambia el entorno de Thunder Client a **AWS**). Repite el caso 3. | Es el mismo código sobre API Gateway y Lambda, sin servidores. Cambió la URL, no el comportamiento. Escala solo y entra en el Free Tier. |
+| 12:15 a 13:15 | **11. Avance del proyecto final** *(opcional)* | En otra terminal: `.\run-app.cmd` y abre `http://127.0.0.1:8001/registro-nodo`. Registra una universidad. | HU-01 ya está terminada: una universidad solicita su alta y queda pendiente de aprobación. Siguen HU-02 a HU-10. |
+| 13:15 a 14:00 | **12. Cierre** | Diapositiva final. | Transparencia de acceso y de ubicación demostradas, seguridad por consentimiento, serverless. Pendiente: failover a réplica, auditoría y portal del estudiante. |
+
+**Para recortar a 10 minutos:** omite los bloques 8, 9 y 11 (opcionales) y resume el bloque 5. **Si sobra tiempo:** repite el bloque 6 con el cuarto estudiante y muestra el `curl` con *Copiar como curl*.
+
+### Preguntas probables de los docentes
+
+| Pregunta | Respuesta corta |
+|---|---|
+| ¿Por qué un token JWT? | Está firmado: si alguien lo altera se rechaza (caso 4), lleva fecha de vencimiento y no necesita consultar una base de datos para validarlo. |
+| ¿Quién genera el token? | En la demo, los botones de simulación. En el proyecto final lo genera el propio estudiante (HU-04) y puede revocarlo (HU-05). |
+| ¿Dónde está el secreto? | En una variable de entorno de la Lambda, nunca en el código ni en git. |
+| ¿Qué pasa si un nodo se cae? | Se prevé un failover a una réplica con el encabezado `X-Data-Source` (HU-08). Todavía no está construido. |
+| ¿Quedan registros de quién consultó? | Está previsto en una bitácora de solo inserción (HU-09). Todavía no está construida. |
+| ¿Por qué serverless? | Sin servidores que administrar, escala sola de 0 a muchas peticiones y entra en el Free Tier. |
+| ¿Son datos reales? | No. Los 6 estudiantes y sus notas son ficticios. |
+| ¿Cómo se relaciona con Teoría General de Sistemas? | Es un sistema abierto con entradas (petición y token), proceso (validación), salidas (expediente) y retroalimentación (el rechazo y el failover); la sinergia es que la red vale más que cada universidad aislada. |
 
 ---
 

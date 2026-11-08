@@ -70,18 +70,93 @@ function row(...cells) {
   return tr;
 }
 
+const STATUS_LABEL = { APROBADA: "Aprobada", REPROBADA: "Reprobada", EN_CURSO: "En curso" };
+const ACADEMIC_LABEL = { ACTIVO: "Activo", GRADUADO: "Graduado", RETIRADO: "Retirado" };
+let currentCourses = [];
+
+function fmt(value, decimals) {
+  return Number(value).toLocaleString("es-CO", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+function minGrade() {
+  const value = Number($("#min-grade").value);
+  return Number.isFinite(value) && value >= 3 && value <= 5 ? value : 3.5;
+}
+
+// Tabla de asignaturas + resumen de homologación (nota mínima aceptada por la universidad que consulta).
+function renderCourses() {
+  const min = minGrade();
+  let approved = 0;
+  let candidates = 0;
+  let candidateCredits = 0;
+  const rows = currentCourses.map((course) => {
+    const isApproved = course.status === "APROBADA";
+    const isCandidate = isApproved && course.grade >= min;
+    if (isApproved) approved += 1;
+    if (isCandidate) {
+      candidates += 1;
+      candidateCredits += course.credits;
+    }
+    const grade = course.grade === null ? "—" : fmt(course.grade, 1);
+    const status = (STATUS_LABEL[course.status] ?? course.status) + (isCandidate ? " · candidata" : "");
+    const tr = row(
+      { text: course.semester },
+      { text: course.code },
+      { text: course.name },
+      { text: String(course.credits), num: true },
+      { text: grade, num: true },
+      { text: status },
+    );
+    tr.dataset.status = course.status;
+    if (isCandidate) tr.dataset.candidate = "true";
+    return tr;
+  });
+  $("#courses-body").replaceChildren(...rows);
+  $("#homolog-summary").textContent =
+    `${candidates} de ${approved} asignaturas aprobadas tienen nota de ${fmt(min, 1)} o más: ${candidateCredits} créditos candidatos a homologar.`;
+}
+
 function renderStudent(data) {
   $("#student-name").textContent = data.full_name;
   $("#student-university").textContent = data.university;
   $("#student-program").textContent = data.program;
-  $("#student-gpa").textContent = Number(data.gpa).toLocaleString("es-CO", { minimumFractionDigits: 2 });
-  const body = $("#courses-body");
-  body.replaceChildren(
-    ...data.courses.map((course) =>
-      row({ text: course.code }, { text: course.name }, { text: Number(course.grade).toLocaleString("es-CO", { minimumFractionDigits: 1 }), num: true }),
-    ),
-  );
+  $("#student-gpa").textContent = fmt(data.gpa, 2);
+
+  const chip = $("#student-status");
+  chip.textContent = ACADEMIC_LABEL[data.academic_status] ?? data.academic_status;
+  chip.dataset.kind = data.academic_status;
+
+  $("#degree-row").hidden = !data.degree;
+  $("#grad-row").hidden = !data.graduation_date;
+  $("#student-degree").textContent = data.degree ?? "";
+  $("#student-grad").textContent = data.graduation_date ?? "";
+
+  const percent = Math.round((data.credits_completed / data.credits_total) * 100);
+  $("#credits-text").textContent = `${data.credits_completed} de ${data.credits_total} (${percent} %)`;
+  $("#credits-progress").value = percent;
+
+  currentCourses = data.courses;
+  renderCourses();
   els.card.hidden = false;
+}
+
+async function loadSamples() {
+  const response = await fetch("/api/v1/demo/students");
+  if (!response.ok) return;
+  const select = $("#sample-select");
+  (await response.json()).forEach((student) => {
+    const option = document.createElement("option");
+    option.value = student.student_id;
+    option.textContent = `${student.full_name} · ${student.university} (${ACADEMIC_LABEL[student.academic_status] ?? ""})`;
+    select.append(option);
+  });
+  select.addEventListener("change", () => {
+    if (!select.value) return;
+    els.student.value = select.value;
+    setStudentError("");
+    announce(`Código ${select.value} completado.`);
+  });
+  $("#sample-field").hidden = false;
 }
 
 function showResult({ status, kind, message, payload }) {
@@ -180,9 +255,13 @@ async function init() {
     announce("Token borrado.");
   });
   $("#btn-curl").addEventListener("click", copyCurl);
+  $("#min-grade").addEventListener("input", () => {
+    if (currentCourses.length) renderCourses();
+  });
   try {
     const config = await (await fetch("/api/v1/demo/config")).json();
     els.tools.hidden = !config.demo_mode;
+    if (config.demo_mode) await loadSamples();
   } catch {
     els.tools.hidden = true;
   }

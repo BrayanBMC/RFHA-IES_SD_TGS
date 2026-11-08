@@ -83,6 +83,13 @@ pytest tests           # solo app final
 bash run-demo.sh        # macOS / Linux
 ```
 
+App final (HU-01: formulario de registro de universidad):
+
+```powershell
+.\run-app.cmd           # Windows  -> http://127.0.0.1:8001/registro-nodo
+python scripts/run_demo.py --app   # cualquier sistema
+```
+
 Si PowerShell bloquea scripts: `.\run-demo.cmd`. Cuando salga "DEMO LISTA", abre **http://127.0.0.1:8000** (interfaz web).
 
 Guía completa (local, AWS, interfaz y explicación del código): `docs/DEMO.md`.

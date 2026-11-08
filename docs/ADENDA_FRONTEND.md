@@ -104,5 +104,6 @@ Navegador ──HTTPS──▶ API Gateway ──▶ Lambda (FastAPI + Mangum)
 | Requerimiento | Estado | Dónde |
 |---|---|---|
 | RF-11, RF-12, RF-19 | Hecho en la demo | `demo/static/`, `docs/DEMO.md` |
-| RF-13 a RF-18 | Pendiente (HU-10) | `src/app/static/` |
+| RF-13 | Hecho en HU-01 | `src/app/static/registro-nodo.html`, `docs/historias/HU-01.md` |
+| RF-14 a RF-18 | Pendiente (HU-10) | `src/app/static/` |
 | RNF-F1 a RNF-F9 | Aplicados en la demo; se verifican en HU-10 | `docs/PROMPT-AGENTE-RFHA-IES.md`, sección 10 |

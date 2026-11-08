@@ -28,3 +28,4 @@ jobs:
         with:
           python-version: '3.11'
       - run: python scripts/run_demo.py --once --port 8000
+      - run: python scripts/run_demo.py --app --once --port 8001

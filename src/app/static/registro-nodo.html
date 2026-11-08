@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Registro de universidad · RFHA-IES</title>
+  <meta name="description" content="Solicita el alta de tu universidad como nodo de la Red Federada de Historiales Académicos.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script type="module" src="/static/registro.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/registro-nodo" aria-label="RFHA-IES, inicio">
+        <img src="/static/favicon.svg" alt="" width="32" height="32">
+        <span>RFHA-IES</span>
+      </a>
+      <p class="env">Red Federada de Historiales Académicos</p>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <section class="hero">
+      <p class="eyebrow">Alta de institución</p>
+      <h1>Registro de universidad</h1>
+      <p class="lead">Solicita que tu institución se una a la red como <strong>nodo federado</strong>. Un administrador de la red revisará la solicitud antes de activarla.</p>
+    </section>
+
+    <div class="grid">
+      <section class="card" aria-labelledby="form-title" id="form-card">
+        <h2 id="form-title">Datos de la institución</h2>
+        <p class="error" id="form-error" role="alert" hidden></p>
+
+        <form id="register-form" novalidate>
+          <div class="field">
+            <label for="nit">NIT de la institución</label>
+            <input id="nit" name="nit" type="text" inputmode="numeric" autocomplete="off" required placeholder="899999063-3" aria-describedby="nit-hint nit-error">
+            <p class="hint" id="nit-hint">Entre 6 y 12 dígitos, con dígito de verificación opcional: 899999063-3.</p>
+            <p class="error" id="nit-error" hidden></p>
+          </div>
+
+          <div class="field">
+            <label for="name">Nombre de la institución</label>
+            <input id="name" name="name" type="text" autocomplete="organization" required maxlength="200" placeholder="Universidad Nacional de Colombia" aria-describedby="name-hint name-error">
+            <p class="hint" id="name-hint">Nombre oficial, entre 3 y 200 caracteres.</p>
+            <p class="error" id="name-error" hidden></p>
+          </div>
+
+          <div class="field">
+            <label for="domain">Dominio web</label>
+            <input id="domain" name="domain" type="text" inputmode="url" autocomplete="url" autocapitalize="off" spellcheck="false" required placeholder="unal.edu.co" aria-describedby="domain-hint domain-error">
+            <p class="hint" id="domain-hint">Solo el dominio, sin «https://» ni rutas: unal.edu.co.</p>
+            <p class="error" id="domain-error" hidden></p>
+          </div>
+
+          <div class="field">
+            <label for="contact_email">Correo de contacto</label>
+            <input id="contact_email" name="contact_email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" required placeholder="admisiones@unal.edu.co" aria-describedby="email-hint email-error">
+            <p class="hint" id="email-hint">Correo institucional del responsable del nodo.</p>
+            <p class="error" id="email-error" hidden></p>
+          </div>
+
+          <button type="submit" class="btn primary" id="btn-submit">Solicitar registro</button>
+        </form>
+      </section>
+
+      <section class="card" aria-labelledby="steps-title">
+        <h2 id="steps-title">Qué pasa después</h2>
+        <ol class="steps">
+          <li><strong>Solicitud recibida.</strong> Queda en estado <em>Pendiente de aprobación</em> y recibes un código de nodo.</li>
+          <li><strong>Revisión.</strong> El administrador general valida la institución.</li>
+          <li><strong>Activación.</strong> Si se aprueba, se emite la clave de API del nodo y ya puedes cargar historiales.</li>
+        </ol>
+        <p class="hint">Tus datos solo se usan para registrar el nodo en la red.</p>
+      </section>
+    </div>
+
+    <section class="card result" id="success-card" aria-labelledby="success-title" hidden>
+      <h2 id="success-title">Solicitud enviada</h2>
+      <div class="status-row">
+        <span class="http" data-kind="ok" id="status-chip">Pendiente de aprobación</span>
+        <p id="success-message"></p>
+      </div>
+      <dl class="summary">
+        <div><dt>Código del nodo</dt><dd><code id="node-id" class="big"></code></dd></div>
+        <div><dt>Institución</dt><dd id="out-name"></dd></div>
+        <div><dt>NIT</dt><dd id="out-nit"></dd></div>
+        <div><dt>Dominio</dt><dd id="out-domain"></dd></div>
+        <div><dt>Contacto</dt><dd id="out-email"></dd></div>
+      </dl>
+      <p class="hint">Guarda el código del nodo: lo necesitarás para seguir el estado de la solicitud.</p>
+      <div class="btn-row">
+        <button type="button" class="btn" id="btn-copy">Copiar código</button>
+        <button type="button" class="btn ghost" id="btn-again">Registrar otra institución</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Universidad Distrital Francisco José de Caldas · Sistemas Distribuidos y Teoría General de Sistemas.</p>
+      <p><a href="/docs">Documentación de la API (Swagger)</a></p>
+    </div>
+  </footer>
+
+  <p class="sr-only" id="sr-status" role="status" aria-live="polite"></p>
+</body>
+</html>

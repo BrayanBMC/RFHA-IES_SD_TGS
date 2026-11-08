@@ -104,12 +104,16 @@ def run_script(name: str, *args: str) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Levanta la demo del middleware RFHA-IES")
-    parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--port", type=int, default=None, help="por defecto 8000 (demo) u 8001 (--app)")
+    parser.add_argument("--app", action="store_true", help="levanta la app final en vez de la demo")
     parser.add_argument("--no-check", action="store_true", help="omite la verificación automática")
     parser.add_argument(
         "--once", action="store_true", help="levanta, verifica los 3 escenarios y termina (para CI)"
     )
     args = parser.parse_args()
+    if args.port is None:
+        args.port = 8001 if args.app else 8000
+    module = "src.app.main:app" if args.app else "demo.main:app"
 
     if sys.version_info < (3, 10):
         sys.exit("Se necesita Python 3.10 o superior (recomendado 3.11 o 3.12).")
@@ -123,14 +127,28 @@ def main() -> int:
     base_url = f"http://127.0.0.1:{args.port}"
     step(f"Levantando la API en {base_url}")
     server = subprocess.Popen(
-        [str(venv_python()), "-m", "uvicorn", "demo.main:app", "--port", str(args.port)],
+        [str(venv_python()), "-m", "uvicorn", module, "--port", str(args.port)],
         cwd=ROOT,
-        env={**os.environ, "DEMO_MODE": "1"},  # activa los botones de simulación en la interfaz
+        # DEMO_MODE=1 activa los botones de simulación en la interfaz de la demo.
+        env={**os.environ, "DEMO_MODE": "0" if args.app else "1"},
     )
     try:
         if not wait_until_up(base_url):
             server.terminate()
             sys.exit("La API no arrancó a tiempo. Revisa los mensajes de arriba.")
+
+        if args.app:
+            if args.once:
+                return 0
+            print(
+                f"\nAPP FINAL LISTA\n"
+                f"  Formulario de registro de universidad:  {base_url}/registro-nodo\n"
+                f"  Documentación de la API:                {base_url}/docs\n"
+                f"  Detener:                                Ctrl+C\n",
+                flush=True,
+            )
+            server.wait()
+            return 0
 
         if not args.no_check:
             step("Verificando los 3 escenarios")

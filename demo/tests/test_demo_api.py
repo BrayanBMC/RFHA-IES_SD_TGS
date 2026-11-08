@@ -32,7 +32,8 @@ def test_token_valido_devuelve_200_con_historial():
     body = response.json()
     assert body["status"] == "SUCCESS"
     assert body["data"]["student_id"] == STUDENT
-    assert len(body["data"]["courses"]) == 2
+    assert len(body["data"]["courses"]) == 8
+    assert body["data"]["gpa"] == 4.52
 
 
 def test_token_expirado_devuelve_403():

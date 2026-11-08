@@ -25,3 +25,5 @@ Cada decisión toma la opción más simple. Si no estás de acuerdo con alguna, 
 | D-19 | La interfaz se sirve desde la misma Lambda; no se crean S3 ni CloudFront. | Cero costo y cero recursos nuevos. | AWS |
 | D-20 | El documento original `levantamiento_de_requerimientos_proyecto_final.md` no estaba en el repo. Se mantiene fuera y la adenda lo complementa. | Evitar duplicar el documento. | Planeación |
 | D-21 | Todo desarrollo se registra en `docs/BITACORA.md` antes de cada commit; la regla quedó en el prompt (regla 11 y paso 7 del flujo). | Trazabilidad para el equipo y los docentes. | Proceso |
+| D-22 | Los datos de la demo son 6 estudiantes ficticios en 4 universidades (`demo/students.py`). El selector de estudiantes de ejemplo y el endpoint `/api/v1/demo/students` solo existen en modo demostración. | Cubrir los casos de una exposición de 10 a 14 minutos sin exponer un listado de estudiantes en AWS. | Demo |
+| D-23 | HU-01 incluye el formulario web `/registro-nodo` (RF-13) además de la API; el resto de pantallas sigue en HU-10. | El criterio de aceptación de HU-01 habla de un formulario. | App final |

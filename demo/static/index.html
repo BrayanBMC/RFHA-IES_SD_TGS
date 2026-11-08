@@ -34,10 +34,18 @@
       <section class="card" aria-labelledby="query-title">
         <h2 id="query-title">1. Solicitud</h2>
         <form id="query-form" novalidate>
+          <div class="field" id="sample-field" hidden>
+            <label for="sample-select">Estudiante de ejemplo</label>
+            <select id="sample-select">
+              <option value="">Elegir un estudiante…</option>
+            </select>
+            <p class="hint">Datos ficticios. Al elegir uno se completa el código.</p>
+          </div>
+
           <div class="field">
             <label for="student-id">Código del estudiante</label>
             <input id="student-id" name="student" type="text" inputmode="numeric" autocomplete="off" required value="20262678029" aria-describedby="student-hint student-error">
-            <p class="hint" id="student-hint">En la demo existe el estudiante 20262678029.</p>
+            <p class="hint" id="student-hint">Hay 6 estudiantes ficticios en 4 universidades. Ejemplo: 20262678029.</p>
             <p class="error" id="student-error" hidden></p>
           </div>
 
@@ -98,19 +106,45 @@
         </div>
 
         <article class="student" id="student-card" hidden>
-          <h3 id="student-name"></h3>
+          <div class="student-head">
+            <h3 id="student-name"></h3>
+            <span class="chip" id="student-status"></span>
+          </div>
           <dl>
-            <div><dt>Universidad</dt><dd id="student-university"></dd></div>
+            <div><dt>Universidad de origen</dt><dd id="student-university"></dd></div>
             <div><dt>Programa</dt><dd id="student-program"></dd></div>
             <div><dt>Promedio acumulado</dt><dd id="student-gpa"></dd></div>
+            <div id="degree-row" hidden><dt>Título</dt><dd id="student-degree"></dd></div>
+            <div id="grad-row" hidden><dt>Fecha de grado</dt><dd id="student-grad"></dd></div>
           </dl>
+
+          <div class="credits">
+            <label for="credits-progress">Avance de créditos: <strong id="credits-text"></strong></label>
+            <progress id="credits-progress" max="100" value="0"></progress>
+          </div>
+
+          <fieldset class="homolog">
+            <legend>Apoyo a la homologación</legend>
+            <div class="homolog-row">
+              <label for="min-grade">Nota mínima aceptada</label>
+              <input id="min-grade" type="number" inputmode="decimal" min="3" max="5" step="0.1" value="3.5">
+            </div>
+            <p class="hint" id="homolog-summary" aria-live="polite"></p>
+          </fieldset>
+
           <div class="table-wrap" role="region" aria-labelledby="courses-title" tabindex="0">
             <table>
-              <caption id="courses-title">Asignaturas cursadas</caption>
-              <thead><tr><th scope="col">Código</th><th scope="col">Asignatura</th><th scope="col" class="num">Nota</th></tr></thead>
+              <caption id="courses-title">Asignaturas por semestre</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Semestre</th><th scope="col">Código</th><th scope="col">Asignatura</th>
+                  <th scope="col" class="num">Créditos</th><th scope="col" class="num">Nota</th><th scope="col">Estado</th>
+                </tr>
+              </thead>
               <tbody id="courses-body"></tbody>
             </table>
           </div>
+          <p class="hint">Se muestran los últimos semestres. Datos ficticios para la demostración.</p>
         </article>
 
         <details>

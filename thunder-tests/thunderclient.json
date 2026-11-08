@@ -40,5 +40,43 @@
     "headers": [{ "name": "X-Student-Consent-Token", "value": "{{expiredToken}}" }],
     "params": [],
     "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "403" }]
+  },
+  {
+    "_id": "req-app-0001",
+    "colId": "col-demo-0001",
+    "containerId": "fol-app-0001",
+    "name": "HU-01 Registrar nodo (201)",
+    "url": "{{appUrl}}/api/v1/nodes/register",
+    "method": "POST",
+    "sortNum": 10000,
+    "created": "2026-11-08T00:00:00.000Z",
+    "modified": "2026-11-08T00:00:00.000Z",
+    "headers": [{ "name": "Content-Type", "value": "application/json" }],
+    "params": [],
+    "body": {
+      "type": "json",
+      "raw": "{\n  \"nit\": \"899999063-3\",\n  \"name\": \"Universidad Nacional de Colombia\",\n  \"domain\": \"unal.edu.co\",\n  \"contact_email\": \"admisiones@unal.edu.co\"\n}",
+      "form": []
+    },
+    "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "201" }]
+  },
+  {
+    "_id": "req-app-0002",
+    "colId": "col-demo-0001",
+    "containerId": "fol-app-0001",
+    "name": "HU-01 Datos invalidos (422)",
+    "url": "{{appUrl}}/api/v1/nodes/register",
+    "method": "POST",
+    "sortNum": 20000,
+    "created": "2026-11-08T00:00:00.000Z",
+    "modified": "2026-11-08T00:00:00.000Z",
+    "headers": [{ "name": "Content-Type", "value": "application/json" }],
+    "params": [],
+    "body": {
+      "type": "json",
+      "raw": "{\n  \"nit\": \"abc\",\n  \"name\": \"Universidad\",\n  \"domain\": \"unal.edu.co\",\n  \"contact_email\": \"correo-invalido\"\n}",
+      "form": []
+    },
+    "tests": [{ "type": "res-code", "custom": "", "action": "equal", "value": "422" }]
   }
 ]

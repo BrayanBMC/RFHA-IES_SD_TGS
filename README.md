@@ -76,8 +76,18 @@ pytest demo/tests      # solo demo
 pytest tests           # solo app final
 ```
 
+## Demo en un comando
+
+```powershell
+.\run-demo.ps1          # Windows
+bash run-demo.sh        # macOS / Linux
+```
+
+Guía completa (local, AWS y explicación del código): `docs/DEMO.md`.
+
 ## Documentación
 
+- `docs/DEMO.md`: demo paso a paso (local y AWS) y explicación del código.
 - `docs/DECISIONES.md`: decisiones tomadas.
 - `docs/BRECHAS.md`: faltantes y ambigüedades del documento.
 - `docs/AWS_PASO_A_PASO.md`: guía para el compañero de AWS (se crea con la demo).

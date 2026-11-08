@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: RFHA-IES - Demo del middleware (stack rfha-demo, sin DynamoDB)
+
+Parameters:
+  JwtSecret:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    Description: Secreto para firmar y validar tokens. Debe ser el mismo que usa scripts/generate_token.py
+
+Resources:
+  DemoApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 50
+        ThrottlingRateLimit: 20
+
+  DemoFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: rfha-demo
+      CodeUri: .
+      Handler: main.handler
+      Runtime: python3.11
+      MemorySize: 256
+      Timeout: 10
+      Environment:
+        Variables:
+          JWT_SECRET: !Ref JwtSecret
+      Events:
+        Any:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref DemoApi
+            Path: /{proxy+}
+            Method: ANY
+
+  DemoLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/rfha-demo
+      RetentionInDays: 7
+
+Outputs:
+  ApiUrl:
+    Description: URL base para Thunder Client (variable baseUrl del entorno AWS)
+    Value: !Sub https://${DemoApi}.execute-api.${AWS::Region}.amazonaws.com

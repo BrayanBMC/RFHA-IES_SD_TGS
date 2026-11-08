@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Levanta la demo en macOS/Linux con un solo comando:  bash run-demo.sh
+# La app final: bash run-demo.sh --app
 set -e
 cd "$(dirname "$0")"
 PY=$(command -v python3.12 || command -v python3.11 || command -v python3 || command -v python)

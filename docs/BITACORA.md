@@ -20,6 +20,13 @@ Copia esta plantilla al inicio de la sección «Entradas»:
 
 ## Entradas
 
+### 2026-11-08 · README completo
+- **Qué se hizo:** el `README.md` se reescribió con: ficha del proyecto, resumen y problema, alcance y actores, requerimientos funcionales (RF-01 a RF-19) y no funcionales con su estado, tabla de historias de usuario HU-01 a HU-10 con estado, arquitectura (diagrama Mermaid), stack, modelo de datos, mapeo con las 8 transparencias de Sistemas Distribuidos y con Teoría General de Sistemas, resumen de lo hecho, cronograma, riesgos y flujo de Git. La sección «Cómo ejecutarlo desde la terminal de VS Code» explica paso a paso cómo abrir la terminal y lanzar la demo y la app final, con comandos para **Windows y para macOS/Linux** (se mantienen ambos a pedido del usuario), problemas frecuentes y cómo correr las pruebas.
+- **Por qué:** el README debía reflejar el levantamiento de requerimientos, las historias de usuario y el avance real, y explicar la ejecución desde VS Code.
+- **Archivos:** `README.md`, `run-demo.sh` (se conserva), `docs/DEMO.md`, `docs/historias/HU-01.md`, `docs/PROMPT-AGENTE-RFHA-IES.md`, `docs/BITACORA.md`.
+- **Nota:** durante la sesión se quitaron y se restauraron los comandos de macOS/Linux por un cambio de instrucción; el estado final los conserva.
+- **Pendiente:** los autores aparecen solo con nombre (sin códigos estudiantiles) porque el repositorio es público.
+
 ### 2026-11-08 · Reescritura de la guía de la demo (DEMO.md) más clara y centrada en la pantalla
 - **Qué se hizo:** `docs/DEMO.md` se reescribió completo: resumen de 2 minutos; glosario que explica cada concepto con su ejemplo en la demo (IES, homologación, créditos, token, JWT, firma, middleware, API REST, JSON, códigos 200/403/404, serverless, Lambda, API Gateway, cold start, localhost, etc.); mapa de la pantalla con cada campo y botón; **15 escenas de prueba hechas solo con clics** (qué pulsar, qué se ve, qué decir) más una tabla resumen de rechazos; guion de 12 a 14 minutos que enlaza las escenas; tabla de fallos en vivo con salida por clics; y los comandos relegados a un apéndice de respaldo.
 - **Decisión de despliegue en AWS:** para poder hacer las pruebas con clics también en AWS, la guía recomienda desplegar con `DemoMode=1` para la exposición y borrar el paquete (`sam delete`) al terminar, explicando el riesgo (con `1`, quien conozca la URL puede generar tokens). Con `DemoMode=0` quedan los botones apagados.

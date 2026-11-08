@@ -1,0 +1,34 @@
+# Entornos virtuales
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Secretos y entorno
+.env
+.env.*
+!.env.example
+
+# AWS SAM
+.aws-sam/
+samconfig.toml
+packaged.yaml
+
+# Editores y SO (se versiona .vscode salvo archivos personales)
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Thunder Client: reportes locales
+thunder-reports/

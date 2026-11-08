@@ -42,8 +42,8 @@ La fuente de verdad es el documento de requerimientos y su adenda de frontend. *
 
 - **Cliente de pruebas de la API: Thunder Client** (`rangav.vscode-thunder-client`). No uses Postman. Las colecciones viven en `thunder-tests/` dentro del repo (`thunder-client.saveToWorkspace: true`). Cada request se documenta también como `curl` en los `.md`.
 - **Carpeta `.vscode/` versionada** con `extensions.json`, `settings.json` y `tasks.json` (tarea "Demo: levantar en local").
-- **README con "Primer arranque en un PC nuevo"** (Windows y macOS/Linux).
-- **Lanzador de la demo en un comando:** `.\run-demo.cmd` (Windows), `bash run-demo.sh` (macOS/Linux) o `python scripts/run_demo.py`.
+- **README con "Primer arranque en un PC nuevo"** (Windows y macOS/Linux), con la ejecución desde la terminal de VS Code.
+- **Lanzadores en un comando:** `.\run-demo.cmd` y `.\run-app.cmd` (Windows), `bash run-demo.sh [--app]` (macOS/Linux) o `python scripts/run_demo.py [--app]`.
 - `requirements.txt` con **versiones fijadas**. `demo/requirements.txt` (Lambda) y `demo/requirements-local.txt` (local, agrega `uvicorn`).
 - `.gitattributes` con `* text=auto` y `.gitignore` completo (`.venv/`, `__pycache__/`, `.env`, `.aws-sam/`).
 - Variables de entorno en `.env.example` versionado y `.env` ignorado.
@@ -140,7 +140,7 @@ rfha-ies/
 ├── .vscode/  .github/workflows/  (ci.yml, cd-demo.yml)
 ├── docs/                 # historias/, DECISIONES, BRECHAS, DEMO, DEMO_MARTES, AWS_PASO_A_PASO, ADENDA_FRONTEND, este prompt
 ├── template.yaml         # SAM de la app final
-├── run-demo.cmd / run-demo.ps1 / run-demo.sh
+├── run-demo.cmd / run-demo.ps1 / run-app.cmd / run-demo.sh
 └── README.md
 ```
 

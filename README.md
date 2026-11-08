@@ -21,7 +21,6 @@ Sistema distribuido y descentralizado que conecta a las universidades en una red
 13. [Documentación](#13-documentación)
 14. [Cronograma y riesgos](#14-cronograma-y-riesgos)
 15. [Flujo de trabajo en Git](#15-flujo-de-trabajo-en-git)
-16. [Declaración de uso de herramientas de IA](#16-declaración-de-uso-de-herramientas-de-ia)
 
 ---
 
@@ -36,8 +35,6 @@ Sistema distribuido y descentralizado que conecta a las universidades en una red
 | **Programa** | Ingeniería en Telemática (Grupo 1) |
 | **Autores** | Santiago Alfonso Prieto · Brayan Acosta Parrado · Malfaida Nicol Salazar Cruz · Cristian Darío Prieto Avella · Felipe Andrés Rojas González |
 | **Versión del levantamiento** | 2.0.0, noviembre de 2026 (con la adenda de frontend, 2.1) |
-| **Referencia normativa** | Adaptación ICONTEC / Estándar IEEE 830 (SRS) |
-
 ---
 
 ## 2. Resumen y problema que resuelve
@@ -423,18 +420,3 @@ RFHA-IES_SD_TGS/
 - **Bitácora:** todo desarrollo se registra en `docs/BITACORA.md` antes de cada commit.
 
 ---
-
-## 16. Declaración de uso de herramientas de IA
-
-Las asignaturas permiten el uso de herramientas de inteligencia artificial siempre que se declare. Este proyecto lo declara así:
-
-| | |
-|---|---|
-| **Herramienta** | Asistente de IA integrado en el editor Kiro (agente de programación). |
-| **Para qué se usó** | Análisis de brechas del levantamiento de requerimientos; propuesta de la arquitectura y de las decisiones de diseño; escritura de código (demo, HU-01 y frontend); pruebas automáticas; configuración del CI/CD; y redacción de la documentación (`docs/`). |
-| **Cómo se trabajó** | Con un prompt de trabajo versionado (`docs/PROMPT-AGENTE-RFHA-IES.md`). Una historia de usuario a la vez, en un orden definido; cada una se entrega al equipo y solo se avanza a la siguiente con su «aprobado». |
-| **Qué decide el equipo** | Los requisitos, el alcance, la aceptación de cada historia, las pruebas finales, el despliegue en AWS y la exposición. |
-| **Trazabilidad** | `docs/BITACORA.md` (qué se hizo y cuándo), `docs/DECISIONES.md` (decisiones y su motivo) y el historial de commits de Git. |
-| **Responsabilidad** | El equipo responde por el contenido entregado y debe poder explicar el código y las decisiones (ver las preguntas probables en `docs/DEMO.md`). |
-
-La interfaz web de la demo y de la app final no muestra ninguna referencia a herramientas de IA; la declaración vive únicamente en la documentación del repositorio.

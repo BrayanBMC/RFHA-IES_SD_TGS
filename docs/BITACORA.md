@@ -20,6 +20,12 @@ Copia esta plantilla al inicio de la sección «Entradas»:
 
 ## Entradas
 
+### 2026-11-08 · DEMO.md sin guion; el middleware explicado en cada escena
+- **Qué se hizo:** se eliminó de `docs/DEMO.md` la sección «Guion de la exposición» (tabla minuto a minuto) y los «Qué decir» de cada escena; en su lugar la sección 7 es una lista de verificación previa a exponer. En las pruebas se agregó la sección 6.2 «Cómo viaja una consulta» (recorrido navegador, API Gateway, Lambda, controles y respuesta, con una tabla de qué revisa cada uno de los 4 controles y qué responde si falla) y **cada una de las 15 escenas** ahora tiene «Cómo se refleja el middleware» (petición, qué control pasa o falla, decisión y respuesta) y «Conclusión». Se explicó para qué sirve «Copiar como curl» (escena 14) y la tabla resumen (6.4) incluye cómo lo resuelve el middleware en cada caso.
+- **Por qué:** petición del usuario: el documento debe mostrar cómo funciona y cómo se refleja el middleware en cada prueba, no un guion.
+- **Archivos:** `docs/DEMO.md`, `README.md`, `docs/BITACORA.md`.
+- **Pendiente / riesgos:** las explicaciones se basan en el código (`demo/main.py`); confirmar los textos de cada escena en pantalla. `docs/DEMO_MARTES.md` conserva su propio guion breve; decidir si también se retira.
+
 ### 2026-11-08 · Declaración de uso de IA en la documentación
 - **Qué se hizo:** se agregó al `README.md` la sección 16 «Declaración de uso de herramientas de IA» (herramienta, para qué se usó, cómo se trabajó, qué decide el equipo, trazabilidad y responsabilidad). Se verificó con una búsqueda que ni el frontend (`demo/static`, `src/app/static`) ni el código de la API contienen menciones a herramientas de IA.
 - **Por qué:** la asignatura permite el uso de IA declarado; la declaración va en la documentación y no en la interfaz.

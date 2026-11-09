@@ -53,7 +53,19 @@
             <option value="">Todos</option>
           </select>
         </div>
-        <button type="submit" class="btn primary" id="btn-load">Cargar solicitudes</button>
+        <div class="field">
+          <label for="admin-report-type">Tipo de reporte a exportar</label>
+          <select id="admin-report-type">
+            <option value="general">📊 Reporte Ejecutivo Completo</option>
+            <option value="auditoria">🛡️ Bitácora Forense de Auditoría</option>
+            <option value="resiliencia">⚡ Tolerancia a Fallos y Failover (HU-08)</option>
+            <option value="nodos">🏛️ Catálogo de Instituciones Federadas</option>
+          </select>
+        </div>
+        <div class="btn-row">
+          <button type="submit" class="btn primary" id="btn-load">Cargar solicitudes</button>
+          <button type="button" class="btn" id="btn-download-pdf">⬇ Descargar Reporte PDF</button>
+        </div>
       </form>
     </section>
 

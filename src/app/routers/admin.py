@@ -61,22 +61,29 @@ def approve_node(node_id: str, nodes: NodeRepository = Depends(get_node_reposito
 
 @router.get("/reports/network-summary")
 def download_network_report(
+    type: str = Query(default="general", pattern=r"^(general|auditoria|resiliencia|nodos)$", description="Tipo de reporte PDF"),
     nodes: NodeRepository = Depends(get_node_repository),
     audits: AuditRepository = Depends(get_audit_repository),
 ) -> Response:
-    """HU-Admin-Reports: descarga el reporte ejecutivo de la red en formato PDF.
+    """HU-Admin-Reports: descarga el reporte ejecutivo de la red en formato PDF según el tipo elegido.
+
+    Tipos:
+      - general: Resumen ejecutivo consolidado
+      - auditoria: Bitácora forense de seguridad
+      - resiliencia: Análisis de fallos, réplicas y failover
+      - nodos: Catálogo institucional y estado de nodos
 
     Solo accesible con X-Admin-Key válida (protegido por require_admin en el router).
     """
     all_nodes = nodes.list_nodes()
     all_logs = audits.list_logs(limit=200)
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    pdf_bytes = generate_network_report(all_nodes, all_logs, generated_at)
+    pdf_bytes = generate_network_report(all_nodes, all_logs, generated_at, report_type=type)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f"attachment; filename=\"reporte-rfha-{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf\"",
+            "Content-Disposition": f"attachment; filename=\"reporte-{type}-{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf\"",
             "Cache-Control": "no-store",
         },
     )

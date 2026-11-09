@@ -32,6 +32,7 @@ ROOT = Path(__file__).resolve().parent.parent
 VENV_DIR = ROOT / ".venv"
 REQUIREMENTS = ROOT / "demo" / "requirements-local.txt"
 LAMBDA_REQUIREMENTS = ROOT / "demo" / "requirements.txt"
+APP_REQUIREMENTS = ROOT / "requirements.txt"
 ENV_FILE = ROOT / ".env"
 DEPS_MARK = VENV_DIR / ".demo_deps_hash"
 
@@ -55,14 +56,14 @@ def ensure_venv() -> None:
 
 def ensure_dependencies() -> None:
     current = hashlib.sha256(
-        REQUIREMENTS.read_bytes() + LAMBDA_REQUIREMENTS.read_bytes()
+        REQUIREMENTS.read_bytes() + LAMBDA_REQUIREMENTS.read_bytes() + APP_REQUIREMENTS.read_bytes()
     ).hexdigest()
     if DEPS_MARK.exists() and DEPS_MARK.read_text().strip() == current:
         print("Dependencias: al día.")
         return
     step("Instalando dependencias (solo la primera vez o si cambiaron)")
     result = subprocess.run(
-        [str(venv_python()), "-m", "pip", "install", "-q", "-r", str(REQUIREMENTS)]
+        [str(venv_python()), "-m", "pip", "install", "-q", "-r", str(APP_REQUIREMENTS)]
     )
     if result.returncode != 0:
         sys.exit(

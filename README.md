@@ -426,6 +426,7 @@ RFHA-IES_SD_TGS/
 
 | Documento | Contenido |
 |---|---|
+| `docs/CREDENCIALES_Y_GUIA_AWS.md` | **Credenciales, casos de prueba y guía de AWS:** Clave de admin, las 4 universidades activas con sus API Keys, los 6 estudiantes ficticios con claves y casos de prueba, y guía paso a paso para recorrer la consola web de AWS (DynamoDB, Lambda, API Gateway, CloudWatch, CloudFormation y Billing) con el profesor. |
 | `docs/DEMO.md` | **Guía de la demo:** conceptos explicados, levantar en local y en AWS (con la configuración real y cómo se comunica el código con AWS), escenas de prueba con clics (con el funcionamiento del middleware en cada caso), lista de verificación y preguntas probables. |
 | `docs/APP_FINAL.md` | **Guía de la app final:** direcciones, cómo se conecta todo, cómo se comunica el código con AWS, las tres tablas, seguridad, qué hace cada historia (HU-01 a HU-05) y 14 escenas de prueba en pantalla. |
 | `docs/historias/HU-01.md` a `HU-05.md` | Una historia por archivo: qué se hizo, archivos, cómo probarla y matriz de criterios con su prueba automática. |

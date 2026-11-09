@@ -20,6 +20,11 @@ Copia esta plantilla al inicio de la sección «Entradas»:
 
 ## Entradas
 
+### 2026-11-09 · Documentación de credenciales, casos de prueba ampliados y guía de consola AWS
+- **Qué se hizo:** Se creó `docs/CREDENCIALES_Y_GUIA_AWS.md` con la clave de administrador (`ADMIN_KEY`), el catálogo de 4 universidades activas con sus API Keys institucionales, 6 estudiantes ficticios con contraseñas y casos de prueba representativos (homologación, materias reprobadas/repetidas, estudiante graduado convalidando título, estudiante retirado, estudiante de primeros semestres y excelencia académica para becas). Se redactó la guía paso a paso para recorrer la consola web de AWS (DynamoDB, Lambda, API Gateway, CloudWatch Logs, CloudFormation y Facturación) para sustentar la arquitectura y seguridad ante los evaluadores. Se implementó el script `scripts/seed_sample_data.py` y se sembraron con éxito todos los datos en AWS DynamoDB en `us-east-2`.
+- **Por qué:** Petición del usuario para contar con usuarios, claves y casos de prueba listos para ingresar de inmediato y explicar el proyecto en la consola de AWS sin ambigüedades.
+- **Archivos:** `docs/CREDENCIALES_Y_GUIA_AWS.md`, `scripts/seed_sample_data.py`, `README.md`, `docs/BITACORA.md`.
+
 ### 2026-11-09 · HU-06 y HU-07: consulta federada y bloqueo de consultas no autorizadas
 - **Qué se hizo:** `GET /api/v1/federated/academic-history/{student_id}` en la app final con 6 controles que cortan con 403 (API Key de la universidad, token presente, firma y vigencia, destino `aud`, lista negra y titular `sub`), búsqueda del historial por el `origin` del token, verificación de la firma SHA-256, promedio ponderado, créditos aprobados y `X-Data-Source: Primary`. Pantalla `/consulta` y tarjeta en el menú de inicio. Pruebas en `tests/test_hu06_07_federated.py` (incluye el viaje de `Decimal` por DynamoDB con `moto`). Documentos `HU-06.md` y `HU-07.md`, D-35.
 - **Por qué:** petición del usuario, con presupuesto de créditos reducido: ambas historias comparten ruta y se entregaron juntas, reutilizando `verify_token` y `require_node`.

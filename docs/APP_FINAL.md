@@ -34,6 +34,7 @@ Guía de la **aplicación final** (la red federada completa), separada de la dem
 | **Portal del estudiante** | Estudiante | HU-04 y HU-05 | `/portal-estudiante` |
 | **Consulta federada** | Universidad receptora / consultante | HU-06, HU-07 y HU-08 | `/consulta` |
 | **Auditoría inmutable** | Administrador y nodos federados | HU-09 | `/auditoria` |
+| **Reportes Ejecutivos PDF** | Administrador general de la red | HU-Admin-Reports | `/reportes` |
 
 **Cómo se relaciona con la demo.** La demo (`docs/DEMO.md`) muestra cómo el middleware **valida un permiso** al consultar un historial. La app final construye la solución completa de punta a punta: quién es parte de la red, cómo se cargan los historiales firmados, cómo el alumno emite/revoca el token de consentimiento, la consulta federada inter-institucional con bloqueo de consultas no autorizadas, la conmutación automática por fallo a réplica (failover) y la bitácora inmutable de auditoría.
 
@@ -50,6 +51,9 @@ Guía de la **aplicación final** (la red federada completa), separada de la dem
 | Administración | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/admin |
 | Panel del nodo | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/panel-nodo |
 | Portal del estudiante | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/portal-estudiante |
+| Consulta federada | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/consulta |
+| Auditoría inmutable | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/auditoria |
+| Reportes ejecutivos PDF | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/reportes |
 | Documentación de la API (Swagger) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/docs |
 | **App final en tu computador** | http://127.0.0.1:8001 (con `.\run-app.cmd`) |
 
@@ -460,21 +464,21 @@ Ambos corren **el mismo código**; lo único que cambia es `REPOSITORY_BACKEND` 
 
 ---
 
-## 12. Viabilidad del Módulo de Reportes PDF y Estadísticas
+## 12. Módulo de Reportes PDF y Estadísticas Especializadas
 
-### 12.1 Diagnóstico de Viabilidad
-Implementar un módulo de reportes ejecutivos en PDF para el administrador general es **completamente viable técnica y económicamente** dentro del stack actual.
+### 12.1 Implementación en Producción
+El módulo está **100% implementado y en producción en AWS** mediante `reportlab` compilado en memoria (`io.BytesIO()`) sin dependencias C del SO.
 
-### 12.2 Métricas que generaría el reporte
-1. **Métricas de Red y Nodos:** Total de nodos inscritos, porcentaje de nodos activos vs pendientes de aprobación.
-2. **Volumen Transaccional:** Consultas exitosas (`SUCCESS`) vs bloqueadas por falta de autorización (`DENIED`) vs errores de integridad (`ERROR`).
-3. **Métricas de Resiliencia (HU-08):** Porcentaje de consultas servidas por el nodo Primario vs servidas por la Réplica de contingencia.
-4. **Ranking de Uso Inter-institucional:** Universidades con mayor tráfico de consultas y mayor tráfico de estudiantes consultados.
-5. **Métricas de Soberanía del Estudiante:** Total de autorizaciones emitidas, porcentaje de tokens revocados de forma proactiva por el alumno.
+### 12.2 Tipos de reportes generados
+El Administrador General puede seleccionar y generar 4 tipos de informes según su necesidad:
+1. **📊 Reporte Ejecutivo Completo (`type=general`):** Resumen consolidado con métricas de la red, volumen porcentual de consultas, indicadores de resiliencia y muestra cronológica de auditoría.
+2. **🛡️ Bitácora Forense de Seguridad (`type=auditoria`):** Trazabilidad de seguridad forense con desglose de solicitudes exitosas (`SUCCESS`), bloqueadas por falta de token (`DENIED`), errores y los últimos 35 registros con dirección IP del cliente.
+3. **⚡ Diagnóstico de Tolerancia a Fallos (`type=resiliencia`):** Métricas de disponibilidad del sistema, porcentaje de consultas servidas por nodo Primario vs Réplica (**HU-08**) y tabla con eventos de conmutación / failover.
+4. **🏛️ Catálogo de Instituciones (`type=nodos`):** Directorio institucional de nodos inscritos, estado (`ACTIVO` / `PENDIENTE_APROBACION`), NIT, dominio y fecha de alta.
 
-### 12.3 Librería recomendada para AWS Lambda
-- **ReportLab (`reportlab`):** Librería Python pura, ultra rápida (200-400 ms de generación), pesa solo ~6 MB (cabe holgadamente en el límite de Lambda de 250 MB), no requiere dependencias binarias externas (como sí lo harían herramientas tipo WeasyPrint) y permite crear tablas con formato corporativo y encabezados limpios.
-- **Ruta propuesta:** `GET /api/v1/admin/reports/network-summary` con cabecera `X-Admin-Key`. La Lambda recopila los registros de `AuditLogsTable` y `NodesTable`, genera el PDF en memoria con `io.BytesIO()` y responde con cabecera `Content-Type: application/pdf; filename=reporte-red.pdf`.
+### 12.3 Rutas y Acceso
+- **Ruta Web:** Directamente desde `/admin` mediante el botón *⬇ Descargar Reporte PDF*, o en la pantalla dedicada `/reportes`.
+- **Ruta API:** `GET /api/v1/admin/reports/network-summary?type={general|auditoria|resiliencia|nodos}` con cabecera `X-Admin-Key`.
 
 ---
 
@@ -483,9 +487,9 @@ Implementar un módulo de reportes ejecutivos en PDF para el administrador gener
 Para sustentar ante los profesores de **Sistemas Distribuidos** y **Teoría General de Sistemas**, se debe evidenciar que el sistema no es un monolito local, sino una red descentralizada tolerante a fallos:
 
 ### 13.1 Configuración de la Demostración
-Se conectan **3 o 4 dispositivos simultáneamente** (computadores portátiles o smartphones) a la URL pública de AWS (`https://<api-id>.execute-api.sa-east-1.amazonaws.com/`):
+Se conectan **3 o 4 dispositivos simultáneamente** (computadores portátiles o smartphones) a la URL pública de AWS (`https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/`):
 
-- **Dispositivo 1 (Admin Central):** En `/admin` y `/auditoria` monitoreando en vivo.
+- **Dispositivo 1 (Admin Central):** En `/admin`, `/auditoria` y `/reportes` monitoreando en vivo.
 - **Dispositivo 2 (Universidad A):** En `/panel-nodo` autenticado con su propia API Key institucional.
 - **Dispositivo 3 (Universidad B):** En `/consulta` con su API Key receptora.
 - **Dispositivo 4 (Estudiante):** En `/portal-estudiante` en un teléfono móvil.

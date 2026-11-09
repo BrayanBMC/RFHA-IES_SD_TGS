@@ -222,15 +222,37 @@
 
 /* Menú de inicio */
 @layer components {
-  .menu-title { font-size: var(--step-1); margin-block: 1.5rem 1rem; }
-  .modules { margin-block-end: 1.25rem; }
+  .hero.center {
+    text-align: center;
+    margin-inline: auto;
+    max-inline-size: 52rem;
+  }
+  .menu-title {
+    font-size: var(--step-1);
+    margin-block: 2rem 1.25rem;
+    text-align: center;
+  }
+  .modules {
+    margin-block-end: 2.5rem;
+    justify-content: center;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 21.5rem));
+  }
   .card.module {
-    display: grid; gap: 0.35rem; color: var(--text); text-decoration: none; min-block-size: 8rem;
-    transition: border-color 0.15s;
-    &:hover { border-color: var(--brand); }
+    display: grid;
+    gap: 0.45rem;
+    color: var(--text);
+    text-decoration: none;
+    min-block-size: 8.5rem;
+    padding: 1.35rem;
+    transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+    &:hover {
+      border-color: var(--brand);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px light-dark(rgba(36, 71, 214, 0.12), rgba(134, 163, 255, 0.12));
+    }
   }
   .card.module strong { font-size: var(--step-1); }
-  .card.module span:last-child { color: var(--muted); }
+  .card.module span:last-child { color: var(--muted); font-size: var(--step--1); line-height: 1.5; }
   main > .card + .card { margin-block-start: 1.25rem; }
   .checkbox-field {
     display: flex;

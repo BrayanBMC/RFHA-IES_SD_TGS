@@ -42,8 +42,8 @@
       <form id="admin-form" novalidate>
         <div class="field">
           <label for="admin-key">Clave de administrador</label>
-          <input id="admin-key" type="password" autocomplete="off" required aria-describedby="admin-key-hint">
-          <p class="hint" id="admin-key-hint">Es la variable ADMIN_KEY del servidor. Solo se guarda en esta página mientras está abierta.</p>
+          <input id="admin-key" type="password" autocomplete="off" required aria-describedby="admin-key-hint" placeholder="Ingresa tu clave de acceso">
+          <p class="hint" id="admin-key-hint">Clave autorizada de administración de la red.</p>
         </div>
         <div class="field">
           <label for="status-filter">Mostrar</label>
@@ -54,12 +54,12 @@
           </select>
         </div>
         <div class="field">
-          <label for="admin-report-type">Tipo de reporte a exportar</label>
+          <label for="admin-report-type">Reporte en PDF</label>
           <select id="admin-report-type">
-            <option value="general">📊 Reporte Ejecutivo Completo</option>
-            <option value="auditoria">🛡️ Bitácora Forense de Auditoría</option>
-            <option value="resiliencia">⚡ Tolerancia a Fallos y Failover (HU-08)</option>
-            <option value="nodos">🏛️ Catálogo de Instituciones Federadas</option>
+            <option value="general">Reporte Ejecutivo Completo</option>
+            <option value="auditoria">Bitácora de Auditoría y Trazabilidad</option>
+            <option value="resiliencia">Diagnóstico de Resiliencia y Réplicas</option>
+            <option value="nodos">Directorio de Universidades Federadas</option>
           </select>
         </div>
         <div class="btn-row">

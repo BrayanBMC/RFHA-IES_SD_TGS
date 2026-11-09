@@ -23,7 +23,7 @@
 
 ## 1. Vista de pájaro
 
-RFHA-IES es un **middleware federado** desplegado en AWS (región `sa-east-1` São Paulo, Brasil). Permite que diversas Instituciones de Educación Superior (nodos) compartan historiales académicos de estudiantes de forma descentralizada, tolerante a fallos, inmutable y siempre bajo consentimiento explícito del estudiante.
+RFHA-IES es un **middleware federado** desplegado en AWS (región `us-east-2` Ohio). Permite que diversas Instituciones de Educación Superior (nodos) compartan historiales académicos de estudiantes de forma descentralizada, tolerante a fallos, inmutable y siempre bajo consentimiento explícito del estudiante.
 
 ```
 Universidad A (Origen)        Universidad B (Consultante)         Estudiante
@@ -298,42 +298,27 @@ El sistema cuenta con un frontend responsivo y ligero, sin compiladores pesados 
 
 ---
 
-## 9. Módulo de reportes PDF — análisis de viabilidad
+## 9. Módulo de reportes PDF — Implementación y tipos de informes
 
-### 9.1 Diagnóstico de Viabilidad
+### 9.1 Estado de Implementación
+El módulo está **100% implementado y operativo en producción en AWS**. Utiliza la librería `reportlab` compilando el documento completamente en memoria (`io.BytesIO`) en un tiempo de 200 a 400 ms sin tocar disco.
 
-> **Conclusión:** La implementación de un módulo de reportes y estadísticas en PDF para el Administrador es **100% viable técnica y económicamente**, integrándose de forma limpia en la arquitectura actual.
+### 9.2 Los 4 tipos de reportes disponibles
 
-### 9.2 Métricas y Estadísticas a Reportar
+| Tipo | Query Param | Contenido del PDF | Uso en sustentación |
+|---|---|---|---|
+| **📊 Reporte Ejecutivo Completo** | `type=general` | Visión global: total de nodos, volumen porcentual de consultas, indicadores de resiliencia y muestra de auditoría reciente. | Presentación ejecutiva del proyecto. |
+| **🛡️ Bitácora Forense de Seguridad** | `type=auditoria` | Desglose de accesos: tasas de éxito (`SUCCESS`), denegaciones por falta de consentimiento (`DENIED`), errores y los últimos 35 registros con IP del cliente. | Sustentar no repudio, trazabilidad y control de acceso. |
+| **⚡ Diagnóstico de Tolerancia a Fallos** | `type=resiliencia` | Métricas de disponibilidad: consultas atendidas por nodo primario vs réplica (**HU-08**) y tabla de conmutaciones/failover. | Sustentar **Sistemas Distribuidos** y el teorema CAP. |
+| **🏛️ Catálogo de Instituciones** | `type=nodos` | Directorio institucional completo: ID de nodo, institución, NIT, dominio y estado de aprobación. | Demostrar gobierno federado y descentralización. |
 
-El Administrador General puede consolidar en el reporte:
-1. **Salud de la Red Federada:**
-   - Nodos Totales, Activos, y Solicitudes Pendientes.
-2. **Volumen de Consultas Federadas:**
-   - Total de peticiones atendidas en el periodo.
-   - Tasa de éxito (`SUCCESS`) vs. intentos bloqueados (`DENIED`) vs. errores de integridad (`ERROR`).
-3. **Resiliencia y Failover (HU-08):**
-   - Cantidad y porcentaje de consultas atendidas desde el nodo Primario vs. Réplica.
-4. **Ranking de Tráfico Inter-institucional:**
-   - Universidad que más consultas realiza y universidad más consultada.
-5. **Estadísticas de Consentimiento Estudiantil:**
-   - Tokens emitidos vs. revocados manualmente vs. expirados de forma natural.
-
-### 9.3 Opciones Técnicas de Generación PDF
-
-| Opción | Librería | Pros | Contras | Recomendación |
-|---|---|---|---|---|
-| **A (Recomendada)** | `reportlab` | Python puro, ultra rápida (200-400 ms), genera tablas y gráficos vectoriales nativos, peso de paquete bajo (~6 MB). | Requiere construir el diseño por código (Flowables). | **Excelente opción para AWS Lambda.** |
-| **B** | `fpdf2` | Aún más ligera (< 1 MB), muy sencilla de usar, cero dependencias C. | Menos capacidades para gráficos avanzados. | Buena alternativa rápida. |
-| **C** | `WeasyPrint` | Renderiza HTML/CSS a PDF directamente. | Requiere dependencias nativas del sistema operativo (Pango, Cairo) complejas de empaquetar en AWS Lambda. | Desaconsejada en Lambda Serverless. |
-
-### 9.4 Arquitectura del Módulo Propuesto
+### 9.3 Arquitectura del Módulo
 
 ```
-Admin (Frontend /admin o /auditoria)
-   │ Clic en "Descargar Reporte Ejecutivo (PDF)"
+Admin (Frontend /admin o /reportes)
+   │ Selecciona tipo de reporte y envía X-Admin-Key
    ▼
-GET /api/v1/admin/reports/system-summary (Header: X-Admin-Key)
+GET /api/v1/admin/reports/network-summary?type={general|auditoria|resiliencia|nodos}
    │
    ▼
 AWS Lambda (FastAPI)

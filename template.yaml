@@ -58,6 +58,28 @@ Resources:
         AttributeName: ttl
         Enabled: true
 
+  ReplicasTable:                       # réplicas de historiales para tolerancia a fallos (HU-08)
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: record_key
+          AttributeType: S
+      KeySchema:
+        - AttributeName: record_key
+          KeyType: HASH
+
+  AuditLogsTable:                      # bitácora inmutable de consultas y bloqueos (HU-09)
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: log_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: log_id
+          KeyType: HASH
+
   AppFunction:                         # el middleware de la app final
     Type: AWS::Serverless::Function
     Properties:
@@ -72,7 +94,9 @@ Resources:
           REPOSITORY_BACKEND: dynamodb
           NODES_TABLE: !Ref NodesTable
           RECORDS_TABLE: !Ref RecordsTable
+          REPLICAS_TABLE: !Ref ReplicasTable
           TOKENS_TABLE: !Ref TokensTable
+          AUDIT_TABLE: !Ref AuditLogsTable
           JWT_SECRET: !Ref JwtSecret
           ADMIN_KEY: !Ref AdminKey
       Policies:
@@ -81,7 +105,11 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref RecordsTable
         - DynamoDBCrudPolicy:
+            TableName: !Ref ReplicasTable
+        - DynamoDBCrudPolicy:
             TableName: !Ref TokensTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AuditLogsTable
       Events:
         Root:
           Type: HttpApi
@@ -115,3 +143,9 @@ Outputs:
   TokensTableName:
     Description: Tabla DynamoDB de tokens y lista negra
     Value: !Ref TokensTable
+  ReplicasTableName:
+    Description: Tabla DynamoDB de réplicas de historiales
+    Value: !Ref ReplicasTable
+  AuditTableName:
+    Description: Tabla DynamoDB de bitácora de auditoría
+    Value: !Ref AuditLogsTable

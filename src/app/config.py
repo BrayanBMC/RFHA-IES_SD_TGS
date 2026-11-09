@@ -20,7 +20,12 @@ load_dotenv()
 REPOSITORY_BACKEND = os.getenv("REPOSITORY_BACKEND", "memory")  # memory | dynamodb
 NODES_TABLE = os.getenv("NODES_TABLE", "NodesTable")
 RECORDS_TABLE = os.getenv("RECORDS_TABLE", "RecordsTable")
+REPLICAS_TABLE = os.getenv("REPLICAS_TABLE", "ReplicasTable")
 TOKENS_TABLE = os.getenv("TOKENS_TABLE", "TokensTable")
+AUDIT_TABLE = os.getenv("AUDIT_TABLE", "AuditLogsTable")
+
+# Simular caída de un nodo para pruebas de failover (HU-08). Formato: node_id (ej. IES-1111AAAA)
+SIMULATE_NODE_DOWN = os.getenv("SIMULATE_NODE_DOWN", "")
 
 # Clave del administrador general (HU-02). Si está vacía, ninguna petición de administración es válida.
 ADMIN_KEY = os.getenv("ADMIN_KEY", "")

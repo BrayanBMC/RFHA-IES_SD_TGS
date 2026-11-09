@@ -263,3 +263,64 @@ def get_token_repository() -> TokenRepository:
     if config.REPOSITORY_BACKEND == "dynamodb":
         return DynamoTokenRepository(config.TOKENS_TABLE)
     return InMemoryTokenRepository()
+
+
+# ---------------------------------------------------------------- réplicas (HU-08)
+
+
+@lru_cache(maxsize=1)
+def get_replica_repository() -> RecordRepository:
+    if config.REPOSITORY_BACKEND == "dynamodb":
+        return DynamoRecordRepository(config.REPLICAS_TABLE)
+    return InMemoryRecordRepository()
+
+
+# ---------------------------------------------------------------- auditoría (HU-09)
+
+
+class AuditRepository(Protocol):
+    def record_log(self, entry: dict) -> dict: ...
+
+    def list_logs(self, node_id: str | None = None, limit: int = 50) -> list[dict]: ...
+
+
+class InMemoryAuditRepository:
+    def __init__(self) -> None:
+        self._logs: list[dict] = []
+
+    def record_log(self, entry: dict) -> dict:
+        self._logs.append(entry)
+        return entry
+
+    def list_logs(self, node_id: str | None = None, limit: int = 50) -> list[dict]:
+        logs = self._logs
+        if node_id:
+            logs = [l for l in logs if l.get("consulting_node_id") == node_id or l.get("origin_node_id") == node_id]
+        return sorted(logs, key=lambda l: l.get("timestamp", ""), reverse=True)[:limit]
+
+
+class DynamoAuditRepository:
+    """Tabla AuditLogsTable con clave de partición `log_id` (inmutable, solo PutItem)."""
+
+    def __init__(self, table_name: str) -> None:
+        self._table = _dynamo_table(table_name)
+
+    def record_log(self, entry: dict) -> dict:
+        self._table.put_item(Item=_to_dynamo(entry))
+        return entry
+
+    def list_logs(self, node_id: str | None = None, limit: int = 50) -> list[dict]:
+        from boto3.dynamodb.conditions import Attr
+
+        kwargs = {}
+        if node_id:
+            kwargs["FilterExpression"] = Attr("consulting_node_id").eq(node_id) | Attr("origin_node_id").eq(node_id)
+        items = _scan_all(self._table, **kwargs)
+        return sorted(items, key=lambda l: l.get("timestamp", ""), reverse=True)[:limit]
+
+
+@lru_cache(maxsize=1)
+def get_audit_repository() -> AuditRepository:
+    if config.REPOSITORY_BACKEND == "dynamodb":
+        return DynamoAuditRepository(config.AUDIT_TABLE)
+    return InMemoryAuditRepository()

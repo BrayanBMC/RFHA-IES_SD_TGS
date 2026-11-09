@@ -145,3 +145,25 @@ class RevokeResponse(BaseModel):
     jti: str
     status: Literal["REVOCADO"]
     message: str
+
+
+# ---------------------------------------------------------------- HU-09: auditoría e inmutabilidad
+
+
+class AuditLogEntry(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    log_id: str
+    timestamp: str
+    consulting_node_id: str
+    target_student_id: str
+    origin_node_id: str | None = None
+    outcome: Literal["SUCCESS", "DENIED", "ERROR"]
+    reason: str | None = None
+    data_source: Literal["Primary", "Replica", "None"] = "None"
+    client_ip: str | None = None
+
+
+class AuditLogListResponse(BaseModel):
+    logs: list[AuditLogEntry]
+    total: int

@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from mangum import Mangum
 
-from src.app.routers import admin, federated, nodes, students, sync
+from src.app.routers import admin, audit, federated, nodes, students, sync
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 PAGE_HEADERS = {
@@ -24,7 +24,8 @@ PAGES = {
     "/admin": "admin.html",  # HU-02
     "/panel-nodo": "panel-nodo.html",  # HU-03
     "/portal-estudiante": "portal-estudiante.html",  # HU-04 y HU-05
-    "/consulta": "consulta.html",  # HU-06 y HU-07
+    "/consulta": "consulta.html",  # HU-06, HU-07 y HU-08
+    "/auditoria": "auditoria.html",  # HU-09
 }
 
 app = FastAPI(
@@ -36,6 +37,7 @@ app.include_router(admin.router)
 app.include_router(sync.router)
 app.include_router(students.router)
 app.include_router(federated.router)
+app.include_router(audit.router)
 
 # Interfaz web (HTML/CSS/JS estáticos, sin build).
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

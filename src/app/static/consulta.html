@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Consulta de historial · RFHA-IES</title>
+  <meta name="description" content="Una universidad activa consulta el historial de un estudiante con el permiso de este.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script type="module" src="/static/consulta.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/" aria-label="RFHA-IES, inicio">
+        <img src="/static/favicon.svg" alt="" width="32" height="32">
+        <span>RFHA-IES</span>
+      </a>
+      <nav class="main-nav" aria-label="Secciones">
+        <a href="/">Inicio</a>
+        <a href="/panel-nodo">Panel del nodo</a>
+        <a href="/portal-estudiante">Estudiante</a>
+        <a href="/consulta" aria-current="page">Consulta</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <section class="hero">
+      <p class="eyebrow">Universidad (nodo activo)</p>
+      <h1>Consulta de historial</h1>
+      <p class="lead">Consulta el historial de un estudiante de <strong>cualquier</strong> universidad de la red. Solo se entrega si el estudiante te autorizó con un token dirigido a <strong>tu</strong> universidad.</p>
+    </section>
+
+    <div class="grid">
+      <section class="card" aria-labelledby="q-title">
+        <h2 id="q-title">Solicitud</h2>
+        <form id="query-form" novalidate>
+          <div class="field">
+            <label for="api-key">API Key de tu universidad</label>
+            <input id="api-key" type="password" autocomplete="off" required>
+          </div>
+          <div class="field">
+            <label for="student-id">Código del estudiante</label>
+            <input id="student-id" type="text" inputmode="numeric" autocomplete="off" required placeholder="20262678029">
+          </div>
+          <div class="field">
+            <label for="token">Token del estudiante</label>
+            <textarea id="token" rows="5" spellcheck="false" aria-describedby="token-hint"></textarea>
+            <p class="hint" id="token-hint">Lo genera el estudiante en su portal. Déjalo vacío para ver el rechazo.</p>
+          </div>
+          <button type="submit" class="btn primary" id="btn-query">Consultar historial</button>
+        </form>
+      </section>
+
+      <section class="card" aria-labelledby="c-title">
+        <h2 id="c-title">Controles del middleware</h2>
+        <ol class="steps">
+          <li>API Key de tu universidad válida.</li>
+          <li>Token presente, con firma y vigencia válidas.</li>
+          <li>Token dirigido a tu universidad y no revocado.</li>
+          <li>Token del mismo estudiante que consultas.</li>
+          <li>Historial encontrado y con la firma íntegra.</li>
+        </ol>
+      </section>
+    </div>
+
+    <section class="card result" id="result" aria-labelledby="r-title" hidden>
+      <h2 id="r-title">Respuesta</h2>
+      <div class="status-row">
+        <span class="http" id="status-chip"></span>
+        <p id="result-message"></p>
+      </div>
+      <div id="record" hidden>
+        <dl class="summary">
+          <div><dt>Estudiante</dt><dd id="out-name"></dd></div>
+          <div><dt>Programa</dt><dd id="out-program"></dd></div>
+          <div><dt>Universidad de origen</dt><dd><code id="out-node"></code></dd></div>
+          <div><dt>Fuente de datos</dt><dd id="out-source"></dd></div>
+          <div><dt>Promedio</dt><dd id="out-gpa"></dd></div>
+          <div><dt>Créditos aprobados</dt><dd id="out-credits"></dd></div>
+        </dl>
+        <div class="table-wrap">
+          <table>
+            <caption class="sr-only">Asignaturas</caption>
+            <thead><tr><th scope="col">Código</th><th scope="col">Asignatura</th><th scope="col">Semestre</th><th scope="col" class="num">Créditos</th><th scope="col" class="num">Nota</th><th scope="col">Estado</th></tr></thead>
+            <tbody id="courses-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Universidad Distrital Francisco José de Caldas · Sistemas Distribuidos y Teoría General de Sistemas.</p>
+      <p><a href="/docs">Documentación de la API (Swagger)</a></p>
+    </div>
+  </footer>
+
+  <p class="sr-only" id="sr-status" role="status" aria-live="polite"></p>
+</body>
+</html>

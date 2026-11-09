@@ -19,7 +19,9 @@ function showRecord(body) {
   $("#out-name").textContent = d.full_name;
   $("#out-program").textContent = d.program;
   $("#out-node").textContent = d.node_id;
-  $("#out-source").textContent = body.data_source === "Primary" ? "Universidad de origen (Primary)" : body.data_source;
+  $("#out-source").textContent = body.data_source === "Primary"
+    ? "Nodo primario de origen (Primary)"
+    : "Réplica autorizada de respaldo (Replica)";
   $("#out-gpa").textContent = d.gpa === null ? "—" : d.gpa.toLocaleString("es-CO", { minimumFractionDigits: 2 });
   $("#out-credits").textContent = d.credits_completed;
   const rows = $("#courses-body");
@@ -40,6 +42,9 @@ $("#query-form").addEventListener("submit", async (event) => {
   const headers = { "X-Node-API-Key": $("#api-key").value.trim() };
   const token = $("#token").value.trim();
   if (token) headers["X-Student-Consent-Token"] = token;
+  if ($("#simulate-down") && $("#simulate-down").checked) {
+    headers["X-Simulate-Down"] = "true";
+  }
 
   const button = $("#btn-query");
   setBusy(button, true, "Consultando…", "Consultar historial");

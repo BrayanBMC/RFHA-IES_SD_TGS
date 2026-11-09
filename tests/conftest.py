@@ -7,11 +7,14 @@ from fastapi.testclient import TestClient
 from src.app import config, security
 from src.app.main import app
 from src.app.repositories import (
+    InMemoryAuditRepository,
     InMemoryNodeRepository,
     InMemoryRecordRepository,
     InMemoryTokenRepository,
+    get_audit_repository,
     get_node_repository,
     get_record_repository,
+    get_replica_repository,
     get_token_repository,
 )
 
@@ -57,14 +60,22 @@ def seed_student(stores, node_id: str, student_id: str, document_number: str, pa
 @pytest.fixture
 def stores(monkeypatch):
     """Repositorios en memoria, clave de administrador y secreto JWT de prueba."""
-    nodes, records, tokens = InMemoryNodeRepository(), InMemoryRecordRepository(), InMemoryTokenRepository()
+    nodes, records, replicas, tokens, audits = (
+        InMemoryNodeRepository(),
+        InMemoryRecordRepository(),
+        InMemoryRecordRepository(),
+        InMemoryTokenRepository(),
+        InMemoryAuditRepository(),
+    )
     app.dependency_overrides[get_node_repository] = lambda: nodes
     app.dependency_overrides[get_record_repository] = lambda: records
+    app.dependency_overrides[get_replica_repository] = lambda: replicas
     app.dependency_overrides[get_token_repository] = lambda: tokens
+    app.dependency_overrides[get_audit_repository] = lambda: audits
     monkeypatch.setattr(config, "ADMIN_KEY", ADMIN_KEY)
     monkeypatch.setattr(config, "JWT_SECRET", "secreto-de-pruebas-" + "x" * 32)
     monkeypatch.setattr(security, "PBKDF2_ITERATIONS", 1000)  # rápido en pruebas; el valor real va dentro de cada hash
-    yield SimpleNamespace(nodes=nodes, records=records, tokens=tokens)
+    yield SimpleNamespace(nodes=nodes, records=records, replicas=replicas, tokens=tokens, audits=audits)
     app.dependency_overrides.clear()
 
 

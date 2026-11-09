@@ -67,6 +67,7 @@ def test_historial_inexistente_devuelve_404(api, stores, active_node, synced_stu
     node_id, api_key = active_node
     token = make_token(api, synced_student[1], node_id)["student_auth_token"]
     stores.records._items.clear()
+    stores.replicas._items.clear()
     assert query(api, api_key, token).status_code == 404
 
 

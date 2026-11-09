@@ -234,28 +234,86 @@ La documentación interactiva (Swagger) está en `/docs` de cada aplicación.
 
 ## 8. Mapeo con Sistemas Distribuidos y Teoría General de Sistemas
 
-### Sistemas Distribuidos: las 8 transparencias
+### ¿Por qué RFHA-IES es un Sistema Distribuido?
 
-| Transparencia | Aplicación en RFHA-IES | Estado |
-|---|---|---|
-| **Acceso** | La misma interfaz REST/JSON sin importar cómo guarde cada nodo sus datos. | Demostrada en la demo |
-| **Ubicación** | El cliente usa un único endpoint y no conoce dónde están los datos. | Demostrada en la demo |
-| **Concurrencia** | Lambda y DynamoDB atienden peticiones simultáneas. | Por diseño |
-| **Replicación** | DynamoDB replica en varias zonas de disponibilidad. | Por diseño |
-| **Fallos** | Si un nodo no responde, se redirige a una réplica. | Pendiente (HU-08) |
-| **Movilidad** | La dirección lógica del endpoint no cambia si una universidad migra de proveedor. | Por diseño |
-| **Rendimiento** | API Gateway acelera y almacena en caché. | Por diseño |
-| **Escalado** | De 1 a miles de nodos sin cambiar el código. | Por diseño |
+Un **sistema distribuido** es aquel en el que componentes ubicados en computadoras interconectadas en red se comunican y coordinan sus acciones únicamente mediante el paso de mensajes (Tanenbaum & Van Steen, *Distributed Systems*). RFHA-IES cumple esta definición en cuatro dimensiones:
+
+#### 1. Nodos geográficamente distribuidos con autonomía propia
+
+Cada universidad participante opera como un **nodo autónomo e independiente** con su propia identidad criptográfica (`rfha_<API Key>`). Los nodos son entidades físicamente separadas (múltiples instituciones con sus propios servidores y redes) que se integran a la red mediante el middleware sin centralizar sus datos.
+
+```
+Universidad EAN        Universidad Nacional      Universidad Distrital
+(Bogotá)              (Bogotá / Medellín)        (Bogotá)
+     │                        │                        │
+     └────────────────────────┴────────────────────────┘
+                              │
+                    RFHA-IES Middleware (AWS sa-east-1)
+                    (Plano de control federado neutral)
+```
+
+#### 2. Datos particionados por nodo (Sharding lógico)
+
+Los historiales académicos **no están centralizados**: cada registro en `RecordsTable` pertenece al nodo que lo sincronizó (`record_key = node_id#student_id`). La llave `node_id` proviene criptográficamente de la API Key — un nodo no puede leer ni escribir datos de otro nodo, por diseño del middleware.
+
+#### 3. Comunicación exclusiva por paso de mensajes (REST/JSON sobre HTTPS)
+
+Ningún componente del sistema tiene acceso directo a la memoria o el estado interno de otro. Toda coordinación ocurre mediante:
+- `POST /api/v1/node/sync-records` (nodo → middleware: sincronización)
+- `POST /api/v1/student/auth-token` (estudiante → middleware: consentimiento)  
+- `GET /api/v1/federated/academic-history/{id}` (middleware: consulta federada entre nodos)
+- `GET /api/v1/audit/logs` (observabilidad del estado distribuido)
+
+#### 4. Tolerancia a Fallos y Replicación (HU-08)
+
+El sistema implementa el modelo **primary-backup replication**: los historiales se escriben simultáneamente en `RecordsTable` (primario) y `ReplicasTable` (réplica). Ante un fallo del nodo primario, el middleware conmuta automáticamente a la réplica sin intervención humana ni interrupción del servicio. Esto es **fault tolerance**, propiedad central de los sistemas distribuidos.
+
+#### 5. Transparencias de Distribución implementadas
+
+| Transparencia | Implementación en RFHA-IES |
+|---|---|
+| **Acceso** | Interfaz REST/JSON idéntica sin importar cuántos nodos haya |
+| **Ubicación** | El cliente nunca conoce la dirección física del nodo origen |
+| **Concurrencia** | Lambda + DynamoDB atienden peticiones simultáneas de múltiples nodos |
+| **Replicación** | RecordsTable + ReplicasTable (manual) + replicación interna de DynamoDB (3 AZs) |
+| **Fallos (HU-08)** | Failover automático a réplica; AWS Lambda tiene SLA 99.95% |
+| **Escalado** | De 1 a N nodos sin cambiar una línea de código |
+| **Movilidad** | El endpoint no cambia si una universidad migra de infraestructura |
+| **Rendimiento** | API Gateway con throttling y escalado horizontal automático de Lambda |
+
+#### 6. Posición en el Teorema CAP
+
+> RFHA-IES prioriza **Disponibilidad (A) + Tolerancia a Particiones (P)**. Cuando un nodo falla, el sistema permanece disponible usando la réplica. Se acepta **consistencia eventual**: la réplica puede reflejar la última sincronización, no la del mismo instante. Para el caso de uso (transferencias y homologaciones académicas donde los datos cambian poco), este modelo es apropiado.
+
+---
+
+### Sistemas Distribuidos: las 8 transparencias (estado por historia)
+
+| Transparencia | Aplicación en RFHA-IES | Historia | Estado |
+|---|---|---|---|
+| **Acceso** | Interfaz REST/JSON sin importar cómo guarde cada nodo sus datos. | HU-01..10 | ✅ Implementada |
+| **Ubicación** | El cliente usa un único endpoint y no conoce dónde están los datos. | HU-06 | ✅ Implementada |
+| **Concurrencia** | Lambda y DynamoDB atienden peticiones simultáneas de N nodos. | Infraestructura | ✅ Por diseño AWS |
+| **Replicación** | RecordsTable (primario) + ReplicasTable (réplica) + 3 AZs de DynamoDB. | HU-08 | ✅ Implementada |
+| **Fallos** | Si el nodo primario falla, se redirige automáticamente a la réplica. | HU-08 | ✅ Implementada |
+| **Movilidad** | La dirección lógica del endpoint no cambia si una universidad migra. | HU-01..10 | ✅ Por diseño |
+| **Rendimiento** | API Gateway con throttling (20 req/s); Lambda escala bajo demanda. | Infraestructura | ✅ Configurado |
+| **Escalado** | De 1 a miles de nodos sin cambiar el código del middleware. | Infraestructura | ✅ Por diseño |
 
 ### Teoría General de Sistemas
-- **Sistema abierto y complejo,** formado por subsistemas (los nodos) que interactúan con su suprasistema, la educación superior colombiana.
+
+- **Sistema abierto y complejo:** formado por subsistemas (los nodos universitarios) que interactúan con su suprasistema, la educación superior colombiana.
 - **Entradas:** petición de consulta, credenciales de la IES, token del estudiante y datos académicos.
-- **Proceso:** autenticación, validación del token, enrutamiento federado y serialización a JSON.
-- **Salidas:** expediente consolidado y registros de auditoría.
-- **Retroalimentación:** los rechazos y los tiempos altos (más de 2000 ms) desvían el tráfico a réplicas (homeostasis).
-- **Sinergia:** la red vale más que la suma de universidades aisladas.
-- **Entropía:** se combate con JSON estandarizado y registros inmutables.
-- **Diagramas causal y de Forrester:** definidos en el levantamiento de requerimientos; su elaboración final corresponde al Hito 4.
+- **Proceso:** autenticación, validación del token, enrutamiento federado, verificación de integridad criptográfica y serialización a JSON.
+- **Salidas:** expediente académico consolidado con GPA y créditos; registros inmutables de auditoría; reportes PDF de estadísticas de la red.
+- **Retroalimentación (Feedback Loops):**
+  - *Loop de aprobación:* Solicitud → Revisión admin → Aprobación → Nodo activo con API Key.
+  - *Loop de consentimiento:* Emisión de token → Consulta por universidad → Revocación por estudiante si detecta abuso.
+  - *Loop de auditoría:* Acción federada → Registro en bitácora → Admin revisa → Ajusta política.
+- **Homeostasis:** El sistema mantiene su estado consistente ante fallos gracias al failover automático y la lista negra de tokens revocados.
+- **Equifinalidad:** Diferentes rutas (nodo primario disponible, nodo primario caído + réplica) producen el mismo resultado final correcto: el historial llega al destinatario autorizado.
+- **Neguentropía:** Se combate la entropía mediante firmas SHA-256 (detectan corrupción), bitácora inmutable (preservan la historia), réplicas (redundancia ante pérdida) y TTL automático (eliminan ruido de tokens vencidos).
+- **Sinergia:** La red federada vale más que la suma de universidades aisladas: permite consultas cruzadas que ninguna institución podría hacer sola.
 
 ---
 
@@ -281,9 +339,10 @@ Detalle cronológico en `docs/BITACORA.md`.
 | **Despliegue en AWS** | **Hecho** en la región `us-east-2` con `scripts/deploy_aws.py`: stacks `rfha-demo` y `rfha-app` (Lambda, HTTP API y tres tablas de DynamoDB). Direcciones al inicio de este documento; configuración paso a paso en `docs/DEMO.md` (secciones 4.10 y 4.11) y `docs/APP_FINAL.md`. |
 | **HU-06** | **Terminada:** consulta federada en `/consulta` con DynamoDB, firma verificada y fuente de datos `Primary`. |
 | **HU-07** | **Terminada:** la consulta se bloquea con 403 sin API Key, sin token, vencido, revocado, para otra universidad o de otro estudiante. |
-| **HU-08 a HU-10** | Pendientes. |
+| **HU-08 a HU-10** | **Terminadas:** failover automático (HU-08), auditoría inmutable (HU-09), frontend completo con navegación (HU-10). |
+| **Módulo de Reportes PDF** | **Terminado:** `GET /api/v1/admin/reports/network-summary` genera PDF ejecutivo con métricas de la red, consultas, resiliencia y auditoría. Pantalla en `/reportes`. |
 
-**Siguiente paso:** el «aprobado» de HU-07 y empezar HU-08 (réplica y `X-Data-Source`).
+**Estado actual:** Todas las historias de usuario HU-01 a HU-10 están implementadas y en producción en AWS (`sa-east-1`).
 
 ---
 

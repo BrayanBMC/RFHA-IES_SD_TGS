@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reportes Ejecutivos · RFHA-IES</title>
+  <meta name="description" content="Genera y descarga el reporte ejecutivo PDF de la red federada RFHA-IES.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/" aria-label="RFHA-IES, inicio">
+        <img src="/static/favicon.svg" alt="" width="32" height="32">
+        <span>RFHA-IES</span>
+      </a>
+      <nav class="main-nav" aria-label="Secciones">
+        <a href="/">Inicio</a>
+        <a href="/registro-nodo">Registro</a>
+        <a href="/admin">Administración</a>
+        <a href="/panel-nodo">Panel del nodo</a>
+        <a href="/portal-estudiante">Estudiante</a>
+        <a href="/consulta">Consulta</a>
+        <a href="/auditoria">Auditoría</a>
+        <a href="/reportes" aria-current="page">Reportes</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <section class="hero">
+      <p class="eyebrow">Administrador general</p>
+      <h1>Reportes Ejecutivos</h1>
+      <p class="lead">Descarga el <strong>reporte PDF de la red</strong> con estadísticas de nodos, volumen de consultas, resiliencia y trazabilidad de auditoría.</p>
+    </section>
+
+    <section class="card" aria-labelledby="report-title">
+      <h2 id="report-title">Reporte de la Red Federada</h2>
+      <p>El reporte incluye:</p>
+      <ul>
+        <li>Estado de la red: total de nodos, activos y pendientes.</li>
+        <li>Volumen de consultas: exitosas, denegadas y errores con porcentajes.</li>
+        <li>Resiliencia: consultas desde nodo Primario vs Réplica (failover).</li>
+        <li>Tabla detallada de los últimos 20 registros de auditoría.</li>
+      </ul>
+
+      <form id="report-form" novalidate>
+        <div class="field">
+          <label for="admin-key">Clave de administrador</label>
+          <input id="admin-key" type="password" autocomplete="off" required
+                 aria-describedby="admin-key-hint" placeholder="ADMIN_KEY del servidor">
+          <p class="hint" id="admin-key-hint">La misma clave usada en la sección de Administración.</p>
+        </div>
+        <button type="submit" class="btn primary" id="btn-download">
+          ⬇ Descargar Reporte PDF de la Red
+        </button>
+      </form>
+
+      <div id="status-msg" role="status" aria-live="polite" hidden>
+        <p class="hint">⏳ Generando reporte…</p>
+      </div>
+      <p class="error" id="error-msg" role="alert" hidden></p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Universidad Distrital Francisco José de Caldas · Sistemas Distribuidos y Teoría General de Sistemas.</p>
+      <p><a href="/docs">Documentación de la API (Swagger)</a></p>
+    </div>
+  </footer>
+
+  <p class="sr-only" id="sr-status" role="status" aria-live="polite"></p>
+
+  <script type="module">
+    const form = document.getElementById('report-form');
+    const btn = document.getElementById('btn-download');
+    const statusMsg = document.getElementById('status-msg');
+    const errorMsg = document.getElementById('error-msg');
+    const srStatus = document.getElementById('sr-status');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const adminKey = document.getElementById('admin-key').value.trim();
+      if (!adminKey) {
+        showError('Ingresa la clave de administrador.');
+        return;
+      }
+
+      hideError();
+      setLoading(true);
+
+      try {
+        const response = await fetch('/api/v1/admin/reports/network-summary', {
+          method: 'GET',
+          headers: { 'X-Admin-Key': adminKey },
+        });
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          const detail = data.detail ?? `Error ${response.status}`;
+          throw new Error(detail);
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        anchor.href = url;
+        anchor.download = `reporte-rfha-${today}.pdf`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+
+        srStatus.textContent = 'Reporte descargado correctamente.';
+      } catch (err) {
+        showError(err.message ?? 'Error al descargar el reporte.');
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    function setLoading(loading) {
+      btn.disabled = loading;
+      statusMsg.hidden = !loading;
+    }
+
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.hidden = false;
+    }
+
+    function hideError() {
+      errorMsg.textContent = '';
+      errorMsg.hidden = true;
+    }
+  </script>
+</body>
+</html>

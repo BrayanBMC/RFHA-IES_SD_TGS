@@ -82,3 +82,38 @@ $("#btn-hide-key").addEventListener("click", () => {
   $("#key-value").textContent = "";
   $("#key-card").hidden = true;
 });
+
+$("#btn-download-pdf").addEventListener("click", async () => {
+  const key = $("#admin-key").value.trim();
+  if (!key) {
+    setMessage("#list-error", "Escribe la clave de administrador para descargar el reporte.");
+    $("#admin-key").focus();
+    return;
+  }
+  const btn = $("#btn-download-pdf");
+  setBusy(btn, true, "Generando PDF…", "⬇ Descargar Reporte PDF");
+  try {
+    const res = await fetch("/api/v1/admin/reports/network-summary", {
+      headers: { "X-Admin-Key": key }
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Error ${res.status}`);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    a.href = url;
+    a.download = `reporte-rfha-${today}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    announce("Reporte descargado correctamente.");
+  } catch (e) {
+    setMessage("#list-error", e.message || "Error al generar el reporte PDF.");
+  } finally {
+    setBusy(btn, false, "", "⬇ Descargar Reporte PDF");
+  }
+});

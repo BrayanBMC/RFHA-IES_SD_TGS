@@ -205,21 +205,23 @@ def aws_cmd(exe: str, common: list[str], *args: str) -> dict:
 
 def py_to_dynamo_json(val):
     """Convierte tipos python a formato typed de DynamoDB para aws cli."""
-    if isinstance(val, str):
+    if val is None:
+        return {"NULL": True}
+    elif isinstance(val, str):
         return {"S": val}
     elif isinstance(val, (int, float)):
         return {"N": str(val)}
     elif isinstance(val, bool):
         return {"BOOL": val}
     elif isinstance(val, list):
-        return {"L": [py_to_dynamo_json(x) for x in val if x is not None]}
+        return {"L": [py_to_dynamo_json(x) for x in val]}
     elif isinstance(val, dict):
-        return {"M": {k: py_to_dynamo_json(v) for k, v in val.items() if v is not None}}
-    return None
+        return {"M": {k: py_to_dynamo_json(v) for k, v in val.items()}}
+    return {"NULL": True}
 
 
 def put_item_aws(exe: str, common: list[str], table: str, item_dict: dict):
-    typed_item = {k: py_to_dynamo_json(v) for k, v in item_dict.items() if v is not None}
+    typed_item = {k: py_to_dynamo_json(v) for k, v in item_dict.items()}
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as f:
         json.dump(typed_item, f)
         temp_name = f.name

@@ -20,6 +20,11 @@ Copia esta plantilla al inicio de la sección «Entradas»:
 
 ## Entradas
 
+### 2026-11-09 · HU-06 y HU-07: consulta federada y bloqueo de consultas no autorizadas
+- **Qué se hizo:** `GET /api/v1/federated/academic-history/{student_id}` en la app final con 6 controles que cortan con 403 (API Key de la universidad, token presente, firma y vigencia, destino `aud`, lista negra y titular `sub`), búsqueda del historial por el `origin` del token, verificación de la firma SHA-256, promedio ponderado, créditos aprobados y `X-Data-Source: Primary`. Pantalla `/consulta` y tarjeta en el menú de inicio. Pruebas en `tests/test_hu06_07_federated.py` (incluye el viaje de `Decimal` por DynamoDB con `moto`). Documentos `HU-06.md` y `HU-07.md`, D-35.
+- **Por qué:** petición del usuario, con presupuesto de créditos reducido: ambas historias comparten ruta y se entregaron juntas, reutilizando `verify_token` y `require_node`.
+- **Pendiente / riesgos:** tiempo de respuesta sin medir en AWS; sin auditoría de rechazos (HU-09); `DEMO.md` y `APP_FINAL.md` no se ampliaron con escenas de consulta (la guía de la demo ya cubre el comportamiento del middleware).
+
 ### 2026-11-09 · Menú de inicio y límite de 5 intentos por cédula
 - **Qué se hizo:** la raíz `/` de la app final es ahora un menú (`inicio.html`) que explica el proyecto y enlaza los cuatro módulos; el logotipo de cada pantalla vuelve al inicio. El portal del estudiante bloquea una cédula 15 minutos tras 5 intentos fallidos (HTTP 429), vale para ingresar, listar y revocar, y se reinicia con un ingreso correcto. El contador es un registro `LOCK#<cédula>` en `TokensTable` (sin tablas ni servicios nuevos, costo cero). 5 pruebas nuevas.
 - **Por qué:** petición del usuario, con el menor gasto de créditos posible: HTML estático y una escritura en DynamoDB solo cuando hay un fallo.

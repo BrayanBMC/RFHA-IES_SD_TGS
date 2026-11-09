@@ -41,7 +41,7 @@
         <li><strong>La universidad se registra</strong> y un administrador de la red la aprueba. Recibe una clave de API.</li>
         <li><strong>La universidad carga los historiales</strong> de sus estudiantes con esa clave.</li>
         <li><strong>El estudiante autoriza</strong> a una universidad concreta durante 24 horas y puede <strong>revocar</strong> el permiso cuando quiera.</li>
-        <li><strong>La universidad autorizada consulta</strong> el historial con el permiso del estudiante (próximas historias).</li>
+        <li><strong>La universidad autorizada consulta</strong> el historial con el token del estudiante. Si el permiso falta, venció, se revocó o es para otra universidad, se rechaza.</li>
       </ol>
     </section>
 
@@ -61,6 +61,11 @@
         <span class="eyebrow">Universidades aprobadas</span>
         <strong>Panel del nodo</strong>
         <span>Carga y actualiza los historiales de tus estudiantes. Requiere la API Key del nodo.</span>
+      </a>
+      <a class="card module" href="/consulta">
+        <span class="eyebrow">Universidades aprobadas</span>
+        <strong>Consulta de historial</strong>
+        <span>Consulta el historial de un estudiante con su token de permiso.</span>
       </a>
       <a class="card module" href="/portal-estudiante">
         <span class="eyebrow">Estudiantes</span>

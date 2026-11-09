@@ -1,6 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 
-from src.app.models import NodeRegistration, NodeRegistrationResponse
+from src.app.models import (
+    ACTIVE_STATUS,
+    ActiveNode,
+    ActiveNodesResponse,
+    NodeRegistration,
+    NodeRegistrationResponse,
+)
 from src.app.repositories import DuplicateNitError, NodeRepository, get_node_repository
 
 router = APIRouter(prefix="/api/v1/nodes", tags=["Nodos IES"])
@@ -19,4 +25,12 @@ def register_node(
         node_id=node["node_id"],
         status=node["status"],
         message="Solicitud recibida. Un administrador de la red la revisará.",
+    )
+
+
+@router.get("/active", response_model=ActiveNodesResponse)
+def active_nodes(repo: NodeRepository = Depends(get_node_repository)) -> ActiveNodesResponse:
+    """HU-04: universidades activas (código y nombre) para que el estudiante elija a quién autoriza. Es público y no expone más datos."""
+    return ActiveNodesResponse(
+        nodes=[ActiveNode(node_id=n["node_id"], name=n["name"]) for n in repo.list_nodes(ACTIVE_STATUS)]
     )

@@ -44,10 +44,11 @@ def test_archivos_estaticos_responden(path):
     assert client.get(path).status_code == 200
 
 
-def test_raiz_redirige_al_formulario():
+def test_la_raiz_muestra_el_menu_de_inicio():
     response = client.get("/", follow_redirects=False)
-    assert response.status_code in (302, 307)
-    assert response.headers["location"] == "/registro-nodo"
+    assert response.status_code == 200
+    for module in ("/registro-nodo", "/admin", "/panel-nodo", "/portal-estudiante"):
+        assert f'href="{module}"' in response.text
 
 
 def test_las_reglas_del_formulario_coinciden_con_las_del_servidor():

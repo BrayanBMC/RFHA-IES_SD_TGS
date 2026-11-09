@@ -140,3 +140,60 @@ def test_verify_token_rechaza_firma_alterada(stores, synced_student):
 def test_verify_token_rechaza_basura(stores, synced_student):
     with pytest.raises(TokenError):
         verify_token("esto-no-es-un-jwt", synced_student[0], stores.tokens)
+
+
+# ---- límite de 5 intentos fallidos por cédula ----
+
+
+def wrong(api, doc, origin):
+    return request_token(api, {"document_number": doc, "password": "clave-equivocada"}, origin)
+
+
+def test_al_quinto_intento_fallido_la_cedula_se_bloquea(api, synced_student):
+    origin, credentials = synced_student
+    doc = credentials["document_number"]
+    assert wrong(api, doc, origin).json()["detail"].endswith("Te quedan 4 intentos.")
+    for _ in range(3):
+        assert wrong(api, doc, origin).status_code == 401
+    assert wrong(api, doc, origin).status_code == 429  # quinto fallo
+    # bloqueada: ni siquiera la clave correcta entra
+    blocked = request_token(api, credentials, origin)
+    assert blocked.status_code == 429
+    assert "Espera" in blocked.json()["detail"]
+
+
+def test_un_ingreso_correcto_reinicia_el_contador(api, synced_student):
+    origin, credentials = synced_student
+    doc = credentials["document_number"]
+    for _ in range(4):
+        wrong(api, doc, origin)
+    assert request_token(api, credentials, origin).status_code == 201
+    assert wrong(api, doc, origin).json()["detail"].endswith("Te quedan 4 intentos.")
+
+
+def test_el_bloqueo_es_por_cedula_y_vale_tambien_para_cedulas_inexistentes(api, synced_student):
+    origin, credentials = synced_student
+    for _ in range(5):
+        wrong(api, "99999999", origin)
+    assert wrong(api, "99999999", origin).status_code == 429
+    assert request_token(api, credentials, origin).status_code == 201  # otra cédula no se afecta
+
+
+def test_el_bloqueo_termina_a_los_15_minutos(api, stores, synced_student, monkeypatch):
+    import time as real_time
+
+    origin, credentials = synced_student
+    for _ in range(5):
+        wrong(api, credentials["document_number"], origin)
+    assert request_token(api, credentials, origin).status_code == 429
+    later = real_time.time() + 16 * 60
+    monkeypatch.setattr("src.app.routers.students.time.time", lambda: later)
+    assert request_token(api, credentials, origin).status_code == 201
+
+
+def test_los_intentos_fallidos_tambien_cuentan_al_listar_y_revocar(api, synced_student):
+    _, credentials = synced_student
+    bad = {**credentials, "password": "equivocada-1"}
+    for _ in range(5):
+        api.post("/api/v1/student/tokens/list", json=bad)
+    assert api.post("/api/v1/student/tokens/list", json=credentials).status_code == 429

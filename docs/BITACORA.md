@@ -20,6 +20,12 @@ Copia esta plantilla al inicio de la sección «Entradas»:
 
 ## Entradas
 
+### 2026-11-09 · Menú de inicio y límite de 5 intentos por cédula
+- **Qué se hizo:** la raíz `/` de la app final es ahora un menú (`inicio.html`) que explica el proyecto y enlaza los cuatro módulos; el logotipo de cada pantalla vuelve al inicio. El portal del estudiante bloquea una cédula 15 minutos tras 5 intentos fallidos (HTTP 429), vale para ingresar, listar y revocar, y se reinicia con un ingreso correcto. El contador es un registro `LOCK#<cédula>` en `TokensTable` (sin tablas ni servicios nuevos, costo cero). 5 pruebas nuevas.
+- **Por qué:** petición del usuario, con el menor gasto de créditos posible: HTML estático y una escritura en DynamoDB solo cuando hay un fallo.
+- **Decisiones:** D-33, D-34. Cierra el pendiente «sin límite de intentos por cédula».
+- **Archivos:** `src/app/static/inicio.html`, `styles.css`, `src/app/main.py`, `src/app/routers/students.py`, `tests/test_hu04_student_token.py`, `tests/test_hu01_frontend.py`, documentos.
+
 ### 2026-11-09 · HU-02 a HU-05, despliegue en AWS y guías de la demo y de la app final
 - **Qué se hizo:**
   - **HU-02:** aprobación de nodos (`GET /api/v1/admin/nodes`, `POST /api/v1/admin/nodes/{id}/approve`) con `X-Admin-Key`; la API Key se muestra una sola vez y solo se guarda su SHA-256; `GET /api/v1/nodes/active` público (código y nombre); pantalla `/admin`.

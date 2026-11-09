@@ -21,10 +21,13 @@ Guía de la **aplicación final** (la red federada completa), separada de la dem
 
 ## 0. La app final en 2 minutos
 
+**Pantalla de inicio (`/`).** Es un menú que explica el proyecto en cuatro pasos y deja elegir el módulo: registro, administración, panel del nodo o portal del estudiante. Todas las pantallas llevan al inicio desde el logotipo de arriba a la izquierda.
+
 **Qué es.** El sistema completo de la red: una universidad se **registra**, el administrador la **aprueba** y le entrega una clave, la universidad **carga los historiales** de sus estudiantes y cada estudiante **autoriza** (o **revoca**) que una universidad vea su historial. Todo con cuatro pantallas.
 
 | Pantalla | Quién la usa | Historia | Dirección |
 |---|---|---|---|
+| **Inicio (menú)** | Todos | HU-10 (adelanto) | `/` |
 | **Registro** | Representante de una universidad | HU-01 | `/registro-nodo` |
 | **Administración** | Administrador general de la red | HU-02 | `/admin` |
 | **Panel del nodo** | Universidad ya aprobada | HU-03 | `/panel-nodo` |
@@ -173,6 +176,7 @@ Todas en modo **bajo demanda** (se paga por uso real, sin capacidad reservada) y
 | **Nodo contra nodo** | El dueño de los datos sale de la API Key, no del cuerpo: una universidad no puede escribir datos de otra. | `/panel-nodo` |
 | **Mensajes de error** | Cédula inexistente y clave incorrecta dan el mismo mensaje y el mismo costo de cálculo. | `/portal-estudiante` |
 | **Navegador** | Política de contenido estricta (sin scripts ni estilos en línea), `nosniff`, sin referrer; las claves viven solo en la memoria de la página. | Todas las pantallas |
+| **Fuerza bruta** | Máximo **5 intentos fallidos por cédula**; al quinto se bloquea 15 minutos (HTTP 429). Cuenta igual exista o no la cédula. Un ingreso correcto reinicia la cuenta. Se guarda como registro `LOCK#<cédula>` en TokensTable. | `/portal-estudiante` (escena 11) |
 | **Abuso** | API Gateway limita a 20 peticiones por segundo (ráfaga de 50). | API Gateway |
 
 ---
@@ -297,7 +301,7 @@ Se hacen **con clics, delante del público**. Cada escena indica los clics, lo q
 
 #### Escena 11. Clave incorrecta
 - **Clics:** en `/portal-estudiante` escribe documento `1012345678` y clave `equivocada`; pulsa **Ingresar**.
-- **Se ve:** «Cédula o clave incorrecta.» Prueba también con un documento que no existe: **el mensaje es el mismo**.
+- **Se ve:** «Cédula o clave incorrecta. Te quedan 4 intentos.» Prueba también con un documento que no existe: **el mensaje es el mismo**. Repite hasta el quinto fallo: «Demasiados intentos fallidos. La cédula queda bloqueada 15 minutos.» Ni la clave correcta entra mientras dure el bloqueo.
 - **Middleware:** compara contra la huella PBKDF2 y responde `401`; con una cédula inexistente hace el mismo cálculo para que ni el mensaje ni el tiempo delaten si existe.
 - **AWS:** `Scan` por cédula en RecordsTable.
 - **Conclusión:** el sistema no revela qué estudiantes existen.
@@ -406,6 +410,7 @@ Ambos corren **el mismo código**; lo único que cambia es `REPOSITORY_BACKEND` 
 | «Clave de administrador incorrecta» con la clave correcta | Se redesplegó con otra `ADMIN_KEY` o hay espacios al copiar. | Revisar `.env`, volver a desplegar y pegar sin espacios. |
 | «Ya existe una solicitud o un nodo con este NIT» | Se probó antes. | Usar otro NIT o limpiar los datos (8.4). |
 | «API Key incorrecta o nodo no activo» | Clave mal copiada, o el nodo no se aprobó. | Aprobar en `/admin`; si se perdió la clave, registrar otro nodo (no se recupera). |
+| «Demasiados intentos fallidos» | Se fallaron 5 veces con esa cédula. | Esperar 15 minutos, o borrar el registro `LOCK#<cédula>` de TokensTable (o ejecutar `clean_aws_data.py --yes`). |
 | «Cédula o clave incorrecta» | Aún no se cargó el historial, o la clave no coincide. | Hacer la escena 8 y usar `Clave-2026-A`. |
 | La lista de universidades del portal está vacía | No hay nodos activos. | Aprobar una universidad (escena 5). |
 | Error de red en el formulario | Sin internet o servidor apagado. | Los datos escritos se conservan; reintentar. |

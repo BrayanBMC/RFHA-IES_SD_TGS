@@ -9,7 +9,8 @@ Sistema distribuido y descentralizado que conecta a las universidades en una red
 | | Dirección |
 |---|---|
 | **Demo del middleware** (consulta de un historial con permiso del estudiante) | https://qotg90dhje.execute-api.us-east-2.amazonaws.com |
-| **App final: registro de universidad** (HU-01) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/registro-nodo |
+| **App final: menú de inicio** (explica el proyecto y lleva a cada módulo) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com |
+| App final: registro de universidad (HU-01) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/registro-nodo |
 | App final: administración (HU-02) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/admin |
 | App final: panel del nodo (HU-03) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/panel-nodo |
 | App final: portal del estudiante (HU-04 y HU-05) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/portal-estudiante |
@@ -262,7 +263,7 @@ Detalle cronológico en `docs/BITACORA.md`.
 | Área | Estado |
 |---|---|
 | **Análisis de brechas** | Hecho: `docs/BRECHAS.md` (inconsistencias del documento, Free Tier real, seguridad, entorno). |
-| **Decisiones de diseño** | Hecho: `docs/DECISIONES.md` (D-01 a D-32). |
+| **Decisiones de diseño** | Hecho: `docs/DECISIONES.md` (D-01 a D-34). |
 | **Esqueleto portable** | Hecho: configuración de VS Code, dependencias fijadas, `.env.example`, `.gitignore`, `.gitattributes`. |
 | **Demo del middleware** | **Hecha** (etiqueta `demo-martes`): API con 403/200/404, 6 estudiantes ficticios en 4 universidades, interfaz web accesible con validación en 4 controles, panel de homologación y modo demostración. |
 | **Guía de la demo y AWS** | Hecha: `docs/DEMO.md` (conceptos explicados, 15 escenas de prueba con clics que explican cómo actúa el middleware en cada caso, despliegue en AWS paso a paso). |
@@ -272,7 +273,7 @@ Detalle cronológico en `docs/BITACORA.md`.
 | **HU-04** | **Terminada:** portal `/portal-estudiante`; token JWT de 24 h dirigido a una universidad. |
 | **HU-05** | **Terminada:** el estudiante ve y revoca sus autorizaciones; lista negra en `TokensTable`. |
 | **CI/CD** | Hecho: GitHub Actions corre las pruebas y un job que levanta la demo y la app final. Despliegue a AWS manual y opcional. |
-| **Pruebas** | 151 pruebas automáticas (39 de la demo y 112 de la app final), ejecutadas en GitHub. |
+| **Pruebas** | 156 pruebas automáticas (39 de la demo y 117 de la app final), ejecutadas en GitHub. |
 | **Prompt y planeación** | Hecho: `docs/PROMPT-AGENTE-RFHA-IES.md` (v2) y `docs/ADENDA_FRONTEND.md`. |
 | **Despliegue en AWS** | **Hecho** en la región `us-east-2` con `scripts/deploy_aws.py`: stacks `rfha-demo` y `rfha-app` (Lambda, HTTP API y tres tablas de DynamoDB). Direcciones al inicio de este documento; configuración paso a paso en `docs/DEMO.md` (secciones 4.10 y 4.11) y `docs/APP_FINAL.md`. |
 | **HU-06 a HU-10** | Pendientes (HU-06 y HU-07 tienen una versión parcial en la demo). |
@@ -377,7 +378,7 @@ Las colecciones están en `thunder-tests/` y se cargan solas al abrir el proyect
 
 ## 11. Pruebas, CI y CD
 
-- **Pruebas:** `pytest` con 151 pruebas (demo: 39; app final: 112, de HU-01 a HU-05, API, pantallas y flujo completo). DynamoDB se prueba con `moto`, sin tocar AWS.
+- **Pruebas:** `pytest` con 156 pruebas (demo: 39; app final: 117, de HU-01 a HU-05, API, pantallas y flujo completo). DynamoDB se prueba con `moto`, sin tocar AWS.
 - **CI** (`.github/workflows/ci.yml`): en cada subida a `dev` y `main` corre `pytest` y el job `demo-runner`, que arranca la demo y la app final con el lanzador y verifica los escenarios.
 - **CD** (`.github/workflows/cd-demo.yml`): despliegue manual de la demo a AWS. Nunca corre solo.
 - **Regla:** las pruebas oficiales son las de GitHub Actions. Una historia no se da por terminada hasta que el CI esté en verde.
@@ -426,7 +427,7 @@ RFHA-IES_SD_TGS/
 | `docs/APP_FINAL.md` | **Guía de la app final:** direcciones, cómo se conecta todo, cómo se comunica el código con AWS, las tres tablas, seguridad, qué hace cada historia (HU-01 a HU-05) y 14 escenas de prueba en pantalla. |
 | `docs/historias/HU-01.md` a `HU-05.md` | Una historia por archivo: qué se hizo, archivos, cómo probarla y matriz de criterios con su prueba automática. |
 | `docs/BITACORA.md` | Bitácora de desarrollo: qué se hizo, commits, resultado del CI e incidencias. |
-| `docs/DECISIONES.md` | Registro de decisiones (D-01 a D-32). |
+| `docs/DECISIONES.md` | Registro de decisiones (D-01 a D-34). |
 | `docs/BRECHAS.md` | Faltantes, ambigüedades e inconsistencias del levantamiento. |
 | `docs/AWS_PASO_A_PASO.md` | Guía de AWS para quien administra la cuenta. |
 | `docs/ADENDA_FRONTEND.md` | Requerimientos de la interfaz web (RF-11 a RF-19, RNF-F1 a F9, HU-10). |

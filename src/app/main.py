@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from mangum import Mangum
 
@@ -19,6 +19,7 @@ PAGE_HEADERS = {
 
 # Pantallas de la app final: ruta -> archivo HTML. Se amplían con cada historia (HU-10).
 PAGES = {
+    "/": "inicio.html",  # menú de inicio
     "/registro-nodo": "registro-nodo.html",  # HU-01
     "/admin": "admin.html",  # HU-02
     "/panel-nodo": "panel-nodo.html",  # HU-03
@@ -36,11 +37,6 @@ app.include_router(students.router)
 
 # Interfaz web (HTML/CSS/JS estáticos, sin build).
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
-
-@app.get("/", include_in_schema=False)
-async def home():
-    return RedirectResponse(url="/registro-nodo")
 
 
 def _page(filename: str):

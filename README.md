@@ -14,6 +14,8 @@ Sistema distribuido y descentralizado que conecta a las universidades en una red
 | App final: administración (HU-02) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/admin |
 | App final: panel del nodo (HU-03) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/panel-nodo |
 | App final: portal del estudiante (HU-04 y HU-05) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/portal-estudiante |
+| App final: consulta federada (HU-06 a HU-08) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/consulta |
+| App final: bitácora de auditoría inmutable (HU-09) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/auditoria |
 
 - La primera visita puede tardar unos segundos (arranque en frío de AWS Lambda); después responde en menos de un segundo.
 - Todos los datos son **ficticios**. La demo está en modo demostración (botones que simulan al estudiante) y se apagará después de la exposición.
@@ -427,8 +429,8 @@ RFHA-IES_SD_TGS/
 | Documento | Contenido |
 |---|---|
 | `docs/CREDENCIALES_Y_GUIA_AWS.md` | **Credenciales, casos de prueba y guía de AWS:** Clave de admin, las 4 universidades activas con sus API Keys, los 6 estudiantes ficticios con claves y casos de prueba, y guía paso a paso para recorrer la consola web de AWS (DynamoDB, Lambda, API Gateway, CloudWatch, CloudFormation y Billing) con el profesor. |
-| `docs/DEMO.md` | **Guía de la demo:** conceptos explicados, levantar en local y en AWS (con la configuración real y cómo se comunica el código con AWS), escenas de prueba con clics (con el funcionamiento del middleware en cada caso), lista de verificación y preguntas probables. |
-| `docs/APP_FINAL.md` | **Guía de la app final:** direcciones, cómo se conecta todo, cómo se comunica el código con AWS, las tres tablas, seguridad, qué hace cada historia (HU-01 a HU-05) y 14 escenas de prueba en pantalla. |
+| `docs/ARQUITECTURA_Y_MODULOS.md` | **Arquitectura completa, combinación AWS y módulos:** Explicación técnica exhaustiva de cada archivo y router en Python, diagramas de capas y flujos, cómo se combinan los servicios de AWS con FastAPI, viabilidad del módulo de reportes PDF para el admin y guía para conectar múltiples máquinas simultáneamente en la sustentación de Sistemas Distribuidos. |
+| `docs/APP_FINAL.md` | **Guía de la app final:** Direcciones, cómo se conecta todo, cómo se comunica el código con AWS, las cinco tablas DynamoDB, seguridad criptográfica, qué hace cada historia (HU-01 a HU-10), viabilidad de reportes PDF y guía de demostración distribuida. |
 | `docs/historias/HU-01.md` a `HU-05.md` | Una historia por archivo: qué se hizo, archivos, cómo probarla y matriz de criterios con su prueba automática. |
 | `docs/BITACORA.md` | Bitácora de desarrollo: qué se hizo, commits, resultado del CI e incidencias. |
 | `docs/DECISIONES.md` | Registro de decisiones (D-01 a D-35). |

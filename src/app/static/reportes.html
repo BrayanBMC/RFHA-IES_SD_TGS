@@ -8,6 +8,7 @@
   <meta name="color-scheme" content="light dark">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/styles.css">
+  <script type="module" src="/static/reportes.js"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Saltar al contenido</a>
@@ -34,41 +35,40 @@
   <main id="main" class="wrap">
     <section class="hero">
       <p class="eyebrow">Administrador general</p>
-      <h1>Generación de Reportes Especializados</h1>
-      <p class="lead">Selecciona el <strong>tipo de informe técnico</strong> que deseas generar y descárgalo en formato PDF oficial en tiempo real.</p>
+      <h1>Reportes Ejecutivos</h1>
+      <p class="lead">Genera y descarga los informes consolidados de la red en formato PDF oficial.</p>
     </section>
 
     <section class="card" aria-labelledby="report-title">
-      <h2 id="report-title">Configuración del Reporte</h2>
+      <h2 id="report-title">Generación de Reporte</h2>
+      <p class="error" id="error-msg" role="alert" hidden></p>
 
       <form id="report-form" novalidate>
         <div class="field">
-          <label for="report-type">Tipo de Reporte a Generar</label>
+          <label for="report-type">Tipo de reporte</label>
           <select id="report-type">
-            <option value="general">📊 Reporte Ejecutivo Completo (Red, Consultas, Resiliencia y Auditoría)</option>
-            <option value="auditoria">🛡️ Bitácora Forense de Seguridad y Trazabilidad de Consultas</option>
-            <option value="resiliencia">⚡ Diagnóstico de Tolerancia a Fallos y Conmutación a Réplica (HU-08)</option>
-            <option value="nodos">🏛️ Catálogo y Estado de Instituciones Federadas (HU-01, HU-02)</option>
+            <option value="general">Reporte Ejecutivo Completo (Red, Consultas y Auditoría)</option>
+            <option value="auditoria">Bitácora de Auditoría y Trazabilidad</option>
+            <option value="resiliencia">Diagnóstico de Resiliencia y Réplicas</option>
+            <option value="nodos">Directorio de Universidades Federadas</option>
           </select>
-          <p class="hint">El PDF se compilará en memoria con los datos reales registrados en Amazon DynamoDB.</p>
         </div>
 
         <div class="field">
           <label for="admin-key">Clave de administrador</label>
           <input id="admin-key" type="password" autocomplete="off" required
-                 aria-describedby="admin-key-hint" placeholder="ADMIN_KEY del servidor">
-          <p class="hint" id="admin-key-hint">Es la variable ADMIN_KEY del servidor. Se requiere para autorizar la exportación.</p>
+                 aria-describedby="admin-key-hint" placeholder="Ingresa tu clave de acceso">
+          <p class="hint" id="admin-key-hint">Clave autorizada de administración de la red.</p>
         </div>
 
         <button type="submit" class="btn primary" id="btn-download">
-          ⬇ Generar y Descargar Reporte PDF
+          Generar y Descargar Reporte PDF
         </button>
       </form>
 
       <div id="status-msg" role="status" aria-live="polite" hidden>
-        <p class="hint">⏳ Compilando datos de DynamoDB y generando PDF en memoria…</p>
+        <p class="hint">Generando reporte en PDF…</p>
       </div>
-      <p class="error" id="error-msg" role="alert" hidden></p>
     </section>
   </main>
 
@@ -80,72 +80,5 @@
   </footer>
 
   <p class="sr-only" id="sr-status" role="status" aria-live="polite"></p>
-
-  <script type="module">
-    const form = document.getElementById('report-form');
-    const btn = document.getElementById('btn-download');
-    const statusMsg = document.getElementById('status-msg');
-    const errorMsg = document.getElementById('error-msg');
-    const srStatus = document.getElementById('sr-status');
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const adminKey = document.getElementById('admin-key').value.trim();
-      const reportType = document.getElementById('report-type').value;
-
-      if (!adminKey) {
-        showError('Ingresa la clave de administrador.');
-        return;
-      }
-
-      hideError();
-      setLoading(true);
-
-      try {
-        const response = await fetch(`/api/v1/admin/reports/network-summary?type=${encodeURIComponent(reportType)}`, {
-          method: 'GET',
-          headers: { 'X-Admin-Key': adminKey },
-        });
-
-        if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
-          const detail = data.detail ?? `Error ${response.status}`;
-          throw new Error(detail);
-        }
-
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        anchor.href = url;
-        anchor.download = `reporte-${reportType}-${today}.pdf`;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 10000);
-
-        srStatus.textContent = 'Reporte descargado correctamente.';
-      } catch (err) {
-        showError(err.message ?? 'Error al descargar el reporte.');
-      } finally {
-        setLoading(false);
-      }
-    });
-
-    function setLoading(loading) {
-      btn.disabled = loading;
-      statusMsg.hidden = !loading;
-    }
-
-    function showError(msg) {
-      errorMsg.textContent = msg;
-      errorMsg.hidden = false;
-    }
-
-    function hideError() {
-      errorMsg.textContent = '';
-      errorMsg.hidden = true;
-    }
-  </script>
 </body>
 </html>

@@ -12,6 +12,7 @@ PAGES_TO_TEST = [
     ("/portal-estudiante", "Tu consentimiento"),
     ("/consulta", "Consulta de historial"),
     ("/auditoria", "Bitácora de auditoría"),
+    ("/reportes", "Reportes Ejecutivos"),
 ]
 
 
@@ -47,6 +48,7 @@ def test_archivos_estaticos_responden_200():
         "/static/portal-estudiante.js",
         "/static/consulta.js",
         "/static/auditoria.js",
+        "/static/reportes.js",
     ]
     for static_path in static_files:
         res = client.get(static_path)

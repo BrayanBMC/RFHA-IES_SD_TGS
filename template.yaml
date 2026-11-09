@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: RFHA-IES - App final (stack rfha-app). Lambda + HTTP API + DynamoDB
+
+# Antes de `sam build`, ejecutar: python scripts/prepare_app_package.py  (arma build/app)
+
+Resources:
+  AppApi:                              # puerta de entrada pública
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 50
+        ThrottlingRateLimit: 20
+
+  NodesTable:                          # catálogo de nodos (HU-01)
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: node_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: node_id
+          KeyType: HASH
+
+  AppFunction:                         # el middleware de la app final
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: rfha-app
+      CodeUri: build/app
+      Handler: src.app.main.handler
+      Runtime: python3.12
+      MemorySize: 256
+      Timeout: 15
+      Environment:
+        Variables:
+          REPOSITORY_BACKEND: dynamodb
+          NODES_TABLE: !Ref NodesTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref NodesTable
+      Events:
+        Root:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AppApi
+            Path: /
+            Method: ANY
+        Any:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AppApi
+            Path: /{proxy+}
+            Method: ANY
+
+  AppLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/rfha-app
+      RetentionInDays: 7
+
+Outputs:
+  AppUrl:
+    Description: Dirección pública de la app final (abrir /registro-nodo)
+    Value: !Sub https://${AppApi}.execute-api.${AWS::Region}.amazonaws.com
+  NodesTableName:
+    Description: Tabla DynamoDB de nodos
+    Value: !Ref NodesTable

@@ -175,7 +175,7 @@ Esta parte la puede hacer **cualquier integrante del equipo** que tenga acceso a
 | | |
 |---|---|
 | **Qué se crea** | Un paquete llamado **`rfha-demo`** (en AWS se llama *stack*) con: una función **Lambda** (el programa), una **puerta de entrada** pública (API Gateway) y un **registro de actividad** (CloudWatch) que se borra solo a los 7 días. **No usa base de datos.** |
-| **Qué se obtiene** | Una dirección pública `https://xxxxxxxx.execute-api.us-east-1.amazonaws.com`. Al abrirla aparece **la misma pantalla** de la demo. |
+| **Qué se obtiene** | Una dirección pública `https://xxxxxxxx.execute-api.us-east-2.amazonaws.com`. Al abrirla aparece **la misma pantalla** de la demo. |
 | **Qué se necesita del equipo** | Un **secreto**: un texto de 32 o más caracteres que firma los tokens (paso 7). |
 | **Costo** | USD 0 dentro del Free Tier. |
 | **Tiempo** | 45 a 60 minutos la primera vez. Después, 5 minutos. |
@@ -246,9 +246,9 @@ La pantalla tiene unos botones, **Token válido**, **Token expirado** y **Sin to
 2. En la barra de búsqueda de arriba escribe `Billing and Cost Management` y entra a ese servicio.
 3. En el menú izquierdo busca **Free Tier** (o **Credits**). Debe mostrar el plan activo y el saldo de créditos.
 
-**1.6 Elegir la región.** En la esquina superior derecha de la consola hay un selector con un nombre de región (por ejemplo «N. Virginia»). Ábrelo y elige **US East (N. Virginia) us-east-1**. *(Una región es la ubicación geográfica de los servidores. Toda la guía usa esta región.)*
+**1.6 Elegir la región.** En la esquina superior derecha de la consola hay un selector con un nombre de región (por ejemplo «Ohio»). Ábrelo y elige **US East (Ohio) us-east-2**. *(Una región es la ubicación geográfica de los servidores. Toda la guía usa esta región.)*
 
-- **Resultado esperado:** ves el panel de **Free Tier** y arriba a la derecha dice **N. Virginia**.
+- **Resultado esperado:** ves el panel de **Free Tier** y arriba a la derecha dice **Ohio**.
 - **Si falla:** si rechazan la tarjeta, prueba otra con pagos internacionales activados. Si no llega el correo o el SMS, espera unos minutos y usa **Resend**.
 
 ---
@@ -318,15 +318,14 @@ La pantalla tiene unos botones, **Token válido**, **Token expirado** y **Sin to
 
 #### Paso 4. Instalar las herramientas
 
-*AWS CLI y SAM son los programas con los que se habla con AWS desde la terminal. **Python 3.11** es la versión que usa la Lambda y que SAM necesita para empaquetar. **Git** descarga el código.*
+*El **AWS CLI** es el programa con el que se habla con AWS desde la terminal. **Python 3.12** es la versión que usa la Lambda y con la que corre el script de despliegue. **Git** descarga el código. (No hace falta instalar SAM CLI.)*
 
 **4.1 Abrir PowerShell.** Pulsa la tecla Windows, escribe `PowerShell` y presiona Enter. (También sirve la terminal de VS Code con `Ctrl + ñ`.)
 
-**4.2 Instalar.** Pega los cuatro comandos, uno por uno. Si pregunta «Do you agree to all the source agreements terms? [Y] Yes», escribe `Y` y Enter.
+**4.2 Instalar.** Pega los tres comandos, uno por uno. Si pregunta «Do you agree to all the source agreements terms? [Y] Yes», escribe `Y` y Enter.
 ```powershell
 winget install Amazon.AWSCLI
-winget install Amazon.SAM-CLI
-winget install Python.Python.3.11
+winget install Python.Python.3.12
 winget install Git.Git
 ```
 
@@ -335,16 +334,15 @@ winget install Git.Git
 **4.4 Comprobar.**
 ```powershell
 aws --version
-sam --version
-py -3.11 --version
+py -3.12 --version
 git --version
 ```
 
-- **Resultado esperado:** los cuatro muestran una versión. Por ejemplo `aws-cli/2.x.x`, `SAM CLI, version 1.x.x`, `Python 3.11.x` y `git version 2.x.x`.
+- **Resultado esperado:** los tres muestran una versión. Por ejemplo `aws-cli/2.x.x`, `Python 3.12.x` y `git version 2.x.x`.
 - **Si falla:**
   - «El término ... no se reconoce»: no cerraste y reabriste PowerShell.
-  - `winget` no existe: instala «App Installer» desde la Microsoft Store, o descarga cada programa de su página oficial (AWS CLI y AWS SAM CLI en docs.aws.amazon.com, Python en python.org, Git en git-scm.com).
-  - `py -3.11` dice que no encuentra Python: la instalación de Python 3.11 no terminó; repítela. **Python 3.11 es obligatorio** (o consulta el cambio A del paso 6.2).
+  - `winget` no existe: instala «App Installer» desde la Microsoft Store, o descarga cada programa de su página oficial (AWS CLI en docs.aws.amazon.com, Python en python.org, Git en git-scm.com).
+  - `py -3.12` dice que no encuentra Python: la instalación de Python 3.12 no terminó; repítela. **Python 3.12 es necesario** (si solo tienes 3.11, consulta el cambio A del paso 6.2).
 
 ---
 
@@ -360,7 +358,7 @@ git --version
    ```
    AWS Access Key ID [None]: AKIA................
    AWS Secret Access Key [None]: ........................................
-   Default region name [None]: us-east-1
+   Default region name [None]: us-east-2
    Default output format [None]: json
    ```
 3. Comprueba la conexión:
@@ -431,9 +429,9 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: rfha-demo         # <-- CAMBIO B: nombre de la función
-      CodeUri: .
+      CodeUri: ../build/demo          # NO CAMBIAR: carpeta que arma el script de despliegue
       Handler: main.handler           # NO CAMBIAR: apunta a "handler" en demo/main.py
-      Runtime: python3.11             # <-- CAMBIO A: versión de Python de la Lambda
+      Runtime: python3.12             # <-- CAMBIO A: versión de Python de la Lambda
       MemorySize: 256
       Timeout: 10                     # <-- CAMBIO E: segundos máximos por petición
       Environment:
@@ -469,127 +467,97 @@ Outputs:
 
 | Cambio | Cuándo hace falta | Qué línea buscar | Cómo debe quedar |
 |---|---|---|---|
-| **A. Versión de Python** | Solo si no se pudo instalar Python 3.11 y hay 3.12. | `Runtime: python3.11` | `Runtime: python3.12` (y que `py -3.12 --version` funcione). Si se usa el despliegue desde GitHub, cambiar también `python-version: '3.11'` por `'3.12'` en `.github/workflows/cd-demo.yml`. |
-| **B. El nombre ya está en uso** | Si el paso 9 dice que `rfha-demo` ya existe (otro paquete con ese nombre). | `FunctionName: rfha-demo` **y** `LogGroupName: /aws/lambda/rfha-demo` | Cambiar **los dos** al mismo nombre nuevo, por ejemplo `rfha-demo-2` y `/aws/lambda/rfha-demo-2`. Después usar ese nombre en `--stack-name` del paso 9 (por ejemplo `rfha-demo-2`) y en los comandos de borrado. |
+| **A. Versión de Python** | Solo si el computador tiene Python 3.11 y no 3.12. | `Runtime: python3.12` | `Runtime: python3.11` (y que `py -3.11 --version` funcione). Si se usa el despliegue desde GitHub, cambiar también `python-version` en `.github/workflows/cd-demo.yml`. |
+| **B. El nombre ya está en uso** | Si el paso 9 dice que `rfha-demo` ya existe (otro paquete con ese nombre). | `FunctionName: rfha-demo` **y** `LogGroupName: /aws/lambda/rfha-demo` | Cambiar **los dos** al mismo nombre nuevo, por ejemplo `rfha-demo-2` y `/aws/lambda/rfha-demo-2`. Después cambiar también el nombre del *stack* en `scripts/deploy_aws.py` (línea `"stack": "rfha-demo"`) por el mismo nombre nuevo. |
 | **C. Dejar los botones encendidos por defecto** | Si se prefiere no escribir `DemoMode` en el paso 9. | `Default: '0'` (debajo de `DemoMode`) | `Default: '1'` |
 | **D. Más o menos peticiones por segundo** | Si hay mucha audiencia probando a la vez, o se quiere más protección. | `ThrottlingRateLimit: 20` y `ThrottlingBurstLimit: 50` | Por ejemplo `30` y `60`. |
 | **E. Tiempo máximo por petición** | Si la primera consulta en AWS da error de tiempo agotado (*Task timed out*). | `Timeout: 10` | `Timeout: 20` |
 
-**No cambies** `Handler: main.handler` ni `CodeUri: .`: están ligados a la carpeta `demo` y al archivo `demo/main.py`. **Tampoco hace falta tocar ningún archivo Python** para desplegar.
+**No cambies** `Handler: main.handler` ni `CodeUri: ../build/demo`: están ligados al archivo `demo/main.py` y a la carpeta que arma el script de despliegue. **Tampoco hace falta tocar ningún archivo Python** para desplegar.
 
 ---
 
-#### Paso 7. Obtener el secreto
+#### Paso 7. Guardar el secreto en el archivo `.env`
 
-*El secreto es la «tinta» con la que se firman los tokens. Sin él, nadie puede fabricar un token válido. Solo lo deben conocer el equipo y la Lambda.*
+*El secreto es la «tinta» con la que se firman los tokens. Sin él, nadie puede fabricar un token válido. Solo lo deben conocer el equipo y la Lambda. El script de despliegue lo lee de un archivo llamado `.env`, que **no se sube a GitHub**.*
 
-1. Quien conoce el proyecto genera el secreto en cualquier computador con Python:
+1. Si ya levantaste la demo en tu computador alguna vez, el archivo `.env` ya existe en la carpeta del proyecto y tiene una línea `JWT_SECRET=...`: **no necesitas hacer nada** (el secreto de local y el de AWS serán el mismo).
+2. Si no existe, genera un secreto y créalo:
    ```powershell
-   py -3.11 -c "import secrets; print(secrets.token_urlsafe(48))"
+   py -3.12 -c "import secrets; print('JWT_SECRET=' + secrets.token_urlsafe(48))" | Out-File -Encoding ascii .env
    ```
-   Imprime un texto de unos 64 caracteres, por ejemplo `kQ3v9...`. **Ese texto es el secreto.**
-2. Se lo pasa a quien despliega **por un mensaje privado** (no por un grupo ni por una captura de pantalla pública).
-3. Quien despliega lo guarda en una variable de la terminal (vive mientras la terminal esté abierta). Escribe el texto entre comillas:
+   Eso crea el archivo `.env` con una línea como `JWT_SECRET=kQ3v9...` (unos 64 caracteres).
+3. Comprueba que existe:
    ```powershell
-   $secreto = "PEGA_AQUI_EL_SECRETO"
+   dir .env
    ```
-4. Comprueba que se guardó completo:
-   ```powershell
-   $secreto.Length
-   ```
-- **Resultado esperado:** imprime un número de **32 o más** (con el comando de arriba suele ser 64).
-- **Reglas:** mínimo 32 caracteres. Quien conoce el proyecto también lo guarda en su archivo `.env` como una línea `JWT_SECRET=...` para generar tokens iguales. **No se sube a GitHub.**
-- **Si falla:** si `$secreto.Length` da un número menor que 32, el texto se copió incompleto; pégalo de nuevo.
+- **Resultado esperado:** el archivo `.env` aparece en la lista.
+- **Reglas:** el secreto debe tener 32 o más caracteres. Si lo vas a compartir con otra persona del equipo, hazlo por un mensaje privado (no por un grupo ni una captura pública). Nunca lo subas a GitHub.
+- **Si falla:** si `dir .env` dice que no existe, repite el comando del punto 2 desde la carpeta del proyecto.
 
 ---
 
-#### Paso 8. Construir el paquete
+#### Paso 8. Comprobar que la terminal tiene sesión en AWS
 
-*«Construir» (*build*) es empaquetar el programa con todas las librerías que necesita, listo para subirlo a AWS.*
+*Antes de desplegar conviene verificar que la terminal sabe en qué cuenta y región está trabajando.*
 
-1. Asegúrate de estar en la carpeta del proyecto (`RFHA-IES_SD_TGS`).
-2. Ejecuta:
+1. Si la cuenta usa el **inicio de sesión del navegador** (proyecto de la nueva experiencia de AWS), inicia sesión una vez:
    ```powershell
-   sam build --template-file demo/template.yaml
+   aws login --region us-east-2 --profile rfha
    ```
-- **Resultado esperado:** tras unos 30 a 60 segundos termina con un mensaje parecido a este, y aparece la carpeta `.aws-sam\build`:
-  ```
-  Build Succeeded
-
-  Built Artifacts  : .aws-sam\build
-  Built Template   : .aws-sam\build\template.yaml
-  ```
-- **Si falla:**
-
-  | Mensaje | Qué significa | Qué hacer |
-  |---|---|---|
-  | `Binary validation failed for python` | SAM no encuentra Python 3.11. | Repite el paso 4 y reabre PowerShell. O aplica el cambio A del paso 6.2 si usas 3.12. |
-  | `Template file not found` o `template.yaml not found` | No estás en la carpeta del proyecto. | `cd` hasta `RFHA-IES_SD_TGS` y repite. |
-  | Error instalando una librería (`pip`) | Sin internet o antivirus bloqueando. | Revisa la conexión y repite. |
+   Se abre el navegador; inicia sesión con la cuenta del proyecto. Las credenciales duran 12 horas.
+2. Si la cuenta usa **llaves de acceso** (pasos 3 y 5), el perfil se llama `default`; en los comandos siguientes usa `--profile default`.
+3. Verifica:
+   ```powershell
+   aws sts get-caller-identity --profile rfha
+   ```
+- **Resultado esperado:** muestra el número de cuenta y un `Arn`.
+- **Si falla:** `Unable to locate credentials` o `ExpiredToken`: repite el `aws login` (o el paso 5).
 
 ---
 
-#### Paso 9. Desplegar
+#### Paso 9. Desplegar con un solo comando
 
-*Desplegar es subir el paquete a AWS y dejarlo funcionando. SAM lo hace creando un *stack*: un conjunto de recursos que se crean y se borran juntos.*
+*Desplegar es subir el programa a AWS y dejarlo funcionando. El script `scripts/deploy_aws.py` hace todo: arma el paquete, lo sube y crea los recursos con CloudFormation (un *stack*: conjunto de recursos que se crean y se borran juntos).*
 
-**9.1 Ejecutar el comando.** En la misma terminal (donde está definido `$secreto`), pega **una sola línea**:
+**9.1 Ejecutar el comando.** En PowerShell, dentro de la carpeta del proyecto, pega **una sola línea**.
 
 Para la exposición, **con botones de simulación**:
 ```powershell
-sam deploy --template-file .aws-sam/build/template.yaml --stack-name rfha-demo --resolve-s3 --capabilities CAPABILITY_IAM --region us-east-1 --no-confirm-changeset --no-fail-on-empty-changeset --parameter-overrides "JwtSecret=$secreto" "DemoMode=1"
+py -3.12 scripts\deploy_aws.py demo --profile rfha --region us-east-2 --demo-mode 1
 ```
-Para dejarla **sin botones**, cambia `"DemoMode=1"` por `"DemoMode=0"`.
+Para dejarla **sin botones**, cambia `--demo-mode 1` por `--demo-mode 0`.
 
-**9.2 Qué significa cada parte del comando.**
+**9.2 Qué hace el script, en orden** (tarda 5 a 15 minutos la primera vez, según la velocidad de internet):
 
-| Parte | Para qué sirve |
-|---|---|
-| `--template-file .aws-sam/build/template.yaml` | Usa el paquete que construyó el paso 8. |
-| `--stack-name rfha-demo` | El nombre del paquete en AWS. |
-| `--resolve-s3` | SAM crea (o reutiliza) por su cuenta el depósito temporal donde sube el código. |
-| `--capabilities CAPABILITY_IAM` | Autoriza a SAM a crear el rol con que se ejecuta la Lambda. |
-| `--region us-east-1` | Dónde se crea todo. |
-| `--no-confirm-changeset` | No pregunta «¿desplegar?» antes de crear. |
-| `--no-fail-on-empty-changeset` | No da error si no hay cambios al repetir el comando. |
-| `--parameter-overrides "JwtSecret=$secreto" "DemoMode=1"` | Entrega el secreto y el modo demostración. |
+| Orden | Qué hace | Cómo se ve |
+|---|---|---|
+| 1 | Instala las librerías de la demo para Linux y Python 3.12 en `build\demo`. | Sin mensajes, o solo un aviso de actualización de pip. |
+| 2 | Crea el depósito S3 `rfha-deploy-<cuenta>-us-east-2` si no existe. | Un texto con `Location` y `BucketArn`. |
+| 3 | Sube el código comprimido al depósito. | `Uploading to ... (100.00%)` |
+| 4 | Pide a CloudFormation crear o actualizar el stack `rfha-demo`. | `Waiting for stack create/update to complete` |
+| 5 | Imprime la dirección pública. | `LISTO. Dirección pública: https://...` |
 
-**9.3 Qué verás mientras corre** (tarda 2 a 4 minutos; la primera vez crea además el depósito temporal). Aparecen mensajes parecidos a estos:
+**9.3 Resultado esperado.** Termina con una línea como esta; **copia esa dirección, es la URL de la demo**:
 ```
-Managed S3 bucket: aws-sam-cli-managed-default-samclisourcebucket-xxxxxxxx
-...
-CloudFormation events from stack operations
-CREATE_IN_PROGRESS   AWS::IAM::Role                   DemoFunctionRole
-CREATE_COMPLETE      AWS::IAM::Role                   DemoFunctionRole
-CREATE_COMPLETE      AWS::Lambda::Function            DemoFunction
-CREATE_COMPLETE      AWS::ApiGatewayV2::Api           DemoApi
-...
-CREATE_COMPLETE      AWS::CloudFormation::Stack       rfha-demo
-
-CloudFormation outputs from deployed stack
-Key         ApiUrl
-Value       https://abc123xyz.execute-api.us-east-1.amazonaws.com
-
-Successfully created/updated stack - rfha-demo in us-east-1
+LISTO. Dirección pública: https://abc123xyz.execute-api.us-east-2.amazonaws.com
 ```
-**Copia la dirección que aparece en `Value`: esa es la URL de la demo.**
-
-- **Resultado esperado:** termina con `Successfully created/updated stack - rfha-demo in us-east-1`.
 - **Si falla:**
 
   | Mensaje | Qué significa | Qué hacer |
   |---|---|---|
-  | `AccessDenied` o `not authorized to perform` | Falta una política del usuario. | Paso 3.2: revisa las 6 políticas del usuario `rfha-deployer`. |
-  | `Parameter JwtSecret ... length` | El secreto tiene menos de 32 caracteres. | Repite el paso 7 y revisa con `$secreto.Length`. |
-  | `$secreto` aparece vacío (el error habla de «JwtSecret=») | Cerraste la terminal o no definiste la variable. | Repite el comando `$secreto = "..."` del paso 7. |
-  | `already exists` (la función o el grupo de registros) | El nombre `rfha-demo` ya está en uso. | Cambio B del paso 6.2. |
-  | `ROLLBACK_COMPLETE` | CloudFormation deshizo todo por un error. | Mira el motivo en la consola: **CloudFormation**, **Stacks**, `rfha-demo`, pestaña **Events**, y busca la fila con `CREATE_FAILED`; la columna **Status reason** explica el error. Luego borra el paquete fallido (`sam delete --stack-name rfha-demo --region us-east-1`) y repite el paso 9. |
-  | `The security token included in the request is invalid` | Las llaves del paso 5 están mal. | Repite el paso 5. |
-  | `Task timed out` al abrir la página | La primera consulta tardó más que el límite. | Recarga una vez; si persiste, aplica el cambio E del paso 6.2. |
+  | `No se encontró el AWS CLI` | No está instalado o no se reabrió la terminal. | Paso 4 y reabre PowerShell. |
+  | `Falta JWT_SECRET` | No hay `.env` o el secreto es corto. | Paso 7. |
+  | `Unable to locate credentials` / `ExpiredToken` | Sin sesión o vencida. | Paso 8. |
+  | `AccessDenied` o `not authorized to perform` | Faltan permisos. | Con el usuario del paso 3, revisa sus 6 políticas. |
+  | `already exists` (función o grupo de registros) | El nombre `rfha-demo` ya está en uso. | Cambio B del paso 6.2. |
+  | `ROLLBACK_COMPLETE` | CloudFormation deshizo todo por un error. | Mira el motivo en la consola: **CloudFormation**, **Stacks**, `rfha-demo`, pestaña **Events**, fila `CREATE_FAILED`, columna **Status reason**. Luego `py -3.12 scripts\deploy_aws.py demo --delete --profile rfha --region us-east-2` y repite el paso 9. |
+  | `No matching distribution found` al instalar librerías | Sin internet o antivirus bloqueando. | Revisa la conexión y repite. |
+  | `Task timed out` al abrir la página | La primera consulta tardó más que el límite. | Recarga una vez; si persiste, cambio E del paso 6.2. |
 
 **9.4 Si se perdió la URL.** Se puede consultar en cualquier momento:
 ```powershell
-aws cloudformation describe-stacks --stack-name rfha-demo --region us-east-1 --query "Stacks[0].Outputs"
+aws cloudformation describe-stacks --stack-name rfha-demo --region us-east-2 --query "Stacks[0].Outputs"
 ```
 
 ---
@@ -614,7 +582,7 @@ aws cloudformation describe-stacks --stack-name rfha-demo --region us-east-1 --q
 *No es obligatorio, pero ayuda a entender qué hay en AWS y a explicarlo en la exposición.*
 
 **11.1 El paquete (CloudFormation).**
-1. En la consola busca `CloudFormation` y entra. Confirma que arriba a la derecha sigue la región **N. Virginia**.
+1. En la consola busca `CloudFormation` y entra. Confirma que arriba a la derecha sigue la región **Ohio**.
 2. En el menú izquierdo abre **Stacks** y pulsa **rfha-demo**.
 3. Mira el **Status** (arriba): debe decir `CREATE_COMPLETE` (o `UPDATE_COMPLETE`).
 4. Pestaña **Resources**: lista lo creado: la API (`AWS::ApiGatewayV2::Api`), la función Lambda, el rol, los permisos y el grupo de registros.
@@ -624,7 +592,7 @@ aws cloudformation describe-stacks --stack-name rfha-demo --region us-east-1 --q
 1. Busca `Lambda` y entra. Menú izquierdo: **Functions**. Pulsa **rfha-demo**.
 2. Pestaña **Code**: se ve el código subido (`main.py`, `students.py`, carpeta `static`).
 3. Pestaña **Configuration**, menú lateral **Environment variables**: están `JWT_SECRET` y `DEMO_MODE`. *Ojo: el secreto se ve aquí a quien tenga acceso a la consola; por eso las llaves y el acceso a la cuenta deben cuidarse.*
-4. Pestaña **Configuration**, **General configuration**: muestra memoria (256 MB), tiempo máximo (10 s) y versión de Python (3.11).
+4. Pestaña **Configuration**, **General configuration**: muestra memoria (256 MB), tiempo máximo (10 s) y versión de Python (3.12).
 
 **11.3 La puerta de entrada (API Gateway).**
 1. Busca `API Gateway` y entra. Menú izquierdo: **APIs**. Pulsa la API cuyo nombre empieza con `rfha-demo` (o la que tenga la misma URL del paso 9).
@@ -661,14 +629,15 @@ Una demo de este tamaño no debería acercarse a ningún límite. Si aparece alg
 
 **14.1 Borrar el paquete.** En PowerShell:
 ```powershell
-sam delete --stack-name rfha-demo --region us-east-1
+py -3.12 scripts\deploy_aws.py demo --delete --profile rfha --region us-east-2
+py -3.12 scripts\deploy_aws.py app  --delete --profile rfha --region us-east-2
 ```
-Responde `y` a las preguntas. Esto elimina la Lambda, la API y el registro de actividad.
+Cada comando espera a que el borrado termine. Esto elimina la Lambda, la API, la tabla de DynamoDB (app final) y el registro de actividad.
 
 **14.2 Comprobar en la consola.** Entra a **CloudFormation**, **Stacks**: `rfha-demo` ya no debe aparecer en la lista (para verlo, el filtro **Deleted** lo muestra con estado `DELETE_COMPLETE`).
 
 **14.3 Borrar el depósito temporal (S3).**
-1. Busca `S3` y entra. En **General purpose buckets** busca el que empieza por `aws-sam-cli-managed-default-samclisourcebucket`.
+1. Busca `S3` y entra. En **General purpose buckets** busca el que empieza por `rfha-deploy-`.
 2. Selecciónalo y pulsa **Empty**. Escribe `permanently delete` para confirmar y pulsa **Empty**.
 3. Vuelve a la lista, selecciónalo otra vez y pulsa **Delete**. Escribe el nombre exacto del bucket y confirma.
 
@@ -702,7 +671,7 @@ Borrar todo sigue siendo el paso 14. Si el despliegue falla, abre el paso en roj
 
 - **Por terminal:**
   ```powershell
-  sam logs --stack-name rfha-demo --region us-east-1
+  aws logs tail /aws/lambda/rfha-demo --since 30m --profile rfha --region us-east-2
   ```
 - **Por consola:** **CloudWatch**, **Log groups**, `/aws/lambda/rfha-demo`, y abre el *log stream* más reciente. Busca líneas con `ERROR` o `Traceback`.
 
@@ -711,8 +680,7 @@ Borrar todo sigue siendo el paso 14. Si el despliegue falla, abre el paso en roj
 Descarga lo nuevo y repite el despliegue con el mismo secreto:
 ```powershell
 git pull
-sam build --template-file demo/template.yaml
-sam deploy --template-file .aws-sam/build/template.yaml --stack-name rfha-demo --resolve-s3 --capabilities CAPABILITY_IAM --region us-east-1 --no-confirm-changeset --no-fail-on-empty-changeset --parameter-overrides "JwtSecret=$secreto" "DemoMode=1"
+py -3.12 scripts\deploy_aws.py demo --profile rfha --region us-east-2 --demo-mode 1
 ```
 La URL no cambia.
 
@@ -727,6 +695,117 @@ La URL no cambia.
 | `AccessDenied` al desplegar | Falta una política al usuario. | Paso 3.2. |
 | `Task timed out` | La Lambda superó los 10 segundos. | Cambio E del paso 6.2 y redesplegar. |
 | Aparece un cobro en `Bills` | Algo quedó encendido o la cuenta no es de plan Free. | Paso 14 de inmediato y revisar el plan en `Free Tier`. |
+
+### 4.10 Cómo quedó configurado AWS en este proyecto (paso a paso)
+
+Esta sección documenta **exactamente qué se configuró** cuando se desplegó la demo y la app final en el proyecto de AWS del equipo. Sirve para entender, repetir o explicar la arquitectura. Todo se hizo con **un script** y **dos plantillas**, sin entrar a la consola ni instalar SAM CLI.
+
+#### 4.10.1 La forma más fácil de desplegar (3 comandos)
+
+Con el AWS CLI instalado, Python 3.12 y la sesión iniciada:
+
+```powershell
+aws login --region us-east-2 --profile rfha          # inicia sesión en el navegador (una vez)
+.\.venv\Scripts\python.exe scripts\deploy_aws.py demo --profile rfha --region us-east-2 --demo-mode 1
+.\.venv\Scripts\python.exe scripts\deploy_aws.py app  --profile rfha --region us-east-2
+```
+
+Cada comando termina con `LISTO. Dirección pública: https://...`. Para comprobar lo desplegado:
+```powershell
+.\.venv\Scripts\python.exe scripts\smoke_aws.py demo https://<direccion-de-la-demo>
+.\.venv\Scripts\python.exe scripts\smoke_aws.py app  https://<direccion-de-la-app>
+```
+Para borrar todo: `... scripts\deploy_aws.py demo --delete --profile rfha --region us-east-2` (igual con `app`).
+
+#### 4.10.2 Paso a paso de lo que se hizo
+
+**Paso A. Conectar el computador con el proyecto de AWS.**
+1. Se instaló el **AWS CLI** (instalador oficial de AWS, versión de usuario, sin administrador).
+2. Se ejecutó `aws configure set region us-east-2 --profile rfha`. Todos los recursos regionales deben vivir en la **región del proyecto, Ohio (`us-east-2`)**.
+3. Se ejecutó `aws login --region us-east-2 --profile rfha`: abre el navegador, se inicia sesión con la cuenta del proyecto y el CLI guarda **credenciales temporales** (12 horas, renovables hasta 90 días).
+4. Se comprobó con `aws sts get-caller-identity --profile rfha`, que devolvió la cuenta del proyecto y el rol con el que se trabaja.
+5. Se comprobó el plan con `aws freetier get-account-plan-state`: plan **Free**, activo, con **USD 100 de créditos**.
+
+**Paso B. Dejar el asistente de programación conectado a AWS.** `aws configure agent-toolkit` instaló 25 habilidades de AWS y registró el servidor MCP `aws-mcp` en el editor. Es una ayuda de desarrollo; **no forma parte de la aplicación** ni interviene cuando alguien usa la demo.
+
+**Paso C. Armar el paquete de código.** El script `scripts/deploy_aws.py` crea la carpeta `build/demo` (o `build/app`) con: el código, la pantalla (`static/`) y las librerías de la aplicación instaladas **para Linux y Python 3.12** (la Lambda corre en Linux aunque se arme en Windows). Se usa `pip install --platform manylinux2014_x86_64 --only-binary=:all:` para traer solo paquetes ya compilados.
+
+**Paso D. Crear un depósito S3 para el código.** El script crea (si no existe) el depósito `rfha-deploy-<id-de-la-cuenta>-us-east-2`. Allí se sube el código comprimido para que CloudFormation y Lambda lo lean.
+
+**Paso E. Subir el código y generar la plantilla final.** `aws cloudformation package` comprime la carpeta `build/...`, la sube al depósito y reescribe la plantilla con la ubicación del archivo subido.
+
+**Paso F. Crear los recursos.** `aws cloudformation deploy` lee la plantilla (`demo/template.yaml` o `template.yaml`) y crea el *stack* (`rfha-demo` o `rfha-app`) con los recursos de la tabla siguiente. Usa `CAPABILITY_IAM` (permite crear el rol de la Lambda) y `CAPABILITY_AUTO_EXPAND` (la plantilla usa la sintaxis corta de SAM, que CloudFormation expande).
+
+**Paso G. Leer la dirección pública.** El script consulta las *salidas* del stack (`ApiUrl` o `AppUrl`) y las imprime.
+
+**Paso H. Verificar.** `scripts/smoke_aws.py` hace consultas reales contra la dirección pública (pantalla, rechazos 403, éxito 200, 404, registro 201, duplicado 409, inválido 422).
+
+#### 4.10.3 Qué quedó configurado en cada servicio
+
+| Servicio | Recurso y nombre | Configuración elegida | Por qué |
+|---|---|---|---|
+| **CloudFormation** | Stacks `rfha-demo` y `rfha-app` | Crea y borra todo junto. | Un solo comando para crear y para eliminar. |
+| **S3** | Depósito `rfha-deploy-<cuenta>-us-east-2` | Privado; solo guarda el código comprimido. | Lambda necesita leer el paquete de algún lugar. |
+| **IAM** | Un rol de ejecución por Lambda (lo crea la plantilla) | Permiso básico para escribir registros; en la app final, además, permisos de lectura y escritura **solo sobre su tabla**. | Mínimo privilegio. |
+| **Lambda (demo)** | Función `rfha-demo` | Python 3.12, 256 MB, 10 s máximo, arquitectura x86_64. Variables de entorno: `JWT_SECRET` (el secreto) y `DEMO_MODE` (`1` o `0`). Manejador `main.handler`. | Ejecuta el middleware de la demo. |
+| **Lambda (app)** | Función `rfha-app` | Python 3.12, 256 MB, 15 s. Variables: `REPOSITORY_BACKEND=dynamodb` y `NODES_TABLE` (nombre de la tabla). Manejador `src.app.main.handler`. | Ejecuta el middleware de la app final. |
+| **API Gateway** | Una **HTTP API** por stack | Rutas `ANY /` y `ANY /{proxy+}` hacia la Lambda; etapa `$default` con **despliegue automático**; límite de **20 peticiones por segundo** (ráfaga de 50); dirección pública `https://<id>.execute-api.us-east-2.amazonaws.com`. | Es la puerta pública, con HTTPS incluido y sin dominio propio. |
+| **DynamoDB** (solo app) | Tabla de nodos (nombre generado por CloudFormation) | Clave de partición `node_id` (texto); modo **bajo demanda** (se paga por uso, sin capacidad reservada); **cifrada en reposo** con el cifrado predeterminado de DynamoDB (clave propiedad de AWS, sin costo; por eso la tabla no muestra un bloque de cifrado propio). Nombre generado: `rfha-app-NodesTable-<código>`. | Guarda las universidades registradas (HU-01). Sin costo fijo. |
+| **CloudWatch Logs** | Grupos `/aws/lambda/rfha-demo` y `/aws/lambda/rfha-app` | Retención de **7 días**. | Evita registros que se acumulan y cuestan. |
+
+**No se configuró** (decisiones conscientes, para mantener la demo simple y gratuita): dominio propio, WAF, autorizador de API Gateway (el control de acceso lo hace el middleware en el código), caché, VPC, Secrets Manager (el secreto va en una variable de entorno de la Lambda), ni réplicas de DynamoDB (llegan con HU-08).
+
+#### 4.10.4 Protocolos y formatos que se usan en cada tramo
+
+```
+Navegador ──(1)──▶ API Gateway ──(2)──▶ Lambda ──(3)──▶ DynamoDB
+                                          └──(4)──▶ CloudWatch Logs
+```
+
+| Tramo | Protocolo y formato | Detalle |
+|---|---|---|
+| **(1) Navegador a API Gateway** | **HTTPS** (HTTP sobre TLS), HTTP/1.1 o HTTP/2 según el navegador. Estilo **REST**, datos en **JSON**. | Métodos `GET` (consultas y archivos de la pantalla) y `POST` (registro y generación de token de prueba). El token viaja en el encabezado `X-Student-Consent-Token`. La conexión va cifrada con TLS (1.2 como mínimo; el navegador puede negociar 1.3). |
+| **(2) API Gateway a Lambda** | **Invocación de Lambda** de AWS (integración tipo *proxy*), **formato de carga 2.0** en JSON. | API Gateway empaqueta la petición HTTP en un evento JSON; la Lambda devuelve otro JSON con código de estado, encabezados y cuerpo. Va por la red interna de AWS, firmado con credenciales internas. |
+| **Dentro de la Lambda** | **ASGI** | **Mangum** traduce el evento de API Gateway al estándar ASGI que entiende **FastAPI**. No usa red. |
+| **(3) Lambda a DynamoDB** (solo app) | **HTTPS** con la **API JSON de DynamoDB**, firmada con **Signature V4**. | `boto3` firma cada llamada con las credenciales temporales del rol de la Lambda. Operaciones: `Scan` (buscar NIT) y `PutItem` (crear nodo). |
+| **(4) Lambda a CloudWatch Logs** | Interno de AWS, automático. | Lo que la función imprime y una línea de resumen por ejecución. |
+| **Permiso del estudiante** | **JWT** (RFC 7519) firmado con **HMAC-SHA256 (HS256)**. | Lleva el estudiante y la fecha de vencimiento. Lo valida el middleware con el secreto de su variable de entorno. |
+| **Despliegue (CLI a AWS)** | **HTTPS** con **Signature V4**. | El AWS CLI usa las credenciales temporales de `aws login`. |
+| **Inicio de sesión (`aws login`)** | **OAuth 2.0 con PKCE** en el navegador. | El CLI nunca ve la contraseña; recibe credenciales temporales. |
+
+> **Para la exposición:** el protocolo del servicio web es **HTTPS + REST + JSON**. API Gateway es el *transportista* (terminación TLS y enrutamiento) y la Lambda es donde vive el *middleware* (validación del permiso y respuesta).
+
+#### 4.10.5 Qué permisos usa cada pieza
+
+| Quién | Qué puede hacer |
+|---|---|
+| **Persona que despliega** | Crear stacks, funciones, APIs, tablas y depósitos en el proyecto (rol de administración del proyecto). |
+| **Rol de la Lambda `rfha-demo`** | Solo escribir sus registros. No toca ninguna otra cosa de AWS. |
+| **Rol de la Lambda `rfha-app`** | Escribir sus registros y leer/escribir **su** tabla. Nada más. |
+| **Cualquier visitante** | Llamar a la dirección pública. Sin token, el middleware lo rechaza (salvo en la demo con `DemoMode=1`, que permite generar tokens de prueba). |
+
+#### 4.10.6 Resultado del despliegue real (noviembre de 2026)
+
+Se desplegaron los dos stacks en el proyecto del equipo (región Ohio, `us-east-2`) y se comprobaron con `scripts/smoke_aws.py` contra las direcciones públicas. **Las direcciones no se publican en este repositorio** porque la demo se desplegó con `DemoMode=1` (quien las conozca puede generar tokens de prueba); se entregan al equipo por mensaje privado.
+
+| Comprobación | Resultado | Tiempo |
+|---|---|---|
+| **Demo:** pantalla principal | 200 | 7,4 s (arranque en frío) |
+| **Demo:** archivo estático (`app.js`) | 200 | 0,3 s |
+| **Demo:** sin token | 403 | 0,3 s |
+| **Demo:** generar token válido y expirado (modo demostración) | 200 | 0,3 s |
+| **Demo:** token válido | 200 con el expediente | 0,3 s |
+| **Demo:** token de otro estudiante | 403 | 0,3 s |
+| **Demo:** token expirado | 403 | 0,3 s |
+| **Demo:** estudiante inexistente | 404 | 0,3 s |
+| **App:** formulario `/registro-nodo` | 200 | 2,3 s (arranque en frío) |
+| **App:** registro de un nodo | 201 con estado `PENDIENTE_APROBACION` y código `IES-XXXXXXXX` | 2,9 s (primera escritura en DynamoDB) |
+| **App:** el mismo NIT otra vez | 409 | 0,35 s |
+| **App:** datos inválidos | 422 | 0,3 s |
+
+**Qué muestran estos números:** la primera petición a cada función tarda varios segundos porque Lambda debe crear su entorno de ejecución (arranque en frío); las siguientes responden en unos 0,3 s, dentro de la meta de menos de 1,5 s del levantamiento de requerimientos. Que el mismo NIT devolviera `409` confirma que el registro de prueba quedó guardado en DynamoDB (el contador de elementos de la consola se actualiza solo cada varias horas, así que no es una prueba inmediata). Ese registro de prueba se elimina al borrar el stack.
+
+**Comprobado contra AWS** con comandos de solo lectura: los recursos de cada stack (API, etapa, función, rol, permisos, registros y tabla), la configuración de las dos Lambdas (Python 3.12, 256 MB, 10 y 15 s, x86_64, variables de entorno), el tipo de API (HTTP), la tabla (clave `node_id`, modo bajo demanda, activa) y la retención de registros (7 días).
 
 ---
 
@@ -1015,6 +1094,92 @@ Recarga la página (`F5`) para dejar todo limpio, salvo que la escena diga lo co
 | 9 a 13. Otras universidades y estados | Elegir, Token válido, Consultar | 200 | Ninguno | Mismos controles y mismo formato para todas. |
 | 14. API abierta | Ver JSON / Copiar como curl | — | — | Muestra que la respuesta es un servicio estándar. |
 
+### 6.5 Qué hace Amazon (AWS) en cada escena y cómo se relaciona con el middleware
+
+Esta sección solo aplica al **Plan B** (la demo en AWS). Explica qué servicio de Amazon interviene en cada prueba y qué parte hace el middleware.
+
+#### 6.5.1 Las herramientas que se usaron
+
+**Para desplegar (se usan una vez):**
+
+| Herramienta | Qué es | Qué hizo en este proyecto |
+|---|---|---|
+| **AWS CLI** | Programa de terminal para hablar con AWS. | Inició la sesión (`aws login`), verificó la identidad (`aws sts get-caller-identity`) y consultó el estado del plan. |
+| **AWS Agent Toolkit** | Conjunto de habilidades y un servidor MCP que conecta el editor con AWS. | Dejó configurado el acceso del asistente de programación a la documentación y a las guías de AWS. No interviene cuando la demo funciona. |
+| **Script `scripts/deploy_aws.py`** | Programa del proyecto que automatiza el despliegue usando solo el AWS CLI y Python. | Arma el paquete con sus librerías, lo sube y crea el stack. No hace falta SAM CLI. |
+| **AWS CloudFormation** | El servicio que crea y borra los recursos juntos, como un *stack*. | Crea el paquete `rfha-demo` (y `rfha-app` para la app final) a partir de `template.yaml`. |
+| **Amazon S3** | Almacenamiento de archivos. | Guarda temporalmente el código empaquetado para que Lambda lo descargue. No lo usa la demo en ejecución. |
+| **AWS IAM** | Usuarios, roles y permisos. | Define quién puede desplegar y el **rol de ejecución** con el que corre la Lambda (solo puede escribir sus registros; la app final además puede leer y escribir su tabla). |
+
+**Para funcionar (se usan en cada consulta):**
+
+| Servicio | Qué hace en la demo | Relación con el middleware |
+|---|---|---|
+| **Amazon API Gateway** (tipo HTTP API) | Es la puerta pública con HTTPS. Recibe la petición, comprueba la ruta y el límite de 20 peticiones por segundo, y se la entrega a la Lambda. Devuelve la respuesta al navegador. | Es el **transportista**: el cliente solo conoce su dirección. **No valida permisos**: eso lo hace el código. |
+| **AWS Lambda** (Python 3.12) | Ejecuta el programa bajo demanda: arranca un entorno, ejecuta el código y lo deja dormir. | **Aquí vive el middleware.** El código de `demo/main.py` revisa los 4 controles dentro de la Lambda. |
+| **Rol de ejecución (IAM)** | Da a la Lambda el permiso mínimo para escribir sus registros. | Sin este rol la Lambda no podría registrar su actividad. |
+| **Amazon CloudWatch Logs** | Guarda lo que imprime la Lambda y una línea de resumen por ejecución (duración, memoria usada). Se borra a los 7 días. | Permite ver, consulta por consulta, que el middleware se ejecutó. |
+| **Variables de entorno de Lambda** | Guardan `JWT_SECRET` y `DEMO_MODE`. | De ahí lee el middleware el secreto con el que verifica la firma del token. |
+| **Amazon DynamoDB** (solo app final) | Base de datos de claves y valores. | Guarda los nodos (universidades) registrados en HU-01. En la demo no se usa: los estudiantes están en memoria. |
+
+#### 6.5.2 Lo que ocurre en AWS en *cada* consulta
+
+1. **API Gateway** recibe la petición HTTPS y cifra/descifra el tráfico (TLS).
+2. **API Gateway** busca una ruta que coincida (`ANY /` o `ANY /{proxy+}`). Si hay más de 20 peticiones por segundo responde `429` sin llegar a la Lambda.
+3. **Lambda** recibe un evento con la petición. Si no hay un entorno caliente, lo crea (**arranque en frío**, 1 a 3 segundos); si lo hay, lo reutiliza.
+4. **Mangum** (dentro de la Lambda) convierte el evento de API Gateway en una petición normal para **FastAPI**.
+5. El **middleware** (FastAPI + el código de la demo) revisa los 4 controles y decide.
+6. **Lambda** devuelve el resultado a **API Gateway**, que lo envía al navegador.
+7. **CloudWatch Logs** guarda el resumen de la ejecución. **Se factura** una invocación de Lambda y una petición de API Gateway (dentro del plan gratuito).
+
+> **Idea clave:** el rechazo `403` y el `404` los produce **el código del middleware dentro de la Lambda**, no API Gateway. Se distinguen porque las respuestas del middleware traen `{"detail": "..."}`; si fuera API Gateway quien rechaza, el texto sería `{"message": "..."}`.
+
+#### 6.5.3 Qué hace AWS en cada escena
+
+| Escena | Qué hace AWS | Qué decide el middleware | Servicios que intervienen |
+|---|---|---|---|
+| **1. Consulta exitosa** | Recorre el flujo completo: puerta, Lambda, respuesta. La Lambda tarda unos milisegundos; el resto es red. | Pasa los 4 controles y devuelve `200` con el expediente. | API Gateway, Lambda, CloudWatch |
+| **2. Sin token** | La petición llega igual. **AWS no la rechaza**: no tiene autorizador configurado. | Corta en el control 1 y devuelve `403`; no busca al estudiante. | API Gateway, Lambda, CloudWatch |
+| **3. Token expirado** | La Lambda compara la fecha de vencimiento del token con **el reloj de AWS**, que está sincronizado. | Control 2: `403` «ha expirado». | API Gateway, Lambda |
+| **4. Token alterado** | AWS entrega la petición. La Lambda recalcula la firma con el secreto guardado en su variable de entorno. | Control 2: la firma no coincide, `403`. | API Gateway, Lambda, variables de entorno |
+| **5. Texto que no es token** | Igual que la escena 4: el texto llega a la Lambda. | Control 2: no se puede abrir, `403`. | API Gateway, Lambda |
+| **6. Token de otra persona** | AWS no interviene en la decisión; solo transporta. El secreto vuelve a leerse de la variable de entorno. | Control 3: el estudiante del token no coincide con el de la dirección, `403`. | API Gateway, Lambda, variables de entorno |
+| **7. Estudiante inexistente** | La Lambda busca en memoria (en la demo no usa DynamoDB). El `404` es del código, no de API Gateway. | Control 4: no encuentra el código, `404`. | API Gateway, Lambda |
+| **8. Código mal escrito** | **AWS no participa**: la pantalla frena el envío en el navegador, por eso no hay petición, ni registro, ni costo. | No interviene. | Ninguno |
+| **9. Tres universidades** | Tres peticiones iguales. Cada una invoca la Lambda de nuevo; pueden usar el mismo entorno caliente. | Mismos controles y mismo formato para las tres. | API Gateway, Lambda |
+| **10. Homologación** | **Solo la consulta inicial usa AWS.** Al mover la nota mínima se calcula en el navegador con los datos ya recibidos: no hay nuevas peticiones ni costo. | Entregó los datos con campos uniformes, que hacen posible la comparación. | API Gateway, Lambda (una vez) |
+| **11. Graduado** | Igual que la escena 1; el tamaño de la respuesta cambia muy poco. | Entrega los campos adicionales (título y fecha de grado). | API Gateway, Lambda |
+| **12. Retirado** | Igual que la escena 1. | No filtra por estado académico. | API Gateway, Lambda |
+| **13. Varias consultas seguidas** | Si llegan a la vez, Lambda puede crear **varios entornos en paralelo** y cada uno atiende una. Escala sola. | Sin estado: revisa cada petición desde cero. | API Gateway, Lambda (escalado) |
+| **14. JSON y curl** | El JSON lo arma la Lambda y viaja por la dirección pública de API Gateway; `curl` usa esa misma dirección. | La respuesta es un servicio REST estándar. | API Gateway, Lambda |
+| **15. Servidor apagado** | En Plan B equivale a que AWS no responda: si la Lambda falla, API Gateway devuelve `500/502/503` con texto `{"message": ...}`; si se supera el límite, `429`. | No llega a ejecutarse. | API Gateway |
+
+#### 6.5.4 Dónde verlo en la consola de AWS
+
+Después de hacer una escena, entra a la consola de AWS (región **Ohio, us-east-2**):
+
+| Para ver | Dónde |
+|---|---|
+| Que la Lambda se ejecutó | **CloudWatch**, **Log groups**, `/aws/lambda/rfha-demo`, el *log stream* más reciente: aparecen líneas `START`, `END` y `REPORT` (duración, memoria, y `Init Duration` si fue arranque en frío). |
+| Cuántas peticiones y errores | **Lambda**, la función `rfha-demo`, pestaña **Monitor**: invocaciones, duración y errores. |
+| Las rutas de la puerta | **API Gateway**, la API de la demo, **Routes**: `ANY /` y `ANY /{proxy+}`. |
+| Los recursos del paquete | **CloudFormation**, el *stack* `rfha-demo`, pestaña **Resources**. |
+| El secreto y el modo | **Lambda**, **Configuration**, **Environment variables**. |
+| El gasto | **Billing and Cost Management**, **Free Tier** o **Bills**. |
+
+#### 6.5.5 App final en AWS: qué hace AWS al registrar una universidad (HU-01)
+
+La app final usa los mismos servicios más **DynamoDB**.
+
+| Caso en el formulario `/registro-nodo` | Qué hace AWS | Qué hace el middleware |
+|---|---|---|
+| **Registro exitoso** | API Gateway entrega la petición `POST` a la Lambda `rfha-app`. La Lambda lee la tabla de DynamoDB (`Scan`) para comprobar el NIT y luego escribe el nodo (`PutItem`). | Valida los datos (Pydantic), genera el código `IES-XXXXXXXX` y responde `201`. |
+| **NIT duplicado** | La Lambda ejecuta la lectura (`Scan`) y encuentra el NIT. **No escribe nada.** | Responde `409`. |
+| **Datos inválidos** | La petición llega a la Lambda, **pero no se consulta DynamoDB**. | Pydantic rechaza los datos y responde `422` sin tocar la base. |
+| **Abrir el formulario** | API Gateway y Lambda sirven la página y sus archivos estáticos (HTML, CSS, JS); no hay S3 ni CloudFront. | Añade cabeceras de seguridad (CSP). |
+
+La tabla se cifra en reposo con una clave administrada por AWS y se factura por uso (modo bajo demanda). La Lambda solo tiene permiso sobre **su** tabla.
+
 ---
 
 ## 7. Lista de verificación antes de exponer
@@ -1114,7 +1279,7 @@ No necesitas leer el código para exponer, pero esto sirve para responder pregun
 | `JwtSecret` | Recibe el secreto al desplegar. No se muestra en pantalla. Mínimo 32 caracteres. |
 | `DemoMode` | `0` o `1`: apaga o enciende los botones de simulación (sección 4.1). |
 | `DemoApi` | La puerta de entrada pública. Límite de 20 peticiones por segundo para evitar abusos. |
-| `DemoFunction` | La Lambda `rfha-demo`: Python 3.11, 256 MB, 10 segundos máximo. |
+| `DemoFunction` | La Lambda `rfha-demo`: Python 3.12, 256 MB, 10 segundos máximo. |
 | `DemoLogGroup` | Registro de actividad que se borra a los 7 días (evita costos ocultos). |
 | `ApiUrl` | Imprime la dirección pública al terminar. |
 
@@ -1168,9 +1333,9 @@ python scripts/generate_token.py 20251234501    # tokens de otro estudiante (por
 **Probar una dirección** (local o AWS) y verificar los tres escenarios básicos:
 ```powershell
 python scripts/check_demo.py http://127.0.0.1:8000
-python scripts/check_demo.py https://abc123xyz.execute-api.us-east-1.amazonaws.com
+python scripts/check_demo.py https://abc123xyz.execute-api.us-east-2.amazonaws.com
 ```
-Debe terminar con `TODO BIEN`. Para AWS, antes: `py -3.11 -m pip install PyJWT` y `$env:JWT_SECRET = "<el secreto>"`.
+Debe terminar con `TODO BIEN`. Para AWS, antes: `py -3.12 -m pip install PyJWT` y `$env:JWT_SECRET = "<el secreto>"`.
 
 **Una consulta suelta** (en PowerShell se usa `curl.exe`):
 ```powershell

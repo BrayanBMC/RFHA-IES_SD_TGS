@@ -48,7 +48,7 @@ Para quien no conoce el código. Orden recomendado: el bloque 1 es la prioridad 
 - **Si falla:** `comando no encontrado` → reiniciar la terminal. Sin winget → instaladores en la documentación de AWS.
 
 ### Paso 1.5: Configurar credenciales
-- **Pasos:** `aws configure` → pegar Access Key, Secret, región `us-east-1`, formato `json`.
+- **Pasos:** `aws configure` → pegar Access Key, Secret, región `us-east-2`, formato `json`.
 - **Resultado esperado:** `aws sts get-caller-identity` muestra la cuenta.
 - **Si falla:** `InvalidClientTokenId` → clave mal copiada.
 
@@ -100,7 +100,7 @@ Se agregan pasos por historia. El despliegue de la app final se arma con un `tem
   3. Table settings: *Customize settings* → capacity mode **On-demand**. Dejar el cifrado por defecto (clave propiedad de AWS, sin costo).
   4. Crear.
 - **Resultado esperado:** tabla `NodesTable` en estado Active.
-- **Si falla:** nombre ya existe → usarlo tal cual o borrar la tabla vieja. Región distinta → crearla en `us-east-1`, igual que la Lambda.
+- **Si falla:** nombre ya existe → usarlo tal cual o borrar la tabla vieja. Región distinta → crearla en `us-east-2`, igual que la Lambda.
 - **Variables de la Lambda (cuando exista el despliegue de la app):** `REPOSITORY_BACKEND=dynamodb`, `NODES_TABLE=NodesTable`.
 - **Permisos de la Lambda:** `dynamodb:PutItem`, `GetItem`, `Scan` sobre `NodesTable`.
 - Por definir en próximas historias: `ADMIN_KEY` (HU-02), nuevas tablas.

@@ -20,6 +20,17 @@ Copia esta plantilla al inicio de la sección «Entradas»:
 
 ## Entradas
 
+### 2026-11-08 · Conexión a AWS, preparación del despliegue de la demo y la app final, y qué hace AWS en cada escena
+- **Qué se hizo:**
+  - **Conexión:** se instaló `uv` y AWS CLI 2.39.6, se inició sesión con el perfil `rfha` (región `us-east-2`, proyecto `329756216968`, plan **Free** activo con USD 100 de créditos hasta 2027-05-09) y se ejecutó `aws configure agent-toolkit` (25 habilidades instaladas y servidor MCP `aws-mcp` configurado). Las reglas del Agent Toolkit quedaron en `.kiro/steering/aws-agent-toolkit-rules.md`.
+  - **Región:** el proyecto está en `us-east-2` (Ohio); se cambió `us-east-1` por `us-east-2` en `docs/DEMO.md`, `docs/AWS_PASO_A_PASO.md` y `.github/workflows/cd-demo.yml`.
+  - **Python 3.12:** las Lambdas pasan a `python3.12` (`demo/template.yaml`, `template.yaml`); la guía de AWS y `cd-demo.yml` usan Python 3.12.
+  - **App final en AWS:** nueva plantilla `template.yaml` (Lambda `rfha-app`, HTTP API, tabla DynamoDB de nodos en modo bajo demanda, rol mínimo sobre esa tabla, registros a 7 días), `scripts/prepare_app_package.py` (arma `build/app` con `src/`) y `src/requirements-lambda.txt`. `build/` se ignora en Git.
+  - **Documentación:** nueva sección 6.5 de `docs/DEMO.md`: herramientas usadas (AWS CLI, Agent Toolkit, SAM CLI, CloudFormation, S3, IAM, API Gateway, Lambda, CloudWatch, variables de entorno, DynamoDB), el recorrido de cada consulta en AWS, una tabla de **qué hace AWS y qué decide el middleware en las 15 escenas**, dónde verlo en la consola y qué ocurre al registrar una universidad en la app final.
+- **Estado del despliegue:** **hecho.** La instalación de SAM CLI se descartó (compilaba `pydantic-core` desde código fuente y bloqueó la terminal). Se reemplazó por `scripts/deploy_aws.py`, que solo usa el AWS CLI y Python 3.12: arma el paquete con librerías para Lambda/Linux, crea el depósito S3 `rfha-deploy-<cuenta>-us-east-2`, ejecuta `aws cloudformation package` y `deploy`. Se desplegaron `rfha-demo` (con `DemoMode=1`) y `rfha-app` (con su tabla DynamoDB) en `us-east-2`. `scripts/smoke_aws.py` comprobó contra las URLs reales: demo 9/9 y app final 4/4 correctas (arranque en frío de 2 a 7 s; después unos 0,3 s). Las URLs no se publican en el repositorio.
+- **Archivos:** `template.yaml`, `demo/template.yaml`, `scripts/prepare_app_package.py`, `src/requirements-lambda.txt`, `.gitignore`, `.github/workflows/cd-demo.yml`, `docs/DEMO.md`, `docs/AWS_PASO_A_PASO.md`, `.kiro/steering/aws-agent-toolkit-rules.md`, `docs/BITACORA.md`.
+- **Pendiente / riesgos:** la demo quedó con `DemoMode=1` (cualquiera con la URL puede generar tokens): borrarla tras la exposición con `scripts/deploy_aws.py demo --delete` o redesplegar con `--demo-mode 0`. La guía (pasos 7 a 9 y 14) se reescribió para el script, pero esa guía para otra persona no se ha seguido de principio a fin en otro computador. El flujo `cd-demo.yml` usa ahora el mismo script y no se ha ejecutado. Consumo de créditos: no se ha revisado en `Bills`.
+
 ### 2026-11-08 · Guía de AWS detallada, redacción neutra y corrección de la ruta raíz
 - **Qué se hizo:**
   - **Redacción neutra:** en `docs/DEMO.md`, el README, `AWS_PASO_A_PASO.md`, `BRECHAS.md` y el prompt se reemplazaron las menciones a una persona concreta («el compañero de AWS», «Brayan lo genera») por «quien despliega en AWS» y «quien conoce el proyecto», para evitar malentendidos en el equipo.

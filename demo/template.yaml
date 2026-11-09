@@ -26,9 +26,9 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: rfha-demo
-      CodeUri: .
+      CodeUri: ../build/demo           # carpeta que arma scripts/deploy_aws.py (código + librerías)
       Handler: main.handler
-      Runtime: python3.11
+      Runtime: python3.12
       MemorySize: 256
       Timeout: 10
       Environment:

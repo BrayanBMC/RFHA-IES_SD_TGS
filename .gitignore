@@ -17,6 +17,7 @@ htmlcov/
 
 # AWS SAM
 .aws-sam/
+build/
 samconfig.toml
 packaged.yaml
 

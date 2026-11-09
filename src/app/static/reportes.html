@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Reportes Ejecutivos · RFHA-IES</title>
-  <meta name="description" content="Genera y descarga el reporte ejecutivo PDF de la red federada RFHA-IES.">
+  <meta name="description" content="Genera y descarga reportes PDF especializados de la red federada RFHA-IES.">
   <meta name="color-scheme" content="light dark">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/styles.css">
@@ -34,34 +34,39 @@
   <main id="main" class="wrap">
     <section class="hero">
       <p class="eyebrow">Administrador general</p>
-      <h1>Reportes Ejecutivos</h1>
-      <p class="lead">Descarga el <strong>reporte PDF de la red</strong> con estadísticas de nodos, volumen de consultas, resiliencia y trazabilidad de auditoría.</p>
+      <h1>Generación de Reportes Especializados</h1>
+      <p class="lead">Selecciona el <strong>tipo de informe técnico</strong> que deseas generar y descárgalo en formato PDF oficial en tiempo real.</p>
     </section>
 
     <section class="card" aria-labelledby="report-title">
-      <h2 id="report-title">Reporte de la Red Federada</h2>
-      <p>El reporte incluye:</p>
-      <ul>
-        <li>Estado de la red: total de nodos, activos y pendientes.</li>
-        <li>Volumen de consultas: exitosas, denegadas y errores con porcentajes.</li>
-        <li>Resiliencia: consultas desde nodo Primario vs Réplica (failover).</li>
-        <li>Tabla detallada de los últimos 20 registros de auditoría.</li>
-      </ul>
+      <h2 id="report-title">Configuración del Reporte</h2>
 
       <form id="report-form" novalidate>
+        <div class="field">
+          <label for="report-type">Tipo de Reporte a Generar</label>
+          <select id="report-type">
+            <option value="general">📊 Reporte Ejecutivo Completo (Red, Consultas, Resiliencia y Auditoría)</option>
+            <option value="auditoria">🛡️ Bitácora Forense de Seguridad y Trazabilidad de Consultas</option>
+            <option value="resiliencia">⚡ Diagnóstico de Tolerancia a Fallos y Conmutación a Réplica (HU-08)</option>
+            <option value="nodos">🏛️ Catálogo y Estado de Instituciones Federadas (HU-01, HU-02)</option>
+          </select>
+          <p class="hint">El PDF se compilará en memoria con los datos reales registrados en Amazon DynamoDB.</p>
+        </div>
+
         <div class="field">
           <label for="admin-key">Clave de administrador</label>
           <input id="admin-key" type="password" autocomplete="off" required
                  aria-describedby="admin-key-hint" placeholder="ADMIN_KEY del servidor">
-          <p class="hint" id="admin-key-hint">La misma clave usada en la sección de Administración.</p>
+          <p class="hint" id="admin-key-hint">Es la variable ADMIN_KEY del servidor. Se requiere para autorizar la exportación.</p>
         </div>
+
         <button type="submit" class="btn primary" id="btn-download">
-          ⬇ Descargar Reporte PDF de la Red
+          ⬇ Generar y Descargar Reporte PDF
         </button>
       </form>
 
       <div id="status-msg" role="status" aria-live="polite" hidden>
-        <p class="hint">⏳ Generando reporte…</p>
+        <p class="hint">⏳ Compilando datos de DynamoDB y generando PDF en memoria…</p>
       </div>
       <p class="error" id="error-msg" role="alert" hidden></p>
     </section>
@@ -86,6 +91,8 @@
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const adminKey = document.getElementById('admin-key').value.trim();
+      const reportType = document.getElementById('report-type').value;
+
       if (!adminKey) {
         showError('Ingresa la clave de administrador.');
         return;
@@ -95,7 +102,7 @@
       setLoading(true);
 
       try {
-        const response = await fetch('/api/v1/admin/reports/network-summary', {
+        const response = await fetch(`/api/v1/admin/reports/network-summary?type=${encodeURIComponent(reportType)}`, {
           method: 'GET',
           headers: { 'X-Admin-Key': adminKey },
         });
@@ -111,7 +118,7 @@
         const anchor = document.createElement('a');
         const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         anchor.href = url;
-        anchor.download = `reporte-rfha-${today}.pdf`;
+        anchor.download = `reporte-${reportType}-${today}.pdf`;
         document.body.appendChild(anchor);
         anchor.click();
         anchor.remove();

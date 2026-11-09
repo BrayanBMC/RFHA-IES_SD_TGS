@@ -90,10 +90,11 @@ $("#btn-download-pdf").addEventListener("click", async () => {
     $("#admin-key").focus();
     return;
   }
+  const reportType = $("#admin-report-type") ? $("#admin-report-type").value : "general";
   const btn = $("#btn-download-pdf");
   setBusy(btn, true, "Generando PDF…", "⬇ Descargar Reporte PDF");
   try {
-    const res = await fetch("/api/v1/admin/reports/network-summary", {
+    const res = await fetch(`/api/v1/admin/reports/network-summary?type=${encodeURIComponent(reportType)}`, {
       headers: { "X-Admin-Key": key }
     });
     if (!res.ok) {
@@ -105,7 +106,7 @@ $("#btn-download-pdf").addEventListener("click", async () => {
     const a = document.createElement("a");
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     a.href = url;
-    a.download = `reporte-rfha-${today}.pdf`;
+    a.download = `reporte-${reportType}-${today}.pdf`;
     document.body.appendChild(a);
     a.click();
     a.remove();

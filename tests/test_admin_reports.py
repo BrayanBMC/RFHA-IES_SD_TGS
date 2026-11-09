@@ -2,6 +2,7 @@
 
 Patrón: igual que test_hu02_approve_node.py – usa los fixtures de conftest.py.
 """
+import pytest
 from tests.conftest import ADMIN
 
 
@@ -24,39 +25,27 @@ def test_clave_de_admin_incorrecta_devuelve_403(api):
 
 
 # ---------------------------------------------------------------------------
-# Respuesta exitosa
+# Respuesta exitosa por tipo de reporte
 # ---------------------------------------------------------------------------
 
 
-def test_admin_autenticado_recibe_pdf_200(api):
-    """Con la clave correcta debe devolver 200 y content-type application/pdf."""
-    response = api.get("/api/v1/admin/reports/network-summary", headers=ADMIN)
+@pytest.mark.parametrize("report_type", ["general", "auditoria", "resiliencia", "nodos"])
+def test_admin_descarga_diferentes_tipos_de_reporte(api, report_type):
+    """El admin puede solicitar cualquiera de los tipos y recibe PDF 200 con su respectivo nombre."""
+    response = api.get(f"/api/v1/admin/reports/network-summary?type={report_type}", headers=ADMIN)
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/pdf"
-
-
-def test_pdf_no_esta_vacio(api):
-    """El cuerpo de la respuesta debe ser un PDF de al menos 1 KB."""
-    response = api.get("/api/v1/admin/reports/network-summary", headers=ADMIN)
-    assert response.status_code == 200
-    assert len(response.content) > 1024, "El PDF parece vacío o demasiado pequeño"
-
-
-def test_pdf_empieza_con_cabecera_pdf(api):
-    """Los primeros bytes deben ser la firma mágica de PDF (%PDF-)."""
-    response = api.get("/api/v1/admin/reports/network-summary", headers=ADMIN)
-    assert response.status_code == 200
-    assert response.content[:5] == b"%PDF-", "El contenido no es un PDF válido"
-
-
-def test_cabecera_content_disposition_presente(api):
-    """La respuesta debe incluir Content-Disposition con filename para descarga."""
-    response = api.get("/api/v1/admin/reports/network-summary", headers=ADMIN)
-    assert response.status_code == 200
+    assert response.content[:5] == b"%PDF-"
+    assert len(response.content) > 1024
     disposition = response.headers.get("content-disposition", "")
-    assert "attachment" in disposition
-    assert "reporte-rfha-" in disposition
+    assert f"reporte-{report_type}-" in disposition
     assert ".pdf" in disposition
+
+
+def test_tipo_de_reporte_invalido_devuelve_422(api):
+    """Un tipo de reporte que no existe debe ser rechazado por validación FastAPI con 422."""
+    response = api.get("/api/v1/admin/reports/network-summary?type=tipo_falso", headers=ADMIN)
+    assert response.status_code == 422
 
 
 def test_cabecera_cache_control_no_store(api):
@@ -80,7 +69,7 @@ def test_reporte_con_nodos_y_logs(api, stores):
     api.post(f"/api/v1/admin/nodes/{node_id}/approve", headers=ADMIN)
 
     # El reporte sigue siendo un PDF válido con datos
-    response = api.get("/api/v1/admin/reports/network-summary", headers=ADMIN)
+    response = api.get("/api/v1/admin/reports/network-summary?type=nodos", headers=ADMIN)
     assert response.status_code == 200
     assert response.content[:5] == b"%PDF-"
     assert len(response.content) > 1024

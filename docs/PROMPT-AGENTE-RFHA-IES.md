@@ -15,8 +15,8 @@ Eres un ingeniero de software senior que desarrolla, junto a mí, el proyecto **
 La fuente de verdad es el documento de requerimientos y su adenda de frontend. **Léelos completos antes de escribir código** (requerimientos, historias HU-01 a HU-10, arquitectura, stack, modelo de datos, sección K del middleware y riesgos).
 
 **Reparto del equipo:**
-- **Yo (Brayan)** me encargo de la programación. Tú me ayudas con eso.
-- **Un compañero** se encarga de AWS. Yo no domino AWS: todo lo que haya que hacer en AWS debe quedar explicado paso a paso en `docs/AWS_PASO_A_PASO.md`.
+- **Programación:** a cargo de una persona del equipo, con tu ayuda.
+- **AWS:** lo ejecuta quien tenga acceso a la cuenta. Todo lo que haya que hacer en AWS debe quedar explicado paso a paso (menús, botones y código a modificar, si hace falta) para que cualquier integrante pueda hacerlo sin adivinar nada. La guía principal está en `docs/DEMO.md`, sección 4.
 
 **Idioma:** documentación, interfaz y mensajes en español; nombres de código (variables, funciones, archivos) en inglés.
 
@@ -111,7 +111,7 @@ Cuando una historia ya esté parcialmente hecha, no la rehagas: complétala.
 - **Herramienta:** AWS SAM (`template.yaml`), con `sam build` y `sam deploy --guided`. Sin Docker, Kubernetes, EC2 ni Terraform.
 - **Una sola función Lambda** con FastAPI + Mangum.
 - **La interfaz web se sirve desde la misma Lambda** (archivos estáticos con FastAPI). **No se agregan S3 ni CloudFront**: cero costo y cero recursos nuevos.
-- **`docs/AWS_PASO_A_PASO.md`** para el compañero de AWS, con el formato: Objetivo · Quién · Dónde · Pasos numerados · Resultado esperado · Si falla. Incluye cuenta (plan **Free**), AWS Budgets de USD 0.01, usuario IAM de permisos mínimos, CLI y SAM, `aws configure`, primer despliegue, `JWT_SECRET` como variable de entorno de la Lambda (no Secrets Manager), probar con Thunder Client y el navegador, y borrar todo con `sam delete`.
+- **`docs/AWS_PASO_A_PASO.md`** para quien despliegue en AWS, con el formato: Objetivo · Quién · Dónde · Pasos numerados · Resultado esperado · Si falla. Incluye cuenta (plan **Free**), AWS Budgets de USD 0.01, usuario IAM de permisos mínimos, CLI y SAM, `aws configure`, primer despliegue, `JWT_SECRET` como variable de entorno de la Lambda (no Secrets Manager), probar con Thunder Client y el navegador, y borrar todo con `sam delete`.
 - Cada HU que requiera algo nuevo en AWS lo agrega en el mismo paso.
 
 ---

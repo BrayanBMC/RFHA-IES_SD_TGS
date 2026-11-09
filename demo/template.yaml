@@ -26,9 +26,9 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: rfha-demo
-      CodeUri: .
+      CodeUri: ../build/demo           # carpeta que arma scripts/deploy_aws.py (código + librerías)
       Handler: main.handler
-      Runtime: python3.11
+      Runtime: python3.12
       MemorySize: 256
       Timeout: 10
       Environment:
@@ -36,6 +36,14 @@ Resources:
           JWT_SECRET: !Ref JwtSecret
           DEMO_MODE: !Ref DemoMode
       Events:
+        # La dirección raíz "/" (la pantalla de la demo) no queda cubierta por /{proxy+}, por eso va aparte.
+        Root:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref DemoApi
+            Path: /
+            Method: ANY
+        # Cualquier otra ruta: /static/..., /api/..., /docs, etc.
         Any:
           Type: HttpApi
           Properties:

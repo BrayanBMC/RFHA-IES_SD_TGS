@@ -231,7 +231,7 @@ Detalle cronológico en `docs/BITACORA.md`.
 | **CI/CD** | Hecho: GitHub Actions corre las pruebas y un job que levanta la demo y la app final. Despliegue a AWS manual y opcional. |
 | **Pruebas** | 61 pruebas automáticas definidas, ejecutadas en GitHub. |
 | **Prompt y planeación** | Hecho: `docs/PROMPT-AGENTE-RFHA-IES.md` (v2) y `docs/ADENDA_FRONTEND.md`. |
-| **Despliegue en AWS** | **Pendiente:** lo realiza el compañero de AWS con la guía de `docs/DEMO.md` (sección 4). Falta crear la tabla `NodesTable`. |
+| **Despliegue en AWS** | **Pendiente:** se realiza con la guía de `docs/DEMO.md` (sección 4), paso a paso, por quien tenga acceso a la cuenta de AWS. Falta crear la tabla `NodesTable`. |
 | **HU-02 a HU-10** | Pendientes. |
 
 **Siguiente paso:** el «aprobado» de HU-01 y empezar HU-02 (aprobación de nodo y emisión de API Key).
@@ -380,7 +380,7 @@ RFHA-IES_SD_TGS/
 | `docs/BITACORA.md` | Bitácora de desarrollo: qué se hizo, commits, resultado del CI e incidencias. |
 | `docs/DECISIONES.md` | Registro de decisiones (D-01 a D-23). |
 | `docs/BRECHAS.md` | Faltantes, ambigüedades e inconsistencias del levantamiento. |
-| `docs/AWS_PASO_A_PASO.md` | Guía de AWS para el compañero que maneja la cuenta. |
+| `docs/AWS_PASO_A_PASO.md` | Guía de AWS para quien administra la cuenta. |
 | `docs/ADENDA_FRONTEND.md` | Requerimientos de la interfaz web (RF-11 a RF-19, RNF-F1 a F9, HU-10). |
 | `docs/DEMO_MARTES.md` | Lista de verificación y guion breve de la exposición. |
 | `docs/PROMPT-AGENTE-RFHA-IES.md` | Prompt de trabajo del agente de IA (versión 2, con frontend). |

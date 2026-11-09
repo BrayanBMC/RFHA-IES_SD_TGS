@@ -10,7 +10,7 @@ Para quien no conoce el código. Orden recomendado: el bloque 1 es la prioridad 
 
 ### Paso 1.1: Cuenta AWS
 - **Objetivo:** tener una cuenta con plan Free.
-- **Quién:** compañero AWS. **Dónde:** consola web (https://aws.amazon.com).
+- **Quién:** quien administra la cuenta de AWS. **Dónde:** consola web (https://aws.amazon.com).
 - **Pasos:**
   1. Crear la cuenta (o entrar a la existente).
   2. Si es nueva, elegir **Free account plan**.
@@ -20,17 +20,17 @@ Para quien no conoce el código. Orden recomendado: el bloque 1 es la prioridad 
 
 ### Paso 1.2: Alerta de presupuesto de USD 0.01
 - **Objetivo:** enterarse de cualquier cobro.
-- **Quién:** compañero AWS. **Dónde:** consola, *Billing → Budgets*.
+- **Quién:** quien administra la cuenta de AWS. **Dónde:** consola, *Billing → Budgets*.
 - **Pasos:**
   1. *Create budget → Use a template → Zero spend budget*.
-  2. Poner el correo del compañero y de Brayan.
+  2. Poner los correos del equipo que quieran recibir el aviso.
   3. Crear.
 - **Resultado esperado:** presupuesto "My Zero-Spend Budget" activo.
 - **Si falla:** no aparece la opción → crear *Customized → Cost budget* de USD 0.01 mensual.
 
 ### Paso 1.3: Usuario IAM para desplegar
 - **Objetivo:** no usar la cuenta raíz.
-- **Quién:** compañero AWS. **Dónde:** consola, IAM.
+- **Quién:** quien administra la cuenta de AWS. **Dónde:** consola, IAM.
 - **Pasos:**
   1. *IAM → Users → Create user* → nombre `rfha-deployer`.
   2. Adjuntar políticas administradas: `AWSCloudFormationFullAccess`, `AWSLambda_FullAccess`, `AmazonAPIGatewayAdministrator`, `AmazonS3FullAccess`, `CloudWatchLogsFullAccess`, `IAMFullAccess`.
@@ -39,7 +39,7 @@ Para quien no conoce el código. Orden recomendado: el bloque 1 es la prioridad 
 - **Si falla:** `AccessDenied` al desplegar → falta una de las políticas anteriores. Para producción real se reduciría; para el prototipo académico es aceptable.
 
 ### Paso 1.4: Instalar AWS CLI y SAM CLI
-- **Quién:** compañero AWS. **Dónde:** terminal.
+- **Quién:** quien administra la cuenta de AWS. **Dónde:** terminal.
 - **Pasos (Windows):**
   1. `winget install Amazon.AWSCLI`
   2. `winget install Amazon.SAM-CLI`
@@ -48,17 +48,17 @@ Para quien no conoce el código. Orden recomendado: el bloque 1 es la prioridad 
 - **Si falla:** `comando no encontrado` → reiniciar la terminal. Sin winget → instaladores en la documentación de AWS.
 
 ### Paso 1.5: Configurar credenciales
-- **Pasos:** `aws configure` → pegar Access Key, Secret, región `us-east-1`, formato `json`.
+- **Pasos:** `aws configure` → pegar Access Key, Secret, región `us-east-2`, formato `json`.
 - **Resultado esperado:** `aws sts get-caller-identity` muestra la cuenta.
 - **Si falla:** `InvalidClientTokenId` → clave mal copiada.
 
 ### Paso 1.6: Generar el secreto JWT
-- **Quién:** Brayan. **Dónde:** terminal del proyecto.
-- **Pasos:** `python -c "import secrets; print(secrets.token_urlsafe(48))"`. Guardarlo en `.env` como `JWT_SECRET=...` y pasárselo al compañero por un canal privado.
+- **Quién:** quien conoce el proyecto. **Dónde:** terminal del proyecto.
+- **Pasos:** `python -c "import secrets; print(secrets.token_urlsafe(48))"`. Guardarlo en `.env` como `JWT_SECRET=...` y pasárselo a quien despliega por un canal privado.
 - **Resultado esperado:** cadena de unos 64 caracteres.
 
 ### Paso 1.7: Desplegar la demo
-- **Quién:** compañero AWS. **Dónde:** terminal, en la raíz del repo.
+- **Quién:** quien administra la cuenta de AWS. **Dónde:** terminal, en la raíz del repo.
 - **Pasos:**
   1. `sam build --template-file demo/template.yaml`
   2. `sam deploy --template-file .aws-sam/build/template.yaml --stack-name rfha-demo --resolve-s3 --capabilities CAPABILITY_IAM --parameter-overrides JwtSecret=<EL_SECRETO>`
@@ -93,18 +93,18 @@ Se agregan pasos por historia. El despliegue de la app final se arma con un `tem
 
 ### HU-01: tabla de nodos
 - **Objetivo:** guardar las solicitudes de registro de universidades.
-- **Quién:** compañero AWS. **Dónde:** consola, DynamoDB.
+- **Quién:** quien administra la cuenta de AWS. **Dónde:** consola, DynamoDB.
 - **Pasos:**
   1. *DynamoDB → Tables → Create table*.
   2. Nombre: `NodesTable`. Partition key: `node_id` (String). Sin sort key.
   3. Table settings: *Customize settings* → capacity mode **On-demand**. Dejar el cifrado por defecto (clave propiedad de AWS, sin costo).
   4. Crear.
 - **Resultado esperado:** tabla `NodesTable` en estado Active.
-- **Si falla:** nombre ya existe → usarlo tal cual o borrar la tabla vieja. Región distinta → crearla en `us-east-1`, igual que la Lambda.
+- **Si falla:** nombre ya existe → usarlo tal cual o borrar la tabla vieja. Región distinta → crearla en `us-east-2`, igual que la Lambda.
 - **Variables de la Lambda (cuando exista el despliegue de la app):** `REPOSITORY_BACKEND=dynamodb`, `NODES_TABLE=NodesTable`.
 - **Permisos de la Lambda:** `dynamodb:PutItem`, `GetItem`, `Scan` sobre `NodesTable`.
 - Por definir en próximas historias: `ADMIN_KEY` (HU-02), nuevas tablas.
 
 ### Interfaz web (frontend)
 - **Nada nuevo en AWS.** La interfaz (HTML, CSS y JS) se sirve desde la misma Lambda y el mismo API Gateway; no se crean S3 ni CloudFront ni costos adicionales. En la demo, la página queda en la URL raíz (`ApiUrl`).
-- Parámetro opcional `DemoMode` (`0` por defecto): con `1` la interfaz muestra los botones que generan tokens de prueba. Para la exposición se despliega con `1` y se borra todo al terminar (`sam delete`); si la demo va a quedar publicada, usa `0`. Ver `docs/DEMO.md`, sección 4.1.
+- Parámetro opcional `DemoMode` (`0` por defecto): con `1` la interfaz muestra los botones que generan tokens de prueba. Para la exposición se despliega con `1` y se borra todo al terminar (`sam delete`); si la demo va a quedar publicada, usa `0`. Ver `docs/DEMO.md`, sección 4.3. La guía detallada paso a paso de AWS está en `docs/DEMO.md`, sección 4.

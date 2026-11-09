@@ -1,6 +1,6 @@
 // RFHA-IES · utilidades compartidas por las pantallas. JavaScript nativo, sin dependencias.
-// Seguridad: el contenido dinámico siempre entra con textContent (nunca innerHTML) y las claves
-// y tokens viven solo en memoria de la página (nunca en localStorage).
+// Seguridad: el contenido dinámico siempre entra como texto (textContent) y las claves y tokens
+// viven solo en la memoria de la página: no se guardan en el almacenamiento del navegador.
 
 export const $ = (selector) => document.querySelector(selector);
 

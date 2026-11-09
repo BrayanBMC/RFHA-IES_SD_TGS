@@ -11,7 +11,7 @@ Estados: `Abierta` · `Resuelta (propuesta)` · `Cerrada`.
 | A2 | Header de réplica: `X-Data-Source: Replica` (RF-09) vs `Backup-Replica` (HU-08). | Pruebas ambiguas. | Valores: `Primary` y `Replica`. | Resuelta (propuesta) |
 | A3 | Tiempo objetivo 1.5 s (RF-05) vs 2000 ms (RNF y failover). | Criterio de aceptación incierto. | 1.5 s = meta de respuesta normal; 2000 ms = timeout para activar failover y tope RTT. | Resuelta (propuesta) |
 | A4 | El código de la sección K usa `Header(...)` obligatorio: FastAPI devuelve 422, no 403. Además `exp` se valida dos veces y falla si falta `exp`. | La demo no cumpliría RF-06. | Header opcional, 403 manual; PyJWT valida `exp` con `options={"require": ["exp"]}`. | Resuelta (propuesta) |
-| A5 | El `student_id` del ejemplo (`20262678029`) es código estudiantil, y `document_number` es la cédula. HU-06 dice "cédula". | Confusión sobre qué identifica al estudiante. | Ver B3. | Abierta |
+| A5 | El `student_id` del ejemplo (`20262678029`) es código estudiantil, y `document_number` es la cédula. HU-06 dice "cédula". | Confusión sobre qué identifica al estudiante. | Ver B3. | Parcial: el portal usa la cédula (HU-04) y el expediente sigue con `student_id`; falta el enrutamiento de HU-06 |
 | A6 | La arquitectura habla de "Lambda Auth" y "Lambda Router" separadas; el prompt pide una sola Lambda. | Diferencia con el diagrama. | Una sola Lambda con FastAPI + Mangum, con la validación como dependencia. | Resuelta (propuesta) |
 | A7 | RF-05 pide retorno en < 1.5 s pero el cold start de Lambda puede superarlo. | Incumplimiento ocasional. | Documentar calentamiento antes de la demo; medir en HU-06. | Abierta |
 
@@ -19,18 +19,18 @@ Estados: `Abierta` · `Resuelta (propuesta)` · `Cerrada`.
 
 | # | Descripción | Impacto | Solución simple propuesta | Estado |
 |---|---|---|---|---|
-| B1 | Autenticación del estudiante (HU-04) no definida. | Sin ella no se puede emitir el token. | Cédula + clave sembrada por el nodo al sincronizar (hash con PBKDF2 de la stdlib). Sin Cognito. | Abierta (HU-04) |
-| B2 | Autenticación de administrador general e institucional no definida. | HU-02 queda sin control de acceso. | Admin general: header `X-Admin-Key` desde variable de entorno. Admin institucional: su `X-Node-API-Key`. | Abierta (HU-02) |
+| B1 | Autenticación del estudiante (HU-04) no definida. | Sin ella no se puede emitir el token. | Cédula + clave sembrada por el nodo al sincronizar (hash con PBKDF2 de la stdlib). Sin Cognito. | Cerrada (HU-03 siembra la clave; HU-04 la usa; D-29, D-30) |
+| B2 | Autenticación de administrador general e institucional no definida. | HU-02 queda sin control de acceso. | Admin general: header `X-Admin-Key` desde variable de entorno. Admin institucional: su `X-Node-API-Key`. | Cerrada (HU-02, D-28) |
 | B3 | HU-06 consulta por cédula, pero la clave es `INSTITUCION#STUDENT_ID`. Falta saber en qué nodo está el estudiante. | El middleware no puede enrutar. | Tabla de enrutamiento `document_number -> institution_id, student_id`, poblada al sincronizar. Alternativa: el token ya trae `institution_id` de origen. | Abierta (HU-03/06) |
-| B4 | Claims del JWT sin definir. | Sin `jti` no hay revocación. | `sub` (student_id), `doc` (cédula), `origin` (IES origen), `aud` (IES destino), `jti`, `iat`, `exp`. Validar `aud` contra la IES consultante. | Abierta (HU-04/07) |
-| B5 | Lista negra de tokens. | Crece sin límite. | Tabla con clave `jti` y atributo `ttl` (TTL de DynamoDB = `exp` del token). | Abierta (HU-05) |
-| B6 | `digital_signature_hash` sin definición. | No hay verificación de integridad. | SHA-256 del JSON canónico (claves ordenadas) del registro sin el campo de firma; se recalcula al leer. Para firma real, HMAC con clave del nodo. | Abierta (HU-03) |
+| B4 | Claims del JWT sin definir. | Sin `jti` no hay revocación. | `sub` (student_id), `doc` (cédula), `origin` (IES origen), `aud` (IES destino), `jti`, `iat`, `exp`. Validar `aud` contra la IES consultante. | Parcial: los claims se emiten y `verify_token` valida `aud` (HU-04); falta aplicarlo a la consulta (HU-07) |
+| B5 | Lista negra de tokens. | Crece sin límite. | Tabla con clave `jti` y atributo `ttl` (TTL de DynamoDB = `exp` del token). | Cerrada (HU-05; es el campo `revoked` de `TokensTable`, D-31) |
+| B6 | `digital_signature_hash` sin definición. | No hay verificación de integridad. | SHA-256 del JSON canónico (claves ordenadas) del registro sin el campo de firma; se recalcula al leer. Para firma real, HMAC con clave del nodo. | Parcial: se calcula y guarda (HU-03); falta verificarla al leer (HU-06) |
 | B7 | Réplica (HU-08) sin diseño. | No se puede probar el failover. | Segunda tabla en la misma región, escrita al sincronizar. Simular caída con variable `SIMULATE_NODE_DOWN=<institution_id>` que fuerza timeout. | Abierta (HU-08) |
 | B8 | Inmutabilidad de bitácora (HU-09). | DynamoDB permite borrar/actualizar. | Rol IAM de la Lambda solo con `dynamodb:PutItem` sobre `AuditLogsTable`. | Abierta (HU-09) |
-| B9 | "Notifica" en RF-02 y RF-04 sin servicio. | Requisito incumplible tal cual. | La respuesta de la API entrega la credencial una sola vez. SES queda opcional (fuera de alcance). | Abierta |
+| B9 | "Notifica" en RF-02 y RF-04 sin servicio. | Requisito incumplible tal cual. | La respuesta de la API entrega la credencial una sola vez. SES queda opcional (fuera de alcance). | Resuelta (propuesta): HU-02 muestra la API Key una sola vez en pantalla; HU-04 entrega el token en pantalla |
 | B10 | Frontend (SPA) sin historia de usuario. | Alcance incluye interfaz pero no se planifica. | Demo: interfaz hecha (D-16). App final: frontend estático tras la HU-09 con el mismo diseño (D-17). | Resuelta (propuesta) |
-| B11 | CORS, validación de entradas y tope de tamaño en `sync-records`. | Riesgo de abuso. | Pydantic con límites; máx. 100 estudiantes por petición; CORS restringido por variable de entorno. | Abierta (HU-03) |
-| B12 | El `batch` de HU-03 no define si reemplaza o fusiona. | Datos inconsistentes. | Upsert por `PK`+`SK`. | Abierta (HU-03) |
+| B11 | CORS, validación de entradas y tope de tamaño en `sync-records`. | Riesgo de abuso. | Pydantic con límites; máx. 100 estudiantes por petición; CORS restringido por variable de entorno. | Cerrada: límites de Pydantic y 100 por petición (HU-03); no hace falta CORS porque la pantalla se sirve del mismo origen (D-16) |
+| B12 | El `batch` de HU-03 no define si reemplaza o fusiona. | Datos inconsistentes. | Upsert por `PK`+`SK`. | Cerrada (HU-03: upsert por `node_id#student_id`) |
 | B13 | Roles ausentes: el funcionario consultante (IES) no tiene autenticación. | Cualquiera con un token podría consultar. | Con `aud` en el JWT más `X-Node-API-Key` de la IES consultante, el token solo sirve a esa IES. Se aplica desde HU-06/07. | Abierta |
 
 ## C. Free Tier y costos (verificado)

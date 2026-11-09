@@ -10,7 +10,7 @@ from src.app import config
 from src.app.models import ACTIVE_STATUS
 from src.app.repositories import NodeRepository, get_node_repository
 
-PBKDF2_ITERATIONS = 200_000
+PBKDF2_ITERATIONS = 100_000  # el número va dentro de cada hash: se puede subir sin invalidar las claves guardadas
 API_KEY_PREFIX = "rfha_"
 
 

@@ -20,6 +20,23 @@ Copia esta plantilla al inicio de la sección «Entradas»:
 
 ## Entradas
 
+### 2026-11-09 · HU-02 a HU-05, despliegue en AWS y guías de la demo y de la app final
+- **Qué se hizo:**
+  - **HU-02:** aprobación de nodos (`GET /api/v1/admin/nodes`, `POST /api/v1/admin/nodes/{id}/approve`) con `X-Admin-Key`; la API Key se muestra una sola vez y solo se guarda su SHA-256; `GET /api/v1/nodes/active` público (código y nombre); pantalla `/admin`.
+  - **HU-03:** `POST /api/v1/node/sync-records` con `X-Node-API-Key` (hasta 100 estudiantes, upsert, estado de asignaturas, firma SHA-256, clave del estudiante con PBKDF2); tabla `RecordsTable`; pantalla `/panel-nodo` con ejemplo de JSON.
+  - **HU-04:** `POST /api/v1/student/auth-token` (JWT HS256 de 24 h con `sub`, `doc`, `origin`, `aud`, `jti`, `iat`, `exp`); `src/app/tokens.py` con `issue_token` y `verify_token`; tabla `TokensTable` con TTL; pantalla `/portal-estudiante`.
+  - **HU-05:** `POST /api/v1/student/tokens/list` y `.../{jti}/revoke`; lista negra como campo `revoked`; `verify_token` rechaza tokens revocados.
+  - **Pruebas:** 112 en la app final y 39 en la demo: 151 en total, todas en verde en local. Incluyen DynamoDB con `moto` y un flujo completo registro → aprobación → carga → token → revocación.
+  - **AWS:** `template.yaml` pasa a 3 tablas, parámetros `JwtSecret` y `AdminKey` (`NoEcho`), Lambda de 1024 MB y 29 s; `deploy_aws.py` pasa esos secretos desde `.env`; se redesplegó `rfha-app` (misma dirección) y `smoke_aws.py app` recorre ahora HU-01 a HU-05 contra AWS: las 18 comprobaciones dieron `[OK]` (la primera corrida falló en un paso por un error del propio script de prueba, que en la petición de «clave incorrecta» no enviaba `target_node_id` y recibió 422 en vez de 401; se corrigió y se repitió completa). Se agregó `scripts/clean_aws_data.py` para vaciar las tablas.
+  - **Documentación:** `docs/APP_FINAL.md` (nueva: cómo se conecta todo, cómo se comunica el código con AWS, tablas, seguridad y 14 escenas de prueba), `docs/DEMO.md` sección 4.11 (direcciones y comunicación código ↔ AWS) con las tablas de 4.10 actualizadas, `README.md` con direcciones, estado, contrato de la API y estructura, `docs/historias/HU-02.md` a `HU-05.md`, D-28 a D-32, `.env.example`.
+  - **Lanzador local:** `run_demo.py` completa `.env` con `ADMIN_KEY` y la muestra al arrancar la app final.
+- **Por qué:** petición del usuario: dejar HU-01 cerrada, avanzar hasta HU-05 de corrido, publicar las direcciones en el README y en la documentación, y explicar cómo se comunica el código con AWS en la demo y en la app final.
+- **Archivos principales:** `src/app/{config,models,repositories,security,tokens,main}.py`, `src/app/routers/{admin,sync,students,nodes}.py`, `src/app/static/{admin,panel-nodo,portal-estudiante}.{html,js}`, `common.js`, `styles.css`, `template.yaml`, `scripts/{deploy_aws,smoke_aws,clean_aws_data,run_demo}.py`, `tests/`.
+- **Commit / CI:** ver el último commit de `dev` · el resultado del CI se verifica en GitHub Actions.
+- **Decisiones:** D-28 a D-32.
+- **Incidencias:** la terminal del entorno tuvo una cola de comandos atrasados; sus `git add -A; git commit; git push` (pensados para el cierre de AWS) se ejecutaron más tarde, a mitad de esta tarea, y dejaron en `dev` dos commits intermedios con el mensaje «feat(aws): …» que contienen trabajo parcial de HU-02 a HU-05. No se reescribió el historial (sin `push --force`); el commit final los completa.
+- **Pendiente / riesgos:** la app final no tiene límite de intentos por cédula (solo el límite de tasa de API Gateway); HU-01 a HU-05 sin revisión manual con lector de pantalla; `smoke_aws.py` deja una universidad «Universidad de Prueba Humo» en las tablas (limpiar con `clean_aws_data.py`); la demo sigue con `DemoMode=1` (borrar o redesplegar con 0 después de la exposición); `README.md` y guías muestran la dirección pública de AWS.
+
 ### 2026-11-08 · Conexión a AWS, preparación del despliegue de la demo y la app final, y qué hace AWS en cada escena
 - **Qué se hizo:**
   - **Conexión:** se instaló `uv` y AWS CLI 2.39.6, se inició sesión con el perfil `rfha` (región `us-east-2`, proyecto `329756216968`, plan **Free** activo con USD 100 de créditos hasta 2027-05-09) y se ejecutó `aws configure agent-toolkit` (25 habilidades instaladas y servidor MCP `aws-mcp` configurado). Las reglas del Agent Toolkit quedaron en `.kiro/steering/aws-agent-toolkit-rules.md`.

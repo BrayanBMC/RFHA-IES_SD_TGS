@@ -6,10 +6,12 @@
 La demo debe estar desplegada con DemoMode=1 (usa el generador de tokens de prueba).
 """
 import json
+import os
 import sys
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 
 def call(method: str, url: str, body: dict | None = None, headers: dict | None = None):
@@ -90,6 +92,77 @@ def smoke_app(base: str) -> bool:
 
     s, body, h, t = call("POST", base + "/api/v1/nodes/register", {**payload, "nit": "abc"})
     results.append(show("Datos inválidos -> 422", s == 422, s, t))
+
+    for path, text in (("/admin", b"Solicitudes de nodos"), ("/panel-nodo", b"Carga de historiales"),
+                       ("/portal-estudiante", b"Tu consentimiento")):
+        s, body, h, t = call("GET", base + path)
+        results.append(show(f"Pantalla {path}", s == 200 and text in body, s, t))
+
+    admin_key = read_admin_key()
+    if not data or not admin_key:
+        print("      (se omite HU-02 a HU-05: falta ADMIN_KEY en .env o en el entorno)")
+        return all(results)
+    return all(results) and smoke_flow(base, data["node_id"], admin_key)
+
+
+def read_admin_key() -> str:
+    """ADMIN_KEY del entorno o del archivo .env (que no se sube a git). Nunca se imprime."""
+    if os.environ.get("ADMIN_KEY"):
+        return os.environ["ADMIN_KEY"]
+    env_file = Path(__file__).resolve().parent.parent / ".env"
+    if env_file.exists():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            if line.startswith("ADMIN_KEY="):
+                return line.split("=", 1)[1].strip()
+    return ""
+
+
+def smoke_flow(base: str, node_id: str, admin_key: str) -> bool:
+    """HU-02 a HU-05 con el nodo recién registrado: aprobar, cargar, autorizar y revocar."""
+    results = []
+    admin = {"X-Admin-Key": admin_key}
+
+    s, body, h, t = call("GET", base + "/api/v1/admin/nodes")
+    results.append(show("Administración sin clave -> 403", s == 403, s, t))
+
+    s, body, h, t = call("POST", f"{base}/api/v1/admin/nodes/{node_id}/approve", headers=admin)
+    api_key = json.loads(body).get("api_key") if s == 200 else None
+    results.append(show("Aprobar nodo -> 200 con API Key", bool(api_key), s, t))
+    if not api_key:
+        return False
+
+    s, body, h, t = call("POST", f"{base}/api/v1/admin/nodes/{node_id}/approve", headers=admin)
+    results.append(show("Aprobar otra vez -> 409", s == 409, s, t))
+
+    doc = str(int(time.time()))[-10:]
+    student = {
+        "student_id": str(int(time.time())), "document_number": doc, "full_name": "Estudiante de Prueba Humo",
+        "program": "Programa de Prueba", "password": "Clave-Humo-2026",
+        "courses": [{"code": "H-1", "name": "Materia de prueba", "credits": 3, "grade": 4.1, "semester": "2026-1"}],
+    }
+    s, body, h, t = call("POST", base + "/api/v1/node/sync-records", {"records": [student]})
+    results.append(show("Cargar sin API Key -> 403", s == 403, s, t))
+    s, body, h, t = call("POST", base + "/api/v1/node/sync-records", {"records": [student]},
+                         headers={"X-Node-API-Key": api_key})
+    results.append(show("Cargar historial -> 200", s == 200 and json.loads(body).get("created") == 1, s, t))
+
+    creds = {"document_number": doc, "password": "Clave-Humo-2026"}
+    s, body, h, t = call("POST", base + "/api/v1/student/auth-token", {**creds, "password": "incorrecta", "target_node_id": node_id})
+    results.append(show("Clave incorrecta -> 401", s == 401, s, t))
+    s, body, h, t = call("POST", base + "/api/v1/student/auth-token", {**creds, "target_node_id": node_id})
+    token = json.loads(body) if s == 201 else {}
+    results.append(show("Generar token -> 201", bool(token.get("student_auth_token")), s, t))
+    if not token:
+        return False
+
+    s, body, h, t = call("POST", base + "/api/v1/student/tokens/list", creds)
+    states = [x["status"] for x in json.loads(body).get("tokens", [])] if s == 200 else []
+    results.append(show("Listar tokens -> ACTIVO", states == ["ACTIVO"], s, t))
+    s, body, h, t = call("POST", f"{base}/api/v1/student/tokens/{token['jti']}/revoke", creds)
+    results.append(show("Revocar token -> 200", s == 200, s, t))
+    s, body, h, t = call("POST", base + "/api/v1/student/tokens/list", creds)
+    states = [x["status"] for x in json.loads(body).get("tokens", [])] if s == 200 else []
+    results.append(show("Listar tokens -> REVOCADO", states == ["REVOCADO"], s, t))
     return all(results)
 
 

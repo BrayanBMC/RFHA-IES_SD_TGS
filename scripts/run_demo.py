@@ -7,7 +7,7 @@
 Qué hace, en orden:
   1. Crea el entorno virtual .venv si no existe.
   2. Instala las dependencias de demo/requirements-local.txt (solo si cambiaron).
-  3. Crea .env con un JWT_SECRET aleatorio si no existe.
+  3. Completa .env con JWT_SECRET y ADMIN_KEY aleatorios si faltan.
   4. Levanta la API con uvicorn.
   5. Verifica los 3 escenarios (403 / 403 / 200).
   6. Imprime un token válido y uno expirado para pegar en Thunder Client.
@@ -72,14 +72,25 @@ def ensure_dependencies() -> None:
     DEPS_MARK.write_text(current)
 
 
+def read_env_value(name: str) -> str:
+    if not ENV_FILE.exists():
+        return ""
+    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
+        if line.startswith(f"{name}="):
+            return line.split("=", 1)[1].strip()
+    return ""
+
+
 def ensure_env_file() -> None:
-    if ENV_FILE.exists() and "JWT_SECRET=" in ENV_FILE.read_text(encoding="utf-8"):
+    """Completa .env con los secretos que falten (JWT_SECRET para ambas, ADMIN_KEY para la app final)."""
+    missing = [name for name in ("JWT_SECRET", "ADMIN_KEY") if not read_env_value(name)]
+    if not missing:
         print("Archivo .env: ya existe.")
         return
-    step("Creando .env con un JWT_SECRET aleatorio")
-    line = f"JWT_SECRET={secrets.token_urlsafe(48)}\n"
+    step(f"Completando .env con valores aleatorios: {', '.join(missing)}")
     with ENV_FILE.open("a", encoding="utf-8") as handle:
-        handle.write(line)
+        for name in missing:
+            handle.write(f"{name}={secrets.token_urlsafe(48 if name == 'JWT_SECRET' else 24)}\n")
 
 
 def port_is_free(port: int) -> bool:
@@ -142,8 +153,13 @@ def main() -> int:
                 return 0
             print(
                 f"\nAPP FINAL LISTA\n"
-                f"  Formulario de registro de universidad:  {base_url}/registro-nodo\n"
+                f"  1. Registro de universidad (HU-01):     {base_url}/registro-nodo\n"
+                f"  2. Administración, aprobar (HU-02):     {base_url}/admin\n"
+                f"     Clave de administrador:              {read_env_value('ADMIN_KEY')}\n"
+                f"  3. Panel del nodo, cargar (HU-03):      {base_url}/panel-nodo\n"
+                f"  4. Portal del estudiante (HU-04/05):    {base_url}/portal-estudiante\n"
                 f"  Documentación de la API:                {base_url}/docs\n"
+                f"  Los datos viven en memoria: al detener la app se pierden.\n"
                 f"  Detener:                                Ctrl+C\n",
                 flush=True,
             )

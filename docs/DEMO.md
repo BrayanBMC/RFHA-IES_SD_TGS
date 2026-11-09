@@ -748,9 +748,9 @@ Para borrar todo: `... scripts\deploy_aws.py demo --delete --profile rfha --regi
 | **S3** | Depósito `rfha-deploy-<cuenta>-us-east-2` | Privado; solo guarda el código comprimido. | Lambda necesita leer el paquete de algún lugar. |
 | **IAM** | Un rol de ejecución por Lambda (lo crea la plantilla) | Permiso básico para escribir registros; en la app final, además, permisos de lectura y escritura **solo sobre su tabla**. | Mínimo privilegio. |
 | **Lambda (demo)** | Función `rfha-demo` | Python 3.12, 256 MB, 10 s máximo, arquitectura x86_64. Variables de entorno: `JWT_SECRET` (el secreto) y `DEMO_MODE` (`1` o `0`). Manejador `main.handler`. | Ejecuta el middleware de la demo. |
-| **Lambda (app)** | Función `rfha-app` | Python 3.12, 256 MB, 15 s. Variables: `REPOSITORY_BACKEND=dynamodb` y `NODES_TABLE` (nombre de la tabla). Manejador `src.app.main.handler`. | Ejecuta el middleware de la app final. |
+| **Lambda (app)** | Función `rfha-app` | Python 3.12, 1024 MB, 29 s (HU-03 calcula claves de hasta 100 estudiantes por carga). Variables: `REPOSITORY_BACKEND=dynamodb`, los nombres de las tres tablas, `JWT_SECRET` y `ADMIN_KEY`. Manejador `src.app.main.handler`. | Ejecuta el middleware de la app final. |
 | **API Gateway** | Una **HTTP API** por stack | Rutas `ANY /` y `ANY /{proxy+}` hacia la Lambda; etapa `$default` con **despliegue automático**; límite de **20 peticiones por segundo** (ráfaga de 50); dirección pública `https://<id>.execute-api.us-east-2.amazonaws.com`. | Es la puerta pública, con HTTPS incluido y sin dominio propio. |
-| **DynamoDB** (solo app) | Tabla de nodos (nombre generado por CloudFormation) | Clave de partición `node_id` (texto); modo **bajo demanda** (se paga por uso, sin capacidad reservada); **cifrada en reposo** con el cifrado predeterminado de DynamoDB (clave propiedad de AWS, sin costo; por eso la tabla no muestra un bloque de cifrado propio). Nombre generado: `rfha-app-NodesTable-<código>`. | Guarda las universidades registradas (HU-01). Sin costo fijo. |
+| **DynamoDB** (solo app) | Tres tablas (nombres generados por CloudFormation, como `rfha-app-NodesTable-<código>`): `NodesTable` (clave `node_id`), `RecordsTable` (clave `record_key`) y `TokensTable` (clave `jti`, con vencimiento automático por el atributo `ttl`). | Modo **bajo demanda** (se paga por uso, sin capacidad reservada); **cifradas en reposo** con el cifrado predeterminado de DynamoDB (clave propiedad de AWS, sin costo). | Guardan universidades, historiales y tokens de la app final. Sin costo fijo. |
 | **CloudWatch Logs** | Grupos `/aws/lambda/rfha-demo` y `/aws/lambda/rfha-app` | Retención de **7 días**. | Evita registros que se acumulan y cuestan. |
 
 **No se configuró** (decisiones conscientes, para mantener la demo simple y gratuita): dominio propio, WAF, autorizador de API Gateway (el control de acceso lo hace el middleware en el código), caché, VPC, Secrets Manager (el secreto va en una variable de entorno de la Lambda), ni réplicas de DynamoDB (llegan con HU-08).
@@ -767,7 +767,7 @@ Navegador ──(1)──▶ API Gateway ──(2)──▶ Lambda ──(3)─�
 | **(1) Navegador a API Gateway** | **HTTPS** (HTTP sobre TLS), HTTP/1.1 o HTTP/2 según el navegador. Estilo **REST**, datos en **JSON**. | Métodos `GET` (consultas y archivos de la pantalla) y `POST` (registro y generación de token de prueba). El token viaja en el encabezado `X-Student-Consent-Token`. La conexión va cifrada con TLS (1.2 como mínimo; el navegador puede negociar 1.3). |
 | **(2) API Gateway a Lambda** | **Invocación de Lambda** de AWS (integración tipo *proxy*), **formato de carga 2.0** en JSON. | API Gateway empaqueta la petición HTTP en un evento JSON; la Lambda devuelve otro JSON con código de estado, encabezados y cuerpo. Va por la red interna de AWS, firmado con credenciales internas. |
 | **Dentro de la Lambda** | **ASGI** | **Mangum** traduce el evento de API Gateway al estándar ASGI que entiende **FastAPI**. No usa red. |
-| **(3) Lambda a DynamoDB** (solo app) | **HTTPS** con la **API JSON de DynamoDB**, firmada con **Signature V4**. | `boto3` firma cada llamada con las credenciales temporales del rol de la Lambda. Operaciones: `Scan` (buscar NIT) y `PutItem` (crear nodo). |
+| **(3) Lambda a DynamoDB** (solo app) | **HTTPS** con la **API JSON de DynamoDB**, firmada con **Signature V4**. | `boto3` firma cada llamada con las credenciales temporales del rol de la Lambda. Operaciones: `Scan`, `GetItem`, `PutItem` y `UpdateItem`. |
 | **(4) Lambda a CloudWatch Logs** | Interno de AWS, automático. | Lo que la función imprime y una línea de resumen por ejecución. |
 | **Permiso del estudiante** | **JWT** (RFC 7519) firmado con **HMAC-SHA256 (HS256)**. | Lleva el estudiante y la fecha de vencimiento. Lo valida el middleware con el secreto de su variable de entorno. |
 | **Despliegue (CLI a AWS)** | **HTTPS** con **Signature V4**. | El AWS CLI usa las credenciales temporales de `aws login`. |
@@ -781,12 +781,12 @@ Navegador ──(1)──▶ API Gateway ──(2)──▶ Lambda ──(3)─�
 |---|---|
 | **Persona que despliega** | Crear stacks, funciones, APIs, tablas y depósitos en el proyecto (rol de administración del proyecto). |
 | **Rol de la Lambda `rfha-demo`** | Solo escribir sus registros. No toca ninguna otra cosa de AWS. |
-| **Rol de la Lambda `rfha-app`** | Escribir sus registros y leer/escribir **su** tabla. Nada más. |
+| **Rol de la Lambda `rfha-app`** | Escribir sus registros y leer/escribir **sus tres tablas** (nodos, historiales y tokens). Nada más. |
 | **Cualquier visitante** | Llamar a la dirección pública. Sin token, el middleware lo rechaza (salvo en la demo con `DemoMode=1`, que permite generar tokens de prueba). |
 
 #### 4.10.6 Resultado del despliegue real (noviembre de 2026)
 
-Se desplegaron los dos stacks en el proyecto del equipo (región Ohio, `us-east-2`) y se comprobaron con `scripts/smoke_aws.py` contra las direcciones públicas. **Las direcciones no se publican en este repositorio** porque la demo se desplegó con `DemoMode=1` (quien las conozca puede generar tokens de prueba); se entregan al equipo por mensaje privado.
+Se desplegaron los dos stacks en el proyecto del equipo (región Ohio, `us-east-2`) y se comprobaron con `scripts/smoke_aws.py` contra las direcciones públicas. Las direcciones públicas están en la sección 4.11. La demo se desplegó con `DemoMode=1`, así que quien conozca la dirección puede generar tokens de prueba: por eso la demo se borra o se redespliega con `--demo-mode 0` después de la exposición. Los datos son ficticios.
 
 | Comprobación | Resultado | Tiempo |
 |---|---|---|
@@ -806,6 +806,75 @@ Se desplegaron los dos stacks en el proyecto del equipo (región Ohio, `us-east-
 **Qué muestran estos números:** la primera petición a cada función tarda varios segundos porque Lambda debe crear su entorno de ejecución (arranque en frío); las siguientes responden en unos 0,3 s, dentro de la meta de menos de 1,5 s del levantamiento de requerimientos. Que el mismo NIT devolviera `409` confirma que el registro de prueba quedó guardado en DynamoDB (el contador de elementos de la consola se actualiza solo cada varias horas, así que no es una prueba inmediata). Ese registro de prueba se elimina al borrar el stack.
 
 **Comprobado contra AWS** con comandos de solo lectura: los recursos de cada stack (API, etapa, función, rol, permisos, registros y tabla), la configuración de las dos Lambdas (Python 3.12, 256 MB, 10 y 15 s, x86_64, variables de entorno), el tipo de API (HTTP), la tabla (clave `node_id`, modo bajo demanda, activa) y la retención de registros (7 días).
+
+### 4.11 Direcciones, y cómo se comunica el código con AWS para exponer
+
+#### 4.11.1 Las direcciones
+
+| | Dirección |
+|---|---|
+| **Demo del middleware (AWS)** | https://qotg90dhje.execute-api.us-east-2.amazonaws.com |
+| Documentación de la API de la demo | https://qotg90dhje.execute-api.us-east-2.amazonaws.com/docs |
+| **App final (AWS)** | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/registro-nodo |
+| **Demo en tu computador** | http://127.0.0.1:8000 (con `.\run-demo.cmd`) |
+
+> La demo está desplegada con `DemoMode=1` (botones de simulación visibles). Después de la exposición se borra con `.\.venv\Scripts\python.exe scripts\deploy_aws.py demo --delete --profile rfha --region us-east-2`, o se redespliega con `--demo-mode 0`.
+
+#### 4.11.2 Qué piezas se conectan, de la pantalla al código
+
+```
+ Tu navegador                 AWS (región Ohio, us-east-2)
+ ┌──────────────┐  HTTPS   ┌─────────────┐  invoca   ┌───────────────────────────┐
+ │ index.html   │─────────▶│ API Gateway │──────────▶│ Lambda "rfha-demo"        │
+ │ app.js       │◀─────────│ (HTTP API)  │◀──────────│ Python 3.12               │
+ └──────────────┘  JSON    └─────────────┘  JSON     │  Mangum → FastAPI → main.py│
+                                                     │  variables: JWT_SECRET,    │
+                                                     │             DEMO_MODE      │
+                                                     └─────────────┬─────────────┘
+                                                                   │ registros
+                                                            ┌──────▼───────┐
+                                                            │ CloudWatch   │
+                                                            └──────────────┘
+```
+
+**La demo no usa ninguna base de datos:** los 6 estudiantes ficticios viven dentro del código (`demo/students.py`) y viajan empaquetados con la Lambda. Por eso `demo/main.py` **no importa ninguna biblioteca de AWS**.
+
+#### 4.11.3 Cómo se comunica el código con AWS (solo tres puntos de contacto)
+
+| Punto de contacto | Dónde está | Qué hace |
+|---|---|---|
+| **1. La puerta de entrada** | Última línea de `demo/main.py`: `handler = Mangum(app, lifespan="off")`. En `demo/template.yaml`: `Handler: main.handler`. | AWS llama a `handler` con la petición convertida en un evento JSON. **Mangum** lo traduce a una petición normal y **FastAPI** la atiende como si estuviera en tu computador. |
+| **2. Los secretos y opciones** | `demo/main.py` lee `JWT_SECRET` y `DEMO_MODE` con `os.getenv`. En `demo/template.yaml`, el bloque `Environment`. | CloudFormation entrega los valores a la Lambda al crearla. El secreto nunca está en el código ni en GitHub (parámetro con `NoEcho`). |
+| **3. Los registros** | Todo lo que el programa imprime. | AWS lo manda solo a CloudWatch (`/aws/lambda/rfha-demo`, 7 días). |
+
+Todo lo demás (validar el token, comprobar que sea del estudiante, buscar el expediente) es **código Python normal** que no sabe que está en AWS. Por eso la misma demo corre igual en el computador (Plan A) y en AWS (Plan B).
+
+#### 4.11.4 El recorrido de una consulta, con lo que ve cada pieza
+
+Ejemplo: escena 1 (consulta exitosa). Pulsas **Consultar expediente** con el estudiante `20262678029` y un token válido.
+
+| # | Dónde | Qué ocurre |
+|---|---|---|
+| 1 | Navegador | `app.js` envía `GET /api/v1/federated/academic-history/20262678029` con el encabezado `X-Student-Consent-Token: <token>` por **HTTPS**. |
+| 2 | API Gateway | Termina el cifrado TLS, comprueba el límite de 20 peticiones por segundo, ve que la ruta coincide con `/{proxy+}` y despierta la Lambda con un evento JSON (formato 2.0) que contiene método, ruta, encabezados y cuerpo. |
+| 3 | Lambda (si estaba dormida) | Crea su entorno (arranque en frío, de 2 a 7 s) y carga `main.py`. Si estaba despierta, salta este paso (0,3 s en total). |
+| 4 | Mangum | Convierte el evento en una petición ASGI y se la pasa a FastAPI. |
+| 5 | FastAPI + `main.py` | El middleware revisa: ¿hay token?, ¿la firma y la vigencia son válidas con `JWT_SECRET`?, ¿el token pertenece al estudiante de la URL?, ¿existe el expediente? |
+| 6 | Mangum → API Gateway | La respuesta (código 200 y el JSON del expediente) vuelve como evento y API Gateway la devuelve al navegador. |
+| 7 | Navegador | `app.js` ilumina los cuatro controles y dibuja el expediente. |
+
+El paso 5 es **el middleware**; todo lo demás es el transporte de AWS que lo rodea.
+
+#### 4.11.5 Lo que hay que tener listo para exponer
+
+| Qué | Cómo se sabe que está listo |
+|---|---|
+| Sesión de AWS activa (solo si hay que redesplegar) | `aws sts get-caller-identity --profile rfha` devuelve la cuenta del proyecto. |
+| Demo desplegada con `DemoMode=1` | La pantalla muestra los botones **Token válido**, **Token expirado** y **Sin token**. |
+| Demo despierta | Abrir la dirección y hacer una consulta 5 minutos antes (evita el arranque en frío delante del público). |
+| Prueba de humo | `scripts\smoke_aws.py demo https://qotg90dhje.execute-api.us-east-2.amazonaws.com` termina en `TODO BIEN`. |
+| Plan de respaldo | La demo local (`.\run-demo.cmd`) abierta en otra pestaña. |
+| Al terminar | Borrar la demo o redesplegarla con `--demo-mode 0`. |
 
 ---
 

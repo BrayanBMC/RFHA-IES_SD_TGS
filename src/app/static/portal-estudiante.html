@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Portal del estudiante · RFHA-IES</title>
+  <meta name="description" content="El estudiante autoriza a una universidad a consultar su historial y puede revocar esa autorización.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script type="module" src="/static/portal-estudiante.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/registro-nodo" aria-label="RFHA-IES, inicio">
+        <img src="/static/favicon.svg" alt="" width="32" height="32">
+        <span>RFHA-IES</span>
+      </a>
+      <nav class="main-nav" aria-label="Secciones">
+        <a href="/registro-nodo">Registro</a>
+        <a href="/admin">Administración</a>
+        <a href="/panel-nodo">Panel del nodo</a>
+        <a href="/portal-estudiante" aria-current="page">Estudiante</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <section class="hero">
+      <p class="eyebrow">Portal del estudiante</p>
+      <h1>Tu consentimiento, bajo tu control</h1>
+      <p class="lead">Elige <strong>qué universidad</strong> puede consultar tu historial. La autorización dura <strong>24 horas</strong> y puedes <strong>revocarla</strong> cuando quieras.</p>
+    </section>
+
+    <section class="card" id="login-card" aria-labelledby="login-title">
+      <h2 id="login-title">Ingresar</h2>
+      <p class="error" id="login-error" role="alert" hidden></p>
+      <form id="login-form" novalidate>
+        <div class="field">
+          <label for="document_number">Número de documento</label>
+          <input id="document_number" type="text" inputmode="numeric" autocomplete="username" required aria-describedby="doc-hint">
+          <p class="hint" id="doc-hint">Solo números, entre 5 y 15 dígitos.</p>
+        </div>
+        <div class="field">
+          <label for="password">Clave</label>
+          <input id="password" type="password" autocomplete="current-password" required aria-describedby="pass-hint">
+          <p class="hint" id="pass-hint">La definió tu universidad al cargar tu historial.</p>
+        </div>
+        <button type="submit" class="btn primary" id="btn-login">Ingresar</button>
+      </form>
+    </section>
+
+    <div id="portal" hidden>
+      <div class="btn-row exit-row">
+        <button type="button" class="btn ghost" id="btn-logout">Salir</button>
+      </div>
+
+      <section class="card" aria-labelledby="new-title">
+        <h2 id="new-title">Autorizar a una universidad</h2>
+        <p class="error" id="new-error" role="alert" hidden></p>
+        <form id="token-form" novalidate>
+          <div class="field">
+            <label for="target">Universidad que consulta</label>
+            <select id="target" required></select>
+          </div>
+          <button type="submit" class="btn primary" id="btn-token">Generar autorización</button>
+        </form>
+
+        <div id="token-result" hidden>
+          <h3 id="token-result-title">Autorización creada</h3>
+          <p id="token-summary"></p>
+          <label for="token-value">Token (entrégalo solo a esa universidad)</label>
+          <textarea id="token-value" rows="5" readonly></textarea>
+          <div class="btn-row">
+            <button type="button" class="btn" id="btn-copy-token">Copiar token</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="list-title">
+        <h2 id="list-title">Tus autorizaciones</h2>
+        <p class="empty" id="empty-msg" hidden>Aún no has autorizado a ninguna universidad.</p>
+        <div class="table-wrap" id="table-wrap">
+          <table>
+            <caption class="sr-only">Tokens emitidos</caption>
+            <thead>
+              <tr><th scope="col">Universidad</th><th scope="col">Creado</th><th scope="col">Vence</th><th scope="col">Estado</th><th scope="col">Acción</th></tr>
+            </thead>
+            <tbody id="tokens-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Universidad Distrital Francisco José de Caldas · Sistemas Distribuidos y Teoría General de Sistemas.</p>
+      <p><a href="/docs">Documentación de la API (Swagger)</a></p>
+    </div>
+  </footer>
+
+  <p class="sr-only" id="sr-status" role="status" aria-live="polite"></p>
+</body>
+</html>

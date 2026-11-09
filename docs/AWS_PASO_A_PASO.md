@@ -2,6 +2,8 @@
 
 Para quien no conoce el código. Orden recomendado: el bloque 1 es la prioridad (demo del martes). Costo objetivo: USD 0.
 
+> **Nota de vigencia (noviembre de 2026).** Esta guía fue la primera versión. El despliegue real se hizo **sin SAM CLI**, con `scripts/deploy_aws.py`, en la región `us-east-2`. Lo vigente está en `docs/DEMO.md` (secciones 4.10 y 4.11: configuración real, protocolos y cómo se comunica el código con AWS) y en `docs/APP_FINAL.md` (app final: tres tablas, parámetros `JwtSecret` y `AdminKey`, desplegar, limpiar y borrar). Si algo de este archivo contradice esos dos, mandan esos dos.
+
 > **Aviso de costos.** Las cuentas nuevas desde julio de 2025 tienen un *plan Free* (hasta 6 meses o hasta gastar los créditos de USD 100-200). Elige el plan **Free** al registrarte. Lambda y DynamoDB tienen cuota gratuita permanente. API Gateway se descuenta de los créditos en cuentas nuevas. Ver `docs/BRECHAS.md` C1.
 
 ---

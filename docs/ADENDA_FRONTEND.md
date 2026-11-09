@@ -105,5 +105,6 @@ Navegador ──HTTPS──▶ API Gateway ──▶ Lambda (FastAPI + Mangum)
 |---|---|---|
 | RF-11, RF-12, RF-19 | Hecho en la demo | `demo/static/`, `docs/DEMO.md` |
 | RF-13 | Hecho en HU-01 | `src/app/static/registro-nodo.html`, `docs/historias/HU-01.md` |
-| RF-14 a RF-18 | Pendiente (HU-10) | `src/app/static/` |
+| RF-14, RF-15, RF-16 | Hecho en HU-02 a HU-05 (pantallas `/admin`, `/panel-nodo`, `/portal-estudiante`); el pulido y la revisión manual con lector de pantalla quedan para HU-10 | `src/app/static/`, `docs/historias/HU-02.md` a `HU-05.md` |
+| RF-17, RF-18 | Pendiente (HU-10) | `src/app/static/` |
 | RNF-F1 a RNF-F9 | Aplicados en la demo; se verifican en HU-10 | `docs/PROMPT-AGENTE-RFHA-IES.md`, sección 10 |

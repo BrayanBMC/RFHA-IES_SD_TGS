@@ -39,15 +39,16 @@ def find_aws() -> str:
     sys.exit("No se encontró el AWS CLI. Instálalo y abre una terminal nueva.")
 
 
-def read_secret() -> str:
-    secret = os.environ.get("JWT_SECRET")
+def read_secret(name: str = "JWT_SECRET", min_length: int = 32) -> str:
+    """Lee un secreto del entorno o de .env (que no se sube a git)."""
+    secret = os.environ.get(name)
     env_file = ROOT / ".env"
     if not secret and env_file.exists():
         for line in env_file.read_text(encoding="utf-8").splitlines():
-            if line.startswith("JWT_SECRET="):
+            if line.startswith(f"{name}="):
                 secret = line.split("=", 1)[1].strip()
-    if not secret or len(secret) < 32:
-        sys.exit("Falta JWT_SECRET (mínimo 32 caracteres) en el entorno o en .env.")
+    if not secret or len(secret) < min_length:
+        sys.exit(f"Falta {name} (mínimo {min_length} caracteres) en el entorno o en .env.")
     return secret
 
 
@@ -150,6 +151,8 @@ def main() -> int:
     overrides = []
     if args.target == "demo":
         overrides = [f"JwtSecret={read_secret()}", f"DemoMode={args.demo_mode}"]
+    else:
+        overrides = [f"JwtSecret={read_secret()}", f"AdminKey={read_secret('ADMIN_KEY', 16)}"]
 
     print(f"Desplegando {info['stack']} (2 a 4 minutos) ...")
     cmd = [

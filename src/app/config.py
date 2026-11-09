@@ -19,3 +19,11 @@ load_dotenv()
 
 REPOSITORY_BACKEND = os.getenv("REPOSITORY_BACKEND", "memory")  # memory | dynamodb
 NODES_TABLE = os.getenv("NODES_TABLE", "NodesTable")
+RECORDS_TABLE = os.getenv("RECORDS_TABLE", "RecordsTable")
+TOKENS_TABLE = os.getenv("TOKENS_TABLE", "TokensTable")
+
+# Clave del administrador general (HU-02). Si está vacía, ninguna petición de administración es válida.
+ADMIN_KEY = os.getenv("ADMIN_KEY", "")
+# Secreto para firmar los tokens del estudiante (HU-04). El valor por defecto solo sirve en desarrollo local.
+JWT_SECRET = os.getenv("JWT_SECRET", "secreto-solo-para-desarrollo-local-cambiar-0123456789")
+TOKEN_TTL_SECONDS = 24 * 60 * 60  # 24 horas

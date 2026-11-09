@@ -2,7 +2,17 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: RFHA-IES - App final (stack rfha-app). Lambda + HTTP API + DynamoDB
 
-# Antes de `sam build`, ejecutar: python scripts/prepare_app_package.py  (arma build/app)
+# Se despliega con: python scripts/deploy_aws.py app   (arma build/app y crea el stack)
+
+Parameters:
+  JwtSecret:                           # firma de los tokens del estudiante (no se guarda en git)
+    Type: String
+    NoEcho: true
+    MinLength: 32
+  AdminKey:                            # clave del administrador general (no se guarda en git)
+    Type: String
+    NoEcho: true
+    MinLength: 16
 
 Resources:
   AppApi:                              # puerta de entrada pública
@@ -12,7 +22,7 @@ Resources:
         ThrottlingBurstLimit: 50
         ThrottlingRateLimit: 20
 
-  NodesTable:                          # catálogo de nodos (HU-01)
+  NodesTable:                          # catálogo de nodos y hash de su API Key (HU-01, HU-02)
     Type: AWS::DynamoDB::Table
     Properties:
       BillingMode: PAY_PER_REQUEST
@@ -23,6 +33,31 @@ Resources:
         - AttributeName: node_id
           KeyType: HASH
 
+  RecordsTable:                        # historiales sincronizados por los nodos (HU-03)
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: record_key
+          AttributeType: S
+      KeySchema:
+        - AttributeName: record_key
+          KeyType: HASH
+
+  TokensTable:                         # tokens emitidos y lista negra (HU-04, HU-05)
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: jti
+          AttributeType: S
+      KeySchema:
+        - AttributeName: jti
+          KeyType: HASH
+      TimeToLiveSpecification:         # DynamoDB borra el registro cuando el token vence
+        AttributeName: ttl
+        Enabled: true
+
   AppFunction:                         # el middleware de la app final
     Type: AWS::Serverless::Function
     Properties:
@@ -30,15 +65,23 @@ Resources:
       CodeUri: build/app
       Handler: src.app.main.handler
       Runtime: python3.12
-      MemorySize: 256
-      Timeout: 15
+      MemorySize: 1024                 # más memoria = más CPU: PBKDF2 de hasta 100 estudiantes por carga
+      Timeout: 29                      # tope de API Gateway: 30 s
       Environment:
         Variables:
           REPOSITORY_BACKEND: dynamodb
           NODES_TABLE: !Ref NodesTable
+          RECORDS_TABLE: !Ref RecordsTable
+          TOKENS_TABLE: !Ref TokensTable
+          JWT_SECRET: !Ref JwtSecret
+          ADMIN_KEY: !Ref AdminKey
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref NodesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RecordsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TokensTable
       Events:
         Root:
           Type: HttpApi
@@ -66,3 +109,9 @@ Outputs:
   NodesTableName:
     Description: Tabla DynamoDB de nodos
     Value: !Ref NodesTable
+  RecordsTableName:
+    Description: Tabla DynamoDB de historiales
+    Value: !Ref RecordsTable
+  TokensTableName:
+    Description: Tabla DynamoDB de tokens y lista negra
+    Value: !Ref TokensTable

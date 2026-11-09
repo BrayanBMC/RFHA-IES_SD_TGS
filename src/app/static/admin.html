@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administración de la red · RFHA-IES</title>
+  <meta name="description" content="El administrador general revisa solicitudes de nodos y emite sus claves de API.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script type="module" src="/static/admin.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/registro-nodo" aria-label="RFHA-IES, inicio">
+        <img src="/static/favicon.svg" alt="" width="32" height="32">
+        <span>RFHA-IES</span>
+      </a>
+      <nav class="main-nav" aria-label="Secciones">
+        <a href="/registro-nodo">Registro</a>
+        <a href="/admin" aria-current="page">Administración</a>
+        <a href="/panel-nodo">Panel del nodo</a>
+        <a href="/portal-estudiante">Estudiante</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <section class="hero">
+      <p class="eyebrow">Administrador general</p>
+      <h1>Solicitudes de nodos</h1>
+      <p class="lead">Revisa las universidades que pidieron unirse y <strong>apruébalas</strong>. Al aprobar se emite su clave de API, que se muestra <strong>una sola vez</strong>.</p>
+    </section>
+
+    <section class="card" aria-labelledby="key-title">
+      <h2 id="key-title">Tu clave de administrador</h2>
+      <p class="error" id="list-error" role="alert" hidden></p>
+      <form id="admin-form" novalidate>
+        <div class="field">
+          <label for="admin-key">Clave de administrador</label>
+          <input id="admin-key" type="password" autocomplete="off" required aria-describedby="admin-key-hint">
+          <p class="hint" id="admin-key-hint">Es la variable ADMIN_KEY del servidor. Solo se guarda en esta página mientras está abierta.</p>
+        </div>
+        <div class="field">
+          <label for="status-filter">Mostrar</label>
+          <select id="status-filter">
+            <option value="PENDIENTE_APROBACION">Solo pendientes de aprobación</option>
+            <option value="ACTIVO">Solo nodos activos</option>
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <button type="submit" class="btn primary" id="btn-load">Cargar solicitudes</button>
+      </form>
+    </section>
+
+    <section class="card result" id="key-card" aria-labelledby="key-result-title" hidden>
+      <h2 id="key-result-title">Nodo aprobado</h2>
+      <p id="key-message"></p>
+      <dl class="summary">
+        <div><dt>Código del nodo</dt><dd><code id="key-node" class="big"></code></dd></div>
+        <div><dt>API Key (se muestra una sola vez)</dt><dd><code id="key-value" class="big"></code></dd></div>
+      </dl>
+      <p class="hint">Entrégala a la universidad por un canal seguro. En la base de datos solo queda su huella SHA-256, por eso no se puede recuperar.</p>
+      <div class="btn-row">
+        <button type="button" class="btn" id="btn-copy-key">Copiar API Key</button>
+        <button type="button" class="btn ghost" id="btn-hide-key">Ocultar</button>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="list-title" id="list-card" hidden>
+      <h2 id="list-title">Nodos</h2>
+      <p class="empty" id="empty-msg" hidden>No hay nodos con ese estado.</p>
+      <div class="table-wrap" id="table-wrap">
+        <table>
+          <caption class="sr-only">Lista de nodos</caption>
+          <thead>
+            <tr><th scope="col">Código</th><th scope="col">Institución</th><th scope="col">NIT</th><th scope="col">Dominio</th><th scope="col">Estado</th><th scope="col">Acción</th></tr>
+          </thead>
+          <tbody id="nodes-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Universidad Distrital Francisco José de Caldas · Sistemas Distribuidos y Teoría General de Sistemas.</p>
+      <p><a href="/docs">Documentación de la API (Swagger)</a></p>
+    </div>
+  </footer>
+
+  <p class="sr-only" id="sr-status" role="status" aria-live="polite"></p>
+</body>
+</html>

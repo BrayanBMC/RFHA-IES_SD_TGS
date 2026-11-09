@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel del nodo · RFHA-IES</title>
+  <meta name="description" content="Una universidad activa carga o actualiza los historiales académicos de sus estudiantes.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script type="module" src="/static/panel-nodo.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/registro-nodo" aria-label="RFHA-IES, inicio">
+        <img src="/static/favicon.svg" alt="" width="32" height="32">
+        <span>RFHA-IES</span>
+      </a>
+      <nav class="main-nav" aria-label="Secciones">
+        <a href="/registro-nodo">Registro</a>
+        <a href="/admin">Administración</a>
+        <a href="/panel-nodo" aria-current="page">Panel del nodo</a>
+        <a href="/portal-estudiante">Estudiante</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <section class="hero">
+      <p class="eyebrow">Universidad (nodo activo)</p>
+      <h1>Carga de historiales</h1>
+      <p class="lead">Sube los historiales de tus estudiantes a la red. Si un estudiante ya existe, <strong>se reemplaza</strong>. La clave que escribas para cada estudiante le sirve para entrar al portal.</p>
+    </section>
+
+    <div class="grid">
+      <section class="card" aria-labelledby="sync-title">
+        <h2 id="sync-title">Sincronizar</h2>
+        <p class="error" id="sync-error" role="alert" hidden></p>
+        <form id="sync-form" novalidate>
+          <div class="field">
+            <label for="api-key">API Key del nodo</label>
+            <input id="api-key" type="password" autocomplete="off" required aria-describedby="api-key-hint">
+            <p class="hint" id="api-key-hint">La que entregó el administrador al aprobar el nodo. Empieza por «rfha_».</p>
+          </div>
+          <div class="field">
+            <label for="records-json">Historiales (JSON)</label>
+            <textarea id="records-json" rows="14" spellcheck="false" required aria-describedby="records-hint"></textarea>
+            <p class="hint" id="records-hint">Hasta 100 estudiantes por envío. Pulsa «Cargar ejemplo» para ver el formato.</p>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn" id="btn-example">Cargar ejemplo</button>
+            <button type="submit" class="btn primary" id="btn-sync">Sincronizar historiales</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card" aria-labelledby="how-title">
+        <h2 id="how-title">Qué pasa al sincronizar</h2>
+        <ol class="steps">
+          <li><strong>Identificación.</strong> La API Key dice qué universidad eres; no puedes escribir datos de otra.</li>
+          <li><strong>Validación.</strong> Se revisan cédula, código, notas (0 a 5) y semestres.</li>
+          <li><strong>Firma.</strong> Cada historial recibe una huella SHA-256 para detectar alteraciones.</li>
+          <li><strong>Clave del estudiante.</strong> Se guarda solo su huella (PBKDF2), nunca la clave.</li>
+        </ol>
+      </section>
+    </div>
+
+    <section class="card result" id="sync-result" aria-labelledby="sync-result-title" hidden>
+      <h2 id="sync-result-title">Sincronización terminada</h2>
+      <dl class="summary">
+        <div><dt>Nodo</dt><dd><code id="out-node"></code></dd></div>
+        <div><dt>Recibidos</dt><dd id="out-received"></dd></div>
+        <div><dt>Nuevos</dt><dd id="out-created"></dd></div>
+        <div><dt>Actualizados</dt><dd id="out-updated"></dd></div>
+      </dl>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Universidad Distrital Francisco José de Caldas · Sistemas Distribuidos y Teoría General de Sistemas.</p>
+      <p><a href="/docs">Documentación de la API (Swagger)</a></p>
+    </div>
+  </footer>
+
+  <p class="sr-only" id="sr-status" role="status" aria-live="polite"></p>
+</body>
+</html>

@@ -11,3 +11,6 @@ boto3==1.35.90
 pytest==8.3.4
 httpx==0.28.1
 moto[dynamodb]==5.0.25
+
+# Reportes PDF (HU-Admin-Reports)
+reportlab>=4.2.5

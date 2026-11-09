@@ -27,15 +27,17 @@ Guía de la **aplicación final** (la red federada completa), separada de la dem
 
 | Pantalla | Quién la usa | Historia | Dirección |
 |---|---|---|---|
-| **Inicio (menú)** | Todos | HU-10 (adelanto) | `/` |
+| **Inicio (menú)** | Todos | HU-10 | `/` |
 | **Registro** | Representante de una universidad | HU-01 | `/registro-nodo` |
 | **Administración** | Administrador general de la red | HU-02 | `/admin` |
 | **Panel del nodo** | Universidad ya aprobada | HU-03 | `/panel-nodo` |
 | **Portal del estudiante** | Estudiante | HU-04 y HU-05 | `/portal-estudiante` |
+| **Consulta federada** | Universidad receptora / consultante | HU-06, HU-07 y HU-08 | `/consulta` |
+| **Auditoría inmutable** | Administrador y nodos federados | HU-09 | `/auditoria` |
 
-**Cómo se relaciona con la demo.** La demo (`docs/DEMO.md`) muestra cómo el middleware **valida un permiso** al consultar un historial. La app final construye lo que viene **antes**: quién es parte de la red, de dónde salen los historiales y cómo nace y muere el permiso. La consulta federada completa llega con HU-06 y HU-07, que reutilizarán el token creado aquí.
+**Cómo se relaciona con la demo.** La demo (`docs/DEMO.md`) muestra cómo el middleware **valida un permiso** al consultar un historial. La app final construye la solución completa de punta a punta: quién es parte de la red, cómo se cargan los historiales firmados, cómo el alumno emite/revoca el token de consentimiento, la consulta federada inter-institucional con bloqueo de consultas no autorizadas, la conmutación automática por fallo a réplica (failover) y la bitácora inmutable de auditoría.
 
-**Lo que ya funciona:** HU-01 a HU-05. **Lo que falta:** consulta federada (HU-06), bloqueo (HU-07), réplica (HU-08), auditoría (HU-09) y pulido de la interfaz (HU-10).
+**Historias cubiertas:** Todas las historias implementadas de la **HU-01 a la HU-10**.
 
 ---
 
@@ -137,7 +139,7 @@ No llama a S3, Cognito, SES, KMS propio ni Secrets Manager. Menos servicios = me
 
 ---
 
-## 4. Los datos: tres tablas en DynamoDB
+## 4. Los datos: cinco tablas en DynamoDB
 
 Todas en modo **bajo demanda** (se paga por uso real, sin capacidad reservada) y con el cifrado en reposo predeterminado de DynamoDB.
 
@@ -145,7 +147,9 @@ Todas en modo **bajo demanda** (se paga por uso real, sin capacidad reservada) y
 |---|---|---|---|
 | **NodesTable** | `node_id` (ej. `IES-1A2B3C4D`) | NIT, nombre, dominio, correo, estado (`PENDIENTE_APROBACION` o `ACTIVO`), fecha, y tras aprobar: `api_key_hash` y `approved_at`. | HU-01, HU-02 |
 | **RecordsTable** | `record_key` = `node_id#student_id` | Cédula, nombre, programa, estado académico, asignaturas con su estado, `password_hash`, `digital_signature_hash` y fecha de sincronización. | HU-03 |
-| **TokensTable** | `jti` (32 caracteres) | Cédula, universidad destino (`aud`), nodo de origen, fechas, `revoked` y `ttl`. | HU-04, HU-05 |
+| **ReplicasTable** | `record_key` = `node_id#student_id` | Copia espejo de historiales para tolerancia a fallos y conmutación automática si el nodo primario no responde. | HU-08 |
+| **TokensTable** | `jti` (32 caracteres) | Cédula, universidad destino (`aud`), nodo de origen, fechas, `revoked`, intentos fallidos (`LOCK#<cédula>`) y `ttl`. | HU-04, HU-05 |
+| **AuditLogsTable** | `log_id` (`AUDIT-...`) | Bitácora inmutable de consultas federadas: timestamp, nodo consultante, estudiante, nodo origen, outcome (`SUCCESS`, `DENIED`, `ERROR`), fuente (`Primary`/`Replica`) e IP cliente. | HU-09 |
 
 **Ejemplo de un nodo aprobado** (lo que realmente queda; la API Key **no** aparece):
 ```json
@@ -202,6 +206,25 @@ El estudiante entra con cédula y clave, elige la universidad y genera un **toke
 ### HU-05. Revocación (`/portal-estudiante`)
 El estudiante ve sus autorizaciones (activa, revocada o expirada) y revoca las que quiera. Desde ese momento el token ya no es válido.
 **API:** `POST /api/v1/student/tokens/list` y `POST /api/v1/student/tokens/{jti}/revoke` → `200`, `401`, `404`.
+
+### HU-06. Consulta federada de historial académico (`/consulta`)
+Una universidad receptora consulta el historial de un estudiante en su universidad de origen utilizando su propia API Key y el token de consentimiento entregado por el estudiante. El sistema entrega asignaturas, notas, cálculo de promedio ponderado (GPA) y créditos completados, garantizando la confidencialidad entre nodos.
+**API:** `GET /api/v1/federated/academic-history/{student_id}` → `200` con JSON de notas y cabecera `X-Data-Source: Primary`.
+
+### HU-07. Bloqueo de consultas no autorizadas (`/consulta`)
+El sistema restringe el acceso ante cualquier intento indebido: token inexistente, token expirado, token emitido para otra universidad (`aud` incongruente), token revocado por el estudiante o token que no coincide con el `student_id` consultado. Retorna HTTP 403 y registra el intento en auditoría.
+**API:** `GET /api/v1/federated/academic-history/{student_id}` → `403 Forbidden` con detalle del motivo.
+
+### HU-08. Tolerancia a fallos y conmutación automática (Failover)
+Si el nodo universitario donde reposa el historial primario experimenta una caída o degradación de red, el middleware detecta la indisponibilidad y conmuta automáticamente a la réplica autorizada en `ReplicasTable` sin interrumpir la operación del cliente ni requerir reintentos manuales.
+**API:** `GET /api/v1/federated/academic-history/{student_id}` → `200 OK` con cabecera `X-Data-Source: Replica`.
+
+### HU-09. Trazabilidad e inmutabilidad de la bitácora de auditoría (`/auditoria`)
+Cada intento de consulta (exitoso, denegado o con error de integridad) se registra de forma obligatoria e inmutable en `AuditLogsTable` con timestamp UTC, nodo consultante, estudiante objetivo, nodo emisor, motivo, fuente de datos utilizada (`Primary`/`Replica`) y dirección IP del cliente. La bitácora cuenta con aislamiento: el administrador general tiene visibilidad total y cada universidad únicamente visualiza sus transacciones.
+**API:** `GET /api/v1/audit/logs` → `200 OK` con lista ordenada cronológicamente.
+
+### HU-10. Experiencia de usuario y navegación unificada (`/`)
+Interfaz web completa, responsiva y accesible servida directamente desde AWS Lambda (`inicio.html`, `registro-nodo.html`, `admin.html`, `panel-nodo.html`, `portal-estudiante.html`, `consulta.html`, `auditoria.html`). Cuenta con menús intuitivos, diseño consistente, manejo de errores descriptivo y persistencia de credenciales en memoria para evitar filtraciones.
 
 ---
 
@@ -433,4 +456,53 @@ Ambos corren **el mismo código**; lo único que cambia es `REPOSITORY_BACKEND` 
 
 **¿Cuánto cuesta?** En el plan Free de AWS, nada: Lambda, API Gateway y DynamoDB bajo demanda consumen una fracción de los créditos con este volumen. Se vigila en **Billing**.
 
-**¿Dónde está la consulta del historial?** En HU-06 y HU-07. El mecanismo del permiso ya está completo aquí (`src/app/tokens.py::verify_token`) y la demo (`docs/DEMO.md`) muestra cómo se comporta el middleware al consultar.
+**¿Dónde está la consulta del historial?** Está completamente implementada en **HU-06 y HU-07**, con pantalla interactiva en `/consulta`, tolerancia a fallos en **HU-08** y registro en la bitácora de auditoría en **HU-09** (`/auditoria`).
+
+---
+
+## 12. Viabilidad del Módulo de Reportes PDF y Estadísticas
+
+### 12.1 Diagnóstico de Viabilidad
+Implementar un módulo de reportes ejecutivos en PDF para el administrador general es **completamente viable técnica y económicamente** dentro del stack actual.
+
+### 12.2 Métricas que generaría el reporte
+1. **Métricas de Red y Nodos:** Total de nodos inscritos, porcentaje de nodos activos vs pendientes de aprobación.
+2. **Volumen Transaccional:** Consultas exitosas (`SUCCESS`) vs bloqueadas por falta de autorización (`DENIED`) vs errores de integridad (`ERROR`).
+3. **Métricas de Resiliencia (HU-08):** Porcentaje de consultas servidas por el nodo Primario vs servidas por la Réplica de contingencia.
+4. **Ranking de Uso Inter-institucional:** Universidades con mayor tráfico de consultas y mayor tráfico de estudiantes consultados.
+5. **Métricas de Soberanía del Estudiante:** Total de autorizaciones emitidas, porcentaje de tokens revocados de forma proactiva por el alumno.
+
+### 12.3 Librería recomendada para AWS Lambda
+- **ReportLab (`reportlab`):** Librería Python pura, ultra rápida (200-400 ms de generación), pesa solo ~6 MB (cabe holgadamente en el límite de Lambda de 250 MB), no requiere dependencias binarias externas (como sí lo harían herramientas tipo WeasyPrint) y permite crear tablas con formato corporativo y encabezados limpios.
+- **Ruta propuesta:** `GET /api/v1/admin/reports/network-summary` con cabecera `X-Admin-Key`. La Lambda recopila los registros de `AuditLogsTable` y `NodesTable`, genera el PDF en memoria con `io.BytesIO()` y responde con cabecera `Content-Type: application/pdf; filename=reporte-red.pdf`.
+
+---
+
+## 13. Cómo conectar varias máquinas y demostrar que es un Sistema Distribuido
+
+Para sustentar ante los profesores de **Sistemas Distribuidos** y **Teoría General de Sistemas**, se debe evidenciar que el sistema no es un monolito local, sino una red descentralizada tolerante a fallos:
+
+### 13.1 Configuración de la Demostración
+Se conectan **3 o 4 dispositivos simultáneamente** (computadores portátiles o smartphones) a la URL pública de AWS (`https://<api-id>.execute-api.sa-east-1.amazonaws.com/`):
+
+- **Dispositivo 1 (Admin Central):** En `/admin` y `/auditoria` monitoreando en vivo.
+- **Dispositivo 2 (Universidad A):** En `/panel-nodo` autenticado con su propia API Key institucional.
+- **Dispositivo 3 (Universidad B):** En `/consulta` con su API Key receptora.
+- **Dispositivo 4 (Estudiante):** En `/portal-estudiante` en un teléfono móvil.
+
+### 13.2 Pruebas de Demostración en Vivo
+1. **Concurrencia Real:**
+   - La Universidad A carga un lote de asignaturas al mismo tiempo que la Universidad B realiza consultas.
+   - En **AWS CloudWatch Logs** (`/aws/lambda/rfha-app`), se aprecian múltiples invocaciones con distintos `RequestId` ejecutándose en el mismo segundo exacto, evidenciando escalado horizontal y procesamiento concurrente.
+2. **Trazabilidad de IPs Independientes:**
+   - En la pantalla de auditoría (`/auditoria`), el administrador muestra la columna **IP Cliente**: cada transacción refleja una IP pública diferente según la red o dispositivo que la originó.
+3. **Failover en Vivo (HU-08):**
+   - Se simula la caída de la Universidad A activando la cabecera o variable de nodo caído.
+   - La Universidad B consulta de nuevo: la petición **no falla**. Retorna el historial inmediatamente con `X-Data-Source: Replica`. Se demuestra la propiedad de **Disponibilidad** y **Tolerancia a Particiones**.
+4. **Revocación Distribuida Instantánea (HU-05/HU-07):**
+   - El estudiante revoca el permiso desde su teléfono.
+   - En el mismo instante, la Universidad B intenta consultar de nuevo y el sistema rechaza la petición con **HTTP 403 (Token revocado)**, probando sincronización y consistencia de estado inmediata sin latencias de propagación.
+
+---
+
+> Para un análisis exhaustivo de cada módulo de código, diagramas de clases y flujos detallados, consulta también: [`docs/ARQUITECTURA_Y_MODULOS.md`](file:///c:/Users/Usuario/Downloads/Proyectos_Programacion/RFHA-IES_SD_TGS/docs/ARQUITECTURA_Y_MODULOS.md).

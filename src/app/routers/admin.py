@@ -2,6 +2,7 @@ import re
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 
 from src.app.models import (
     ACTIVE_STATUS,
@@ -10,7 +11,13 @@ from src.app.models import (
     NodeListResponse,
     NodeSummary,
 )
-from src.app.repositories import NodeRepository, get_node_repository
+from src.app.reports import generate_network_report
+from src.app.repositories import (
+    AuditRepository,
+    NodeRepository,
+    get_audit_repository,
+    get_node_repository,
+)
 from src.app.security import hash_api_key, new_api_key, require_admin
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Administrador general"], dependencies=[Depends(require_admin)])
@@ -49,4 +56,27 @@ def approve_node(node_id: str, nodes: NodeRepository = Depends(get_node_reposito
         status=ACTIVE_STATUS,
         api_key=api_key,
         message="Nodo aprobado. Entrega esta API Key a la universidad: no se puede volver a consultar.",
+    )
+
+
+@router.get("/reports/network-summary")
+def download_network_report(
+    nodes: NodeRepository = Depends(get_node_repository),
+    audits: AuditRepository = Depends(get_audit_repository),
+) -> Response:
+    """HU-Admin-Reports: descarga el reporte ejecutivo de la red en formato PDF.
+
+    Solo accesible con X-Admin-Key válida (protegido por require_admin en el router).
+    """
+    all_nodes = nodes.list_nodes()
+    all_logs = audits.list_logs(limit=200)
+    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    pdf_bytes = generate_network_report(all_nodes, all_logs, generated_at)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=\"reporte-rfha-{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf\"",
+            "Cache-Control": "no-store",
+        },
     )

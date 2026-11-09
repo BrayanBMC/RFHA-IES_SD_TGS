@@ -26,6 +26,7 @@ PAGES = {
     "/portal-estudiante": "portal-estudiante.html",  # HU-04 y HU-05
     "/consulta": "consulta.html",  # HU-06, HU-07 y HU-08
     "/auditoria": "auditoria.html",  # HU-09
+    "/reportes": "reportes.html",   # HU-Admin-Reports
 }
 
 app = FastAPI(

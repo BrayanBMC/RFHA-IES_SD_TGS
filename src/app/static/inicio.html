@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RFHA-IES · Red Federada de Historiales Académicos</title>
+  <meta name="description" content="Red que conecta universidades para consultar historiales académicos solo con el permiso del estudiante.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/" aria-label="RFHA-IES, inicio">
+        <img src="/static/favicon.svg" alt="" width="32" height="32">
+        <span>RFHA-IES</span>
+      </a>
+      <nav class="main-nav" aria-label="Secciones">
+        <a href="/" aria-current="page">Inicio</a>
+        <a href="/registro-nodo">Registro</a>
+        <a href="/admin">Administración</a>
+        <a href="/panel-nodo">Panel del nodo</a>
+        <a href="/portal-estudiante">Estudiante</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <section class="hero">
+      <p class="eyebrow">Red Federada de Historiales Académicos</p>
+      <h1>Tu historial académico, en cualquier universidad, con tu permiso</h1>
+      <p class="lead">RFHA-IES conecta a las universidades en una red. Un funcionario puede consultar en segundos el historial de un estudiante de <strong>otra</strong> universidad, pero <strong>solo si el estudiante lo autoriza</strong>. Los datos se quedan en la universidad de origen.</p>
+    </section>
+
+    <section class="card" aria-labelledby="how-title">
+      <h2 id="how-title">Cómo funciona</h2>
+      <ol class="steps">
+        <li><strong>La universidad se registra</strong> y un administrador de la red la aprueba. Recibe una clave de API.</li>
+        <li><strong>La universidad carga los historiales</strong> de sus estudiantes con esa clave.</li>
+        <li><strong>El estudiante autoriza</strong> a una universidad concreta durante 24 horas y puede <strong>revocar</strong> el permiso cuando quiera.</li>
+        <li><strong>La universidad autorizada consulta</strong> el historial con el permiso del estudiante (próximas historias).</li>
+      </ol>
+    </section>
+
+    <h2 class="menu-title" id="menu-title">¿A qué módulo quieres ir?</h2>
+    <nav class="grid modules" aria-labelledby="menu-title">
+      <a class="card module" href="/registro-nodo">
+        <span class="eyebrow">Universidades</span>
+        <strong>Registro de universidad</strong>
+        <span>Solicita que tu institución se una a la red como nodo.</span>
+      </a>
+      <a class="card module" href="/admin">
+        <span class="eyebrow">Administrador de la red</span>
+        <strong>Administración</strong>
+        <span>Revisa solicitudes y aprueba nodos. Requiere la clave de administrador.</span>
+      </a>
+      <a class="card module" href="/panel-nodo">
+        <span class="eyebrow">Universidades aprobadas</span>
+        <strong>Panel del nodo</strong>
+        <span>Carga y actualiza los historiales de tus estudiantes. Requiere la API Key del nodo.</span>
+      </a>
+      <a class="card module" href="/portal-estudiante">
+        <span class="eyebrow">Estudiantes</span>
+        <strong>Portal del estudiante</strong>
+        <span>Autoriza a una universidad a ver tu historial, o revoca una autorización.</span>
+      </a>
+    </nav>
+
+    <section class="card" aria-labelledby="safe-title">
+      <h2 id="safe-title">Tus datos están protegidos</h2>
+      <ul class="steps">
+        <li>Sin tu autorización, ninguna universidad ve tu historial.</li>
+        <li>Las claves nunca se guardan en claro: solo su huella cifrada.</li>
+        <li>Tras 5 intentos fallidos con la misma cédula, el acceso se bloquea 15 minutos.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Universidad Distrital Francisco José de Caldas · Sistemas Distribuidos y Teoría General de Sistemas.</p>
+      <p><a href="/docs">Documentación de la API (Swagger)</a></p>
+    </div>
+  </footer>
+</body>
+</html>

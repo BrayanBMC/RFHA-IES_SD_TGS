@@ -34,15 +34,45 @@ def _iso(epoch) -> str:
     return datetime.fromtimestamp(int(epoch), tz=timezone.utc).isoformat()
 
 
-def authenticate_student(credentials: StudentCredentials, records: RecordRepository) -> dict:
-    """Cédula + clave sembrada por el nodo (B1). El mensaje de error es el mismo si falla la cédula o la clave."""
+MAX_ATTEMPTS = 5  # intentos fallidos por cédula antes de bloquear
+LOCK_SECONDS = 15 * 60
+LOCK_PREFIX = "LOCK#"  # el contador vive en TokensTable (clave "LOCK#<cédula>"): sin tablas nuevas
+
+
+def authenticate_student(credentials: StudentCredentials, records: RecordRepository, tokens: TokenRepository) -> dict:
+    """Cédula + clave sembrada por el nodo (B1), con un máximo de 5 intentos fallidos por cédula.
+
+    Al quinto fallo la cédula queda bloqueada 15 minutos (429). El contador cuenta igual exista o no la cédula,
+    así que no revela qué cédulas están registradas. Un ingreso correcto reinicia el contador.
+    """
+    key = LOCK_PREFIX + credentials.document_number
+    now = int(time.time())
+    state = tokens.get(key) or {}
+    if int(state.get("locked_until", 0)) > now:
+        minutes = (int(state["locked_until"]) - now + 59) // 60
+        raise HTTPException(status_code=429, detail=f"Demasiados intentos fallidos. Espera {minutes} min e inténtalo de nuevo.")
+    failures = int(state.get("failures", 0)) if int(state.get("ttl", 0)) > now else 0
+
     found = records.find_by_document(credentials.document_number)
     for record in found:
         if verify_password(credentials.password, record.get("password_hash")):
+            if failures:
+                tokens.put({"jti": key, "failures": 0, "locked_until": 0, "ttl": now + LOCK_SECONDS})
             return record
     if not found:
         verify_password(credentials.password, None)  # mismo costo de cálculo que una cédula existente
-    raise HTTPException(status_code=401, detail="Cédula o clave incorrecta.")
+
+    failures += 1
+    locked = failures >= MAX_ATTEMPTS
+    tokens.put(
+        {"jti": key, "failures": failures, "locked_until": now + LOCK_SECONDS if locked else 0, "ttl": now + LOCK_SECONDS}
+    )
+    if locked:
+        raise HTTPException(status_code=429, detail="Demasiados intentos fallidos. La cédula queda bloqueada 15 minutos.")
+    left = MAX_ATTEMPTS - failures
+    raise HTTPException(
+        status_code=401, detail=f"Cédula o clave incorrecta. Te quedan {left} intento{'s' if left != 1 else ''}."
+    )
 
 
 @router.post("/auth-token", response_model=TokenResponse, status_code=201)
@@ -53,7 +83,7 @@ def create_auth_token(
     tokens: TokenRepository = Depends(get_token_repository),
 ) -> TokenResponse:
     """HU-04: el estudiante se autentica y autoriza a UNA universidad destino durante 24 horas."""
-    student = authenticate_student(body, records)
+    student = authenticate_student(body, records, tokens)
     target = nodes.get_node(body.target_node_id)
     if target is None or target["status"] != ACTIVE_STATUS:
         raise HTTPException(status_code=404, detail="La universidad destino no existe o no está activa en la red.")
@@ -76,7 +106,7 @@ def list_tokens(
     tokens: TokenRepository = Depends(get_token_repository),
 ) -> TokenListResponse:
     """HU-05: los tokens del estudiante con su estado. Es POST para no poner la clave en la dirección."""
-    authenticate_student(body, records)
+    authenticate_student(body, records, tokens)
     now = time.time()
     result = []
     for item in tokens.list_by_document(body.document_number):
@@ -108,7 +138,7 @@ def revoke_token(
     tokens: TokenRepository = Depends(get_token_repository),
 ) -> RevokeResponse:
     """HU-05: revoca el consentimiento. El jti queda en la lista negra y el token deja de servir al instante."""
-    authenticate_student(body, records)
+    authenticate_student(body, records, tokens)
     item = tokens.get(jti) if re.fullmatch(JTI_PATTERN, jti) else None
     if item is None or item["document_number"] != body.document_number:
         raise HTTPException(status_code=404, detail="Token no encontrado.")  # igual si es de otra persona

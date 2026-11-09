@@ -16,6 +16,7 @@ Sistema distribuido y descentralizado que conecta a las universidades en una red
 | App final: portal del estudiante (HU-04 y HU-05) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/portal-estudiante |
 | App final: consulta federada (HU-06 a HU-08) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/consulta |
 | App final: bitácora de auditoría inmutable (HU-09) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/auditoria |
+| App final: reportes ejecutivos PDF | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/reportes |
 
 - La primera visita puede tardar unos segundos (arranque en frío de AWS Lambda); después responde en menos de un segundo.
 - Todos los datos son **ficticios**. La demo está en modo demostración (botones que simulan al estudiante) y se apagará después de la exposición.

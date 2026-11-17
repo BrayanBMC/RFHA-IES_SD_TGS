@@ -1350,3 +1350,371 @@ A continuación se analizan 7 objeciones severas que un evaluador académico pod
 | **5** | *"El failover es reactivo y simulado; no hay servidores físicos corriendo en distintos países."* | **Respuesta:** En sistemas serverless de nube moderna, la tolerancia a fallos física está delegada en la infraestructura multi-zona de AWS (DynamoDB replica automáticamente en 3 Zonas de Disponibilidad físicas independientes con tolerancia a inundaciones o fallas eléctricas en un centro de datos). A nivel de aplicación, el failover implementado en `src/app/routers/federated.py` (L.100-114) demuestra conmutación transparente de lectura: si `RecordsTable` no responde, el sistema lee de `ReplicasTable` y lo evidencia mediante la cabecera HTTP `X-Data-Source: Replica`. |
 | **6** | *"Si la región de AWS donde está desplegada la Lambda cae, todo el sistema muere (SPOF)."* | **Reconocimiento y mitigación:** Se reconoce con honestidad técnica que un despliegue en una sola región (`us-east-2`) posee como límite el SLA de 99.95% de AWS Lambda. Sin embargo, para producción comercial, la arquitectura actual está lista para desplegarse como **Active-Active Multi-Region** utilizando **Amazon Route 53** con enrutamiento basado en latencia y **DynamoDB Global Tables**, eliminando por completo cualquier punto único de fallo regional. |
 | **7** | *"El JWT usa firma simétrica `HS256`, lo que significa que el middleware conoce el secreto; no hay descentralización de confianza."* | **Justificación técnica:** `HS256` se eligió porque el middleware actúa como la autoridad neutral centralizada de validación y emisión de tokens (equivalente al Authorization Server en el estándar RFC 6749 OAuth2). El estudiante no firma directamente con una llave privada en su navegador porque requeriría almacenar certificados X.509 en el dispositivo del alumno. Para una evolución a confianza totalmente descentralizada, se adoptaría criptografía asimétrica **RS256** o **Ed25519**, donde cada universidad o estudiante poseería un par de llaves pública/privada. |
+
+
+---
+
+## 28. Diccionario y Guía Maestra de Tecnologías, Protocolos y Conceptos para Todo Público
+
+Esta sección cumple con la regla de **cero términos técnicos sin explicar**. Cada tecnología, protocolo o sigla que interviene en **RFHA-IES** se explica aquí desde sus fundamentos más básicos, utilizando analogías de la vida cotidiana para que cualquier persona sin experiencia técnica comprenda con total claridad su función y valor dentro del proyecto.
+
+### 28.1 Lenguajes de Programación, Marcado y Formatos de Datos
+
+#### 1. Python (Versión 3.12)
+* **¿Qué es en palabras sencillas?** Python es un lenguaje de programación de computadoras muy popular, conocido por su sintaxis clara y cercana al idioma inglés. Es el "cerebro" donde se programaron todas las reglas lógicas del sistema.
+* **Analogía cotidiana:** Es como el manual de instrucciones operativo de un banco escrito en español claro y sin tecnicismos confusos, para que los cajeros y supervisores sepan exactamente qué hacer ante cada situación sin cometer errores.
+* **¿Qué hace en RFHA-IES?** En los archivos dentro de la carpeta `src/app/`, el código en Python recibe las solicitudes que llegan por internet, verifica que las contraseñas y permisos sean auténticos, decide qué información entregar y guarda los registros de seguridad en las bases de datos.
+
+#### 2. HTML5 (Lenguaje de Marcado de Hipertexto)
+* **¿Qué es en palabras sencillas?** Es el estándar universal que define la estructura y el esqueleto de las páginas web que vemos en la pantalla (títulos, párrafos, botones, cajas de texto y tablas).
+* **Analogía cotidiana:** Es como las paredes maestras, puertas y ventanas de una casa antes de pintarla y decorarla: define dónde está cada habitación y por dónde se entra.
+* **¿Qué hace en RFHA-IES?** Los archivos terminados en `.html` dentro de `src/app/static/` (como `inicio.html`, `portal-estudiante.html` y `consulta.html`) dibujan los formularios donde los rectores y estudiantes escriben sus datos y leen sus notas.
+
+#### 3. CSS3 (Hojas de Estilo en Cascada)
+* **¿Qué es en palabras sencillas?** Es el lenguaje encargado del diseño estético, los colores, los espacios, las fuentes y la adaptación visual de una página web a diferentes tamaños de pantalla (celulares, tabletas o computadores).
+* **Analogía cotidiana:** Es la pintura, la iluminación, los muebles y el diseño de interiores de la casa: hace que el espacio sea agradable, ordenado y fácil de usar.
+* **¿Qué hace en RFHA-IES?** El archivo `src/app/static/styles.css` se asegura de que el portal sea visualmente profesional, cuente con modo oscuro y modo claro automático según la preferencia del usuario y mantenga los botones y textos bien ordenados y legibles.
+
+#### 4. JavaScript (Módulos ES6+)
+* **¿Qué es en palabras sencillas?** Es el lenguaje de programación que corre directamente en el navegador del usuario y le da dinamismo interactivo a la página web sin necesidad de recargar la pantalla completa.
+* **Analogía cotidiana:** Es como la electricidad y los botones automáticos de la casa: cuando presionas el interruptor, la luz se enciende al instante sin tener que salir a la calle a pedir permiso.
+* **¿Qué hace en RFHA-IES?** Archivos como `panel-nodo.js` o `auditoria.js` detectan cuando el usuario hace clic en "Cargar ejemplo" o "Consultar", validan que no haya dejado campos vacíos y envían la petición al servidor de forma silenciosa e instantánea.
+
+#### 5. JSON (Notación de Objetos de JavaScript)
+* **¿Qué es en palabras sencillas?** Es un formato estándar de texto sumamente simple y ligero para enviar y recibir datos ordenados entre computadores a través de internet, utilizando parejas de "nombre" y "valor".
+* **Analogía cotidiana:** Es como una ficha bibliográfica o un formulario de aduanas con casillas claramente rotuladas: `Nombre: Laura`, `Materia: Cálculo`, `Nota: 4.8`.
+* **¿Qué hace en RFHA-IES?** Es el idioma universal en el que dialogan el navegador web, el servidor en Python y la base de datos DynamoDB.
+
+#### 6. YAML (Lenguaje de Serialización de Datos)
+* **¿Qué es en palabras sencillas?** Es un formato de texto diseñado específicamente para escribir archivos de configuración de forma sumamente limpia, utilizando sangrías o espacios en lugar de llaves o corchetes.
+* **Analogía cotidiana:** Es como una lista de mercado estructurada por categorías: bajo la sección "Lácteos" anotas "Leche" y "Queso".
+* **¿Qué hace en RFHA-IES?** El archivo `template.yaml` le indica a Amazon Web Services exactamente qué servidores, permisos y bases de datos debe construir de manera automática al desplegar el sistema.
+
+---
+
+### 28.2 Protocolos de Comunicación y Redes
+
+#### 1. API REST (Interfaz de Programación de Aplicaciones RESTful)
+* **¿Qué es en palabras sencillas?** Es un conjunto de reglas y canales de comunicación estandarizados que permite que dos programas de computador completamente distintos (por ejemplo, el portal web y el servidor en la nube) se entiendan y colaboren entre sí a través de internet.
+* **Analogía cotidiana:** Es como el menú de un restaurante: el cliente (frontend) revisa la carta de platos disponibles, le pide al mesero (API) lo que desea y el mesero va a la cocina (servidor) y regresa con el pedido preparado sin que el cliente tenga que entrar a cocinar.
+* **¿Qué hace en RFHA-IES?** Define las rutas oficiales del sistema (ej. `/api/v1/node/sync-records` o `/api/v1/students/token`), estableciendo qué datos se pueden pedir y qué respuestas se van a recibir.
+
+#### 2. HTTP y HTTPS (Protocolo de Transferencia de Hipertexto Seguro)
+* **¿Qué es en palabras sencillas?** HTTP es el protocolo base sobre el cual funciona toda la World Wide Web para enviar y recibir páginas y datos. **HTTPS** es la versión segura y protegida de ese mismo protocolo.
+* **Analogía cotidiana:** Enviar una carta por HTTP tradicional es como mandar una postal transparente: cualquier persona que trabaje en el correo o esté en el camino puede leer lo que escribiste. Enviar por **HTTPS** es como meter la carta dentro de una caja fuerte de titanio con combinación secreta que solo el destinatario puede abrir.
+* **¿Qué hace en RFHA-IES?** Todas las conexiones se realizan obligatoriamente bajo HTTPS. Esto garantiza que cuando un estudiante escribe su contraseña o una universidad envía calificaciones, ningún atacante conectado a la misma red Wi-Fi pueda espiar ni alterar la información.
+
+#### 3. Cabeceras HTTP (HTTP Headers)
+* **¿Qué son en palabras sencillas?** Son metadatos o etiquetas invisibles para el usuario común que se adjuntan al principio de cada mensaje en internet para dar instrucciones técnicas al servidor sobre quién envía la petición, qué tipo de datos contiene o qué permisos lleva.
+* **Analogía cotidiana:** Son como los sellos postales, la estampilla de "Urgente" y el remitente pegados en el sobre exterior de una carta.
+* **¿Qué hacen en RFHA-IES?** El sistema utiliza cabeceras personalizadas como `X-Node-API-Key` (donde la universidad viaja identificada), `X-Student-Consent-Token` (donde viaja el permiso del estudiante) y `X-Data-Source` (donde el servidor le avisa al usuario si los datos vinieron del servidor primario o de la réplica de emergencia).
+
+#### 4. CORS (Intercambio de Recursos de Origen Cruzado)
+* **¿Qué es en palabras sencillas?** Es un mecanismo de seguridad implementado en todos los navegadores web modernos que impide que una página maliciosa de internet haga peticiones secretas a otro sitio web sin autorización expresa.
+* **Analogía cotidiana:** Es como el control de acceso en la entrada de un edificio corporativo: si alguien de una empresa externa quiere entrar a los archivos de otra oficina, los guardias de seguridad exigen una carta de invitación previa antes de dejarlo pasar.
+* **¿Qué hace en RFHA-IES?** Asegura que únicamente las pantallas autorizadas del proyecto puedan comunicarse con la API de backend, bloqueando intentos de ataque desde páginas web externas sospechosas.
+
+#### 5. TLS (Seguridad de la Capa de Transporte)
+* **¿Qué es en palabras sencillas?** Es la tecnología criptográfica moderna que hace posible el candado de seguridad de HTTPS. Crea un túnel cifrado impenetrable entre el navegador y los servidores de Amazon.
+* **Analogía cotidiana:** Es como un túnel submarino blindado y sellado al vacío: los vehículos que viajan por dentro están totalmente aislados del agua y de miradas exteriores.
+* **¿Qué hace en RFHA-IES?** Protege toda la información en movimiento desde el segundo en que sale del celular o computador del usuario hasta que llega a los servidores de Amazon Web Services.
+
+---
+
+### 28.3 Criptografía y Seguridad Explicadas desde Cero
+
+#### 1. Hash Criptográfico y Algoritmo SHA-256
+* **¿Qué es en palabras sencillas?** Un hash es como una "huella dactilar digital matemática". Toma cualquier texto, documento o lista de calificaciones y lo transforma en una cadena fija de 64 caracteres alfanuméricos. Es un camino de ida: es muy fácil calcular el hash a partir del texto, pero es matemáticamente imposible reconstruir el texto original a partir del hash.
+* **El Efecto Avalancha (Avalanche Effect):** Si tienes un documento de 1.000 páginas y le cambias una sola letra, una sola coma o un espacio, el hash resultante cambia por completo en más del 50% de sus caracteres.
+* **Analogía cotidiana:** Es como poner una fruta en una licuadora industrial: con una manzana obtienes un puré con color y textura únicos. Viendo el puré sabes si era manzana fresca, pero jamás podrás volver a armar la manzana entera a partir del puré.
+* **¿Qué hace en RFHA-IES?** 
+  * Se usa para guardar las API Keys de las universidades en `NodesTable` (el sistema nunca guarda la clave real, solo su puré digital).
+  * Se usa en la función `record_signature()` para sellar los historiales: si alguien intentara hackear la base de datos para subir su nota de 2.5 a 4.5, el hash cambiaría y el sistema detectaría el fraude al instante.
+
+#### 2. JWT (JSON Web Token) y Algoritmo HS256
+* **¿Qué es en palabras sencillas?** Es un documento de autorización digital compacto, autosuficiente e infalsificable que viaja codificado en texto. Está compuesto por tres secciones separadas por puntos:
+  1. **Encabezado:** Dice con qué algoritmo se firmó.
+  2. **Contenido (Payload):** Contiene las autorizaciones (quién es el alumno, a qué universidad autoriza y cuándo vence).
+  3. **Firma:** Un sello matemático que solo el servidor de RFHA-IES pudo estampar usando una clave ultra-secreta (`JWT_SECRET`).
+* **Analogía cotidiana:** Es exactamente como una pulsera de acceso VIP en un concierto o una manilla de hotel todo incluido. La manilla tiene un código de barras sellado con tinta ultravioleta: los guardias de seguridad no necesitan llamar al gerente general cada vez que alguien pasa; simplemente miran el sello de la manilla para saber si la persona tiene permiso de entrar a esa zona específica.
+* **¿Qué hace en RFHA-IES?** Cuando el estudiante inicia sesión en `/portal-estudiante` y elige autorizar a una universidad, el sistema le entrega este pase digital (`student_auth_token`) para que la universidad receptora pueda consultar su historial.
+
+#### 3. El Campo de Audiencia (`aud` en el JWT)
+* **¿Qué es en palabras sencillas?** Es una casilla obligatoria dentro del token JWT que dice con nombre propio para quién está autorizado ese pase.
+* **Analogía cotidiana:** Es como un cheque bancario nominativo que dice: *"Páguese únicamente a la orden de la Universidad Distrital"*. Si un ladrón o un tercero se encuentra el cheque y va al banco a cobrarlo, el cajero lee el nombre y le dice: *"Usted no es la Universidad Distrital, este cheque no le sirve a usted"*.
+* **¿Qué hace en RFHA-IES?** Si el estudiante autoriza a la Universidad Distrital (`aud: "IES-2222BBBB"`), pero un funcionario de la Universidad de los Andes intenta usar ese mismo token para ver las notas, el servidor rechaza la consulta de inmediato (HTTP 403 Forbidden).
+
+#### 4. Cifrado en Reposo con Algoritmo AES-256
+* **¿Qué es en palabras sencillas?** Es el estándar de encriptación simétrica más seguro que existe en la actualidad, adoptado por bancos y agencias militares a nivel global para proteger discos duros. "En reposo" significa que protege la información cuando está guardada, quieta y almacenada en los servidores físicos.
+* **Analogía cotidiana:** Es como guardar dinero en una caja fuerte subterránea con paredes de medio metro de acero: aunque un intruso entre físicamente a la habitación donde está la caja fuerte, no puede ver ni tocar el dinero sin la combinación maestra.
+* **¿Qué hace en RFHA-IES?** Todas las tablas de Amazon DynamoDB tienen activo el cifrado AES-256 mediante el servicio AWS KMS. Si alguien entrara a los centros de cómputo de Amazon y robara físicamente los discos duros, solo encontraría cadenas de bytes completamente ilegibles e inútiles.
+
+#### 5. API Key (Clave de Interfaz de Programación)
+* **¿Qué es en palabras sencillas?** Es una contraseña alfanumérica larga, aleatoria y muy difícil de adivinar (ej. `rfha_8f9a2b3c4d5e...`) que se le entrega a los directivos de una universidad para que sus servidores se identifiquen ante la red federada.
+* **Analogía cotidiana:** Es como la tarjeta magnética de acceso que tiene un médico para abrir las puertas restringidas de la sala de cirugía de un hospital.
+* **¿Qué hace en RFHA-IES?** Cada universidad aprobada tiene una API Key única. Sin ella, ningún rector ni director de registro puede sincronizar estudiantes ni consultar información.
+
+---
+
+### 28.4 Conceptos Básicos de la Nube de Amazon Web Services (AWS)
+
+#### 1. Computación Serverless (Sin Servidor)
+* **¿Qué es en palabras sencillas?** Es un modelo moderno de computación en la nube donde los ingenieros no tienen que comprar, configurar, mantener ni actualizar computadores físicos o servidores virtuales. En su lugar, simplemente suben el código de su aplicación y la nube de Amazon se encarga de ejecutarlo automáticamente solo cuando llega una petición.
+* **Analogía cotidiana:** Es como viajar en taxi o en Uber en lugar de comprar un autobús propio: no tienes que pagar gasolina mensual, mantenimiento de motor, seguros ni estacionamiento cuando no lo usas; solo pagas la tarifa exacta por los minutos y kilómetros que duró el viaje.
+* **¿Qué hace en RFHA-IES?** Toda la infraestructura corre sobre este modelo, lo que permite que el sistema funcione con costos de cero pesos cuando no hay nadie conectado, y soporte miles de estudiantes simultáneos cuando hay matrículas.
+
+#### 2. Amazon API Gateway
+* **¿Qué es en palabras sencillas?** Es un servicio de Amazon que actúa como la "recepción" o la "puerta giratoria de entrada" para todo el tráfico de internet que llega a la aplicación.
+* **Analogía cotidiana:** Es como el recepcionista en el vestíbulo de un rascacielos corporativo: recibe a todos los visitantes que cruzan la puerta, comprueba que vengan con cita, canaliza a cada persona al ascensor correcto y evita que personas no autorizadas se cuelen a las oficinas.
+* **¿Qué hace en RFHA-IES?** Atiende la URL pública `https://ypybm0azfg.execute-api.us-east-2.amazonaws.com`, gestiona la seguridad TLS y le pasa los datos a la función AWS Lambda para que los procese.
+
+#### 3. AWS Lambda
+* **¿Qué es en palabras sencillas?** Es el servicio de Amazon que ejecuta pequeños trozos de código de programación en milisegundos en respuesta a eventos (como un clic en un botón web).
+* **Analogía cotidiana:** Es como un chef experto que solo se materializa en la cocina cuando un cliente ordena un platillo: cocina en 10 segundos, entrega la comida y se retira sin ocupar espacio ni consumir salario hasta que llegue la siguiente orden.
+* **Concurrencia Paralela:** Si entran 100 estudiantes al mismo segundo a consultar sus notas, AWS Lambda no hace una fila lenta; levanta automáticamente 100 micro-contenedores idénticos para atender a los 100 estudiantes exactamente al mismo tiempo.
+* **¿Qué hace en RFHA-IES?** Es el lugar donde corre la aplicación FastAPI (`src/app/main.py`) que procesa las reglas del sistema.
+
+#### 4. Amazon DynamoDB
+* **¿Qué es en palabras sencillas?** Es la base de datos NoSQL ultrarrápida y totalmente administrada de Amazon. A diferencia de las bases de datos antiguas que organizan todo en hojas de cálculo gigantes con filas y columnas rígidas (SQL), DynamoDB guarda los datos como fichas o documentos JSON independientes asociados a una clave principal.
+* **Analogía cotidiana:** Es como un archivador gigante con millones de gavetas rotuladas: no tienes que revisar todo el mueble para encontrar un expediente; si tienes el número de la gaveta (`Partition Key`), la abres directamente en 5 milisegundos.
+* **¿Qué hace en RFHA-IES?** Aloja las 5 tablas de datos de la red (`NodesTable`, `RecordsTable`, `ReplicasTable`, `TokensTable` y `AuditLogsTable`).
+
+#### 5. IAM (Administración de Identidades y Accesos de AWS)
+* **¿Qué es en palabras sencillas?** Es el sistema de seguridad interno de Amazon que define qué partes de la nube tienen permiso de comunicarse con otras partes, aplicando el principio de "mínimo privilegio posible".
+* **Analogía cotidiana:** Son como las llaves maestras y permisos de los empleados de un banco: el cajero tiene llave de su ventanilla, pero no tiene la clave de la bóveda subterránea ni la del despacho del presidente.
+* **¿Qué hace en RFHA-IES?** El rol IAM de la función Lambda le da permiso para guardar y leer en las tablas de notas, pero le prohíbe terminantemente borrar registros de la tabla de auditoría (`AuditLogsTable`), garantizando que nadie pueda borrar la bitácora de seguridad.
+
+#### 6. Amazon CloudWatch Logs
+* **¿Qué es en palabras sencillas?** Es el diario de navegación o registro automático donde Amazon anota cada segundo lo que hace la aplicación, cuánto tiempo tardó en responder, cuánta memoria consumió y si ocurrió algún error técnico.
+* **Analogía cotidiana:** Es como la caja negra de un avión: graba continuamente todos los eventos del vuelo para que los inspectores puedan revisar exactamente qué ocurrió en cualquier segundo del pasado.
+* **¿Qué hace en RFHA-IES?** Registra cada ejecución de Lambda con su identificador único de petición (`RequestId`), permitiendo auditar la concurrencia distribuida en vivo.
+
+
+---
+
+## 29. Guía Visual y Narrada de los Flujos de la Aplicación Paso a Paso para Todo Público
+
+Esta sección narra los **6 flujos operativos esenciales** de **RFHA-IES**, explicando en orden cronológico qué ocurre en el mundo real, qué botones se presionan, qué datos viajan por la red y qué validaciones de seguridad se ejecutan tras bambalinas.
+
+```mermaid
+flowchart TD
+    F1["1. Registro y Aprobación Institucional<br>(HU-01 y HU-02)"] --> F2["2. Sincronización Segura de Historiales<br>(HU-03)"]
+    F2 --> F3["3. Emisión de Consentimiento por el Estudiante<br>(HU-04)"]
+    F3 --> F4["4. Consulta Federada entre Universidades<br>(HU-06 y HU-07)"]
+    F4 --> F5["5. Tolerancia a Fallos y Conmutación a Réplica<br>(HU-08)"]
+    F5 --> F6["6. Revocación de Permiso y Auditoría Forense<br>(HU-05 y HU-09)"]
+```
+
+### Explicación detallada del mapa de flujos para todo público:
+El diagrama superior muestra la secuencia lógica que sigue la vida de un dato dentro de la red federada:
+1. Ninguna universidad puede participar hasta que no complete el **Flujo 1** (solicitud y aprobación con entrega de API Key).
+2. Con su clave activa, la universidad ejecuta el **Flujo 2**, cargando las notas y materias de sus alumnos en el almacén primario y en la réplica de emergencia.
+3. El estudiante toma el control soberano en el **Flujo 3**, ingresando a su portal para otorgar un pase digital (JWT) a la universidad de su elección.
+4. En el **Flujo 4**, la universidad receptora usa ese pase para consultar las notas sin intermediación humana.
+5. Si durante la consulta el servidor emisor está apagado, el **Flujo 5** entra en acción de forma transparente consultando la réplica autorizada sin detener la operación.
+6. Finalmente, el **Flujo 6** permite al estudiante cancelar el permiso cuando desee y garantiza que cada segundo de actividad quede grabado para siempre en la bitácora de auditoría.
+
+---
+
+### Flujo 1: Registro y Aprobación de una Universidad (HU-01 y HU-02)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Representante Universitario
+    participant Web as Interfaz Web (/registro-nodo)
+    participant APIGW as API Gateway
+    participant LM as AWS Lambda
+    participant DB as NodesTable
+    actor Admin as Administrador de la Red
+
+    U->>Web: Completa NIT, Nombre, Dominio y Correo
+    Web->>APIGW: POST /api/v1/nodes/register
+    APIGW->>LM: Despacha petición
+    LM->>DB: Verifica que NIT no exista y guarda estado PENDIENTE_APROBACION
+    DB-->>LM: Confirmación de guardado
+    LM-->>Web: 201 Created (Mensaje: Solicitud en revisión)
+    Note over Admin,DB: El administrador ingresa a /admin con X-Admin-Key
+    Admin->>LM: POST /api/v1/admin/nodes/{node_id}/approve
+    LM->>LM: Genera API Key rfha_... y calcula su hash SHA-256
+    LM->>DB: Actualiza estado a ACTIVO y guarda hash
+    LM-->>Admin: Retorna la API Key en pantalla (una sola vez)
+    Admin-->>U: Entrega de forma segura la API Key a la universidad
+```
+
+#### Explicación detallada del Flujo 1 para todo público:
+1. **Paso 1 y 2:** El director de registro de una institución ingresa al portal público `/registro-nodo`. Escribe el NIT oficial, el nombre institucional, su dominio web y correo. Al pulsar "Registrar institución", el navegador empaqueta estos datos en formato JSON y los envía por HTTPS a API Gateway.
+2. **Paso 3 y 4:** Lambda toma la petición y consulta en `NodesTable` si ese NIT ya estaba registrado. Si es nuevo, genera un código único de nodo (ej. `IES-8A3B1C4D`) y guarda la institución en estado `PENDIENTE_APROBACION`.
+3. **Paso 5 y 6:** La pantalla le muestra al usuario un mensaje confirmando que su solicitud quedó radicada. En este punto, **la universidad aún no tiene acceso al sistema** ni puede consultar historiales.
+4. **Paso 7:** El administrador general de la red entra a la consola privada `/admin`, ingresando su clave maestra (`X-Admin-Key`). La pantalla lista todas las solicitudes pendientes.
+5. **Paso 8 y 9:** Al pulsar "Aprobar", Lambda genera una API Key secreta (ej. `rfha_8f9a2b3c4d5e...`), calcula su resumen matemático SHA-256 y guarda este resumen en `NodesTable` actualizando el estado de la universidad a `ACTIVO`.
+6. **Paso 10 y 11:** La pantalla del administrador muestra la API Key por única vez en un recuadro verde con un botón de copiado. Esta clave se entrega formalmente a la universidad por canales seguros. A partir de ese segundo, el nodo está autorizado para operar.
+
+---
+
+### Flujo 2: Carga y Sincronización de Historiales con Generación Aleatoria (HU-03)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Funcionario de Registro
+    participant Web as Panel del Nodo (/panel-nodo)
+    participant LM as AWS Lambda
+    participant P as RecordsTable (Primario)
+    participant R as ReplicasTable (Réplica)
+
+    U->>Web: Pulsa "Cargar ejemplo" (Generador Aleatorio)
+    Note over Web: JavaScript genera 2 a 4 estudiantes nuevos<br>con nombres, notas y materias aleatorias
+    U->>Web: Pega su API Key rfha_... y pulsa "Sincronizar"
+    Web->>LM: POST /api/v1/node/sync-records (Header: X-Node-API-Key)
+    LM->>LM: Valida API Key contra NodesTable (Hash SHA-256)
+    loop Por cada estudiante en el lote
+        LM->>LM: Calcula hash PBKDF2 de la clave del portal
+        LM->>LM: Calcula firma SHA-256 canónica (digital_signature_hash)
+        LM->>P: put_item con ConditionExpression (Concurrencia Optimista)
+        LM->>R: put_item en tabla de réplicas
+    end
+    LM-->>Web: 200 OK (Reporte: N recibidos, creados y actualizados)
+```
+
+#### Explicación detallada del Flujo 2 para todo público:
+1. **Paso 1 y 2:** El funcionario universitario entra a `/panel-nodo`. Para facilitar demostraciones en vivo sin repetir datos, la función JavaScript `generateExample()` genera en milisegundos entre 2 y 4 estudiantes completamente ficticios con nombres, cédulas, códigos, programas y asignaturas aleatorias (con notas reales entre 1.5 y 5.0).
+2. **Paso 3 y 4:** El funcionario pega la API Key institucional de su universidad y presiona "Sincronizar historiales".
+3. **Paso 5:** Lambda recibe el paquete de datos, toma la cabecera `X-Node-API-Key`, calcula su hash SHA-256 y verifica que la universidad esté activa. Si la clave es errónea, bloquea la petición al instante con HTTP 403.
+4. **Paso 6 a 9:** Para cada estudiante recibido:
+   * Aplica la función PBKDF2 a la contraseña inicial del estudiante (para que luego pueda entrar al portal).
+   * Genera el sello criptográfico `digital_signature_hash` calculando el hash SHA-256 del contenido de las materias.
+   * Guarda el expediente en `RecordsTable` bajo la clave `record_key(node_id, student_id)` aplicando **concurrencia optimista** (solo se guarda si la información en la base no es más reciente que la que se intenta subir).
+   * Inmediatamente guarda una copia idéntica en `ReplicasTable` para asegurar tolerancia a fallos.
+5. **Paso 10:** El panel web muestra un resumen confirmando cuántos registros fueron recibidos, cuántos fueron creados como nuevos y cuántos actualizados.
+
+---
+
+### Flujo 3: Emisión Soberana de Consentimiento por el Estudiante (HU-04)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor S as Estudiante
+    participant Web as Portal Estudiante (/portal-estudiante)
+    participant LM as AWS Lambda
+    participant T as TokensTable (Lista Negra + TTL)
+
+    S->>Web: Digita Cédula y Contraseña
+    Web->>LM: POST /api/v1/students/token (Credenciales + Nodo Destino)
+    LM->>LM: Busca estudiante y verifica contraseña con verify_password (PBKDF2)
+    LM->>LM: Crea JWT HS256 (sub: student_id, aud: nodo_destino, jti: uuid)
+    LM->>T: put_item con jti, aud, exp, ttl y revoked=false
+    LM-->>Web: 200 OK con student_auth_token
+    Web-->>S: Muestra el Token JWT en pantalla listo para copiar
+```
+
+#### Explicación detallada del Flujo 3 para todo público:
+1. **Paso 1 y 2:** El estudiante ingresa a `/portal-estudiante`. Escribe su número de documento y contraseña. La pantalla consulta automáticamente la lista de universidades activas mediante `GET /api/v1/nodes/active` para que el alumno elija en una lista desplegable a qué institución va a autorizar (ej. "Universidad Distrital").
+2. **Paso 3:** Lambda busca el expediente del estudiante en la base de datos y ejecuta `verify_password()`. Este método calcula el hash PBKDF2 de la clave ingresada y lo compara en tiempo constante (*timing-safe comparison*) con el hash guardado, protegiendo al sistema contra hackers que intenten adivinar contraseñas midiendo el tiempo de respuesta.
+3. **Paso 4:** Una vez autenticado, el sistema construye el pase digital (**JWT**): incluye quién es el estudiante (`sub`), qué universidad lo emitió (`origin`), a quién se le da permiso (`aud`), un identificador único al azar (`jti`) y la fecha de caducidad en 24 horas (`exp`). Lo sella con la clave simétrica `JWT_SECRET`.
+4. **Paso 5:** Guarda una entrada en `TokensTable` con el atributo `revoked = false` y el atributo `ttl = exp`.
+5. **Paso 6 y 7:** El portal del estudiante muestra el token codificado en un recuadro con un botón de copiado. El estudiante le entrega este texto a la universidad donde está haciendo su trámite de homologación o admisión.
+
+---
+
+### Flujo 4: Consulta Federada Interinstitucional con Validación de Audiencia (HU-06 y HU-07)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Funcionario de Admisiones (Receptor)
+    participant Web as Consulta Federada (/consulta)
+    participant LM as AWS Lambda
+    participant Tok as TokensTable
+    participant Rec as RecordsTable (Primario)
+    participant Aud as AuditLogsTable
+
+    U->>Web: Ingresa API Key de su universidad y el Token del estudiante
+    Web->>LM: GET /api/v1/federated/academic-history/{id} (Headers: X-Node-API-Key, X-Student-Consent-Token)
+    LM->>LM: 1. Valida API Key del nodo consultante
+    LM->>Tok: 2. Verifica firma JWT, vigencia, aud == consulting_node y revoked == false
+    alt Token Inválido, Vencido, para otra Universidad o Revocado (HU-07)
+        LM->>Aud: Registra evento DENIED en la bitácora
+        LM-->>Web: 403 Forbidden (Motivo del bloqueo)
+    else Token Válido y Autorizado (HU-06)
+        LM->>Rec: 3. Lee historial de RecordsTable
+        LM->>LM: 4. Recalcula hash SHA-256 de las materias
+        LM->>Aud: 5. Registra SUCCESS con IP y X-Data-Source: Primary
+        LM-->>Web: 200 OK con Historial, GPA, Créditos y Sello Criptográfico
+        Web-->>U: Renderiza tabla de asignaturas y créditos completados
+    end
+```
+
+#### Explicación detallada del Flujo 4 para todo público:
+1. **Paso 1 y 2:** El funcionario de admisiones de la universidad receptora ingresa a `/consulta`. Escribe el código del estudiante, la API Key de su propia universidad y pega el token de consentimiento entregado por el aspirante.
+2. **Paso 3 y 4:** El servidor ejecuta dos controles perimetrales estrictos:
+   * Comprueba que la universidad que consulta esté registrada y activa.
+   * Abre el token JWT y valida que no haya vencido, que el campo de audiencia (`aud`) coincida con el código de la universidad que está haciendo la consulta, y revisa en `TokensTable` que el estudiante no haya cancelado el permiso.
+3. **Rama de Bloqueo (HU-07):** Si el token fue emitido para otra universidad o ya venció, el servidor frena de inmediato la consulta, graba una alerta de seguridad (`DENIED`) en `AuditLogsTable` y responde un error HTTP 403 explicando el motivo.
+4. **Rama Exitosa (HU-06):** Si todo está en orden, recupera el expediente desde `RecordsTable`, recalcula la firma matemática SHA-256 para asegurarse de que nadie haya alterado las notas en la base de datos, calcula automáticamente el promedio acumulado (GPA) y créditos aprobados, asienta el registro `SUCCESS` en auditoría y entrega los datos a la pantalla en una tabla clara y limpia.
+
+---
+
+### Flujo 5: Tolerancia a Fallos y Conmutación Automática a Réplica (HU-08)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Funcionario de Admisiones
+    participant Web as Consulta Federada (/consulta)
+    participant LM as AWS Lambda
+    participant P as RecordsTable (Primario)
+    participant R as ReplicasTable (Réplica)
+    participant Aud as AuditLogsTable
+
+    U->>Web: Marca casilla "Simular falla de conectividad" y consulta
+    Web->>LM: GET ... (Header: X-Simulate-Down: true)
+    Note over LM: Detecta nodo primario caído / simulación activa
+    LM-xP: No consulta el almacén primario (simula servidor apagado)
+    Note over LM,R: Activación de Contingencia Automática (Failover)
+    LM->>R: Consulta expediente en ReplicasTable
+    R-->>LM: Retorna datos idénticos de contingencia
+    LM->>LM: Verifica firma SHA-256 de la réplica
+    LM->>Aud: Registra SUCCESS con X-Data-Source: Replica
+    LM-->>Web: 200 OK con Header X-Data-Source: Replica
+    Web-->>U: Muestra el historial con una etiqueta ámbar: "Fuente: Replica"
+```
+
+#### Explicación detallada del Flujo 5 para todo público:
+1. **Paso 1 y 2:** Para demostrar la tolerancia a fallos en vivo sin tener que apagar servidores reales en pleno examen o sustentación, el usuario marca la casilla *"Simular falla de conectividad con el nodo de origen"* en `/consulta`. Esto añade la cabecera HTTP `X-Simulate-Down: true`.
+2. **Paso 3 y 4:** El middleware en Lambda detecta la bandera de fallo (o una excepción real al contactar el almacén primario) y **hace caso omiso de la tabla primaria**, simulando que los servidores de la universidad de origen sufrieron un corte de energía o un ataque cibernético.
+3. **Paso 5 y 6:** En lugar de mostrarle una pantalla de error al usuario, el algoritmo de conmutación por error (*Failover*) desvía la lectura en milisegundos hacia `ReplicasTable`. La réplica responde con la copia sincronizada del historial.
+4. **Paso 7 y 8:** Se comprueba el sello de integridad SHA-256, se inyecta la cabecera `X-Data-Source: Replica` y se graba en `AuditLogsTable` que la consulta fue resuelta a través de la vía de contingencia.
+5. **Paso 9 y 10:** El funcionario recibe el historial académico completo de inmediato, pero la interfaz le muestra una insignia visual de color ámbar advirtiendo que los datos provienen de la réplica de emergencia.
+
+---
+
+### Flujo 6: Revocación Inmediata de Consentimiento y Bitácora Forense (HU-05 y HU-09)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor S as Estudiante
+    participant Web as Portal Estudiante
+    participant LM as AWS Lambda
+    participant Tok as TokensTable
+    participant Aud as AuditLogsTable
+    actor Admin as Auditor / Administrador
+
+    S->>Web: Pulsa "Revocar" junto a un token emitido
+    Web->>LM: DELETE /api/v1/students/token/{jti}
+    LM->>Tok: update_item SET revoked = true por clave jti
+    Tok-->>LM: Confirmación
+    LM-->>Web: 200 OK (Estado: REVOCADO)
+    Note over S,Admin: Si la universidad intenta consultar ahora, será bloqueada
+    Admin->>LM: GET /api/v1/audit/logs (Header: X-Admin-Key)
+    LM->>Aud: Consulta eventos ordenados cronológicamente
+    Aud-->>LM: Lista de eventos con timestamp, IP, motivo y fuente
+    LM-->>Admin: Renderiza tabla forense con eventos en tiempo real
+```
+
+#### Explicación detallada del Flujo 6 para todo público:
+1. **Paso 1 a 4:** Si el estudiante sospecha que una universidad ya completó su trámite y desea cerrarle el acceso antes de las 24 horas, entra a `/portal-estudiante` y presiona el botón rojo "Revocar" junto al token respectivo. Lambda ejecuta una actualización atómica en `TokensTable` marcando `revoked = true`.
+2. **Efecto Inmediato:** A partir de ese mismo segundo, si cualquier funcionario intenta volver a usar ese token, el sistema lo expulsará con HTTP 403 Forbidden ("El token fue revocado por el estudiante").
+3. **Paso 5 a 8:** El auditor de seguridad o el administrador entra a `/auditoria` con su clave maestra. Lambda consulta `AuditLogsTable` y sirve los eventos en tiempo real con cabeceras `Cache-Control: no-store` para garantizar que la pantalla muestre los datos frescos de este milisegundo, revelando quién consultó, a qué hora exacta, desde qué IP pública y si el acceso fue permitido o denegado.

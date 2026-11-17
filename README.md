@@ -1116,3 +1116,237 @@ sequenceDiagram
 2. **Paso 2 y 3 (Flujo Primario):** En condiciones normales de operación, el middleware intenta resolver la lectura contra `RecordsTable`. Al tener éxito, obtiene el registro primario y establece el metadato interno `X-Data-Source = Primary`.
 3. **Paso 4 a 6 (Conmutación por Error):** Si el nodo origen se encuentra marcado como inaccesible (simulado con `X-Simulate-Down` o error de conexión), el bloque de contingencia en `src/app/routers/federated.py` (L.100-114) atrapa la condición y redirige la consulta hacia `ReplicasTable`. La réplica retorna la última versión sincronizada y se etiqueta `X-Data-Source = Replica`.
 4. **Paso 7 y 8 (Registro y Entrega):** Independientemente de la vía utilizada (principio de **equifinalidad** en TGS), el evento queda asentado en `AuditLogsTable` y la respuesta llega al solicitante sin interrupción del servicio.
+
+
+---
+
+## 25. Introducción Didáctica para Principiantes y Glosario Fundamental
+
+Esta sección está diseñada para que cualquier persona, sin importar su formación previa en ingeniería de software o sistemas distribuidos, comprenda a la perfección qué es **RFHA-IES**, por qué existe y cómo opera.
+
+### 25.1 ¿Qué es RFHA-IES y qué problema real resuelve?
+
+#### El problema tradicional en las universidades:
+Imaginemos a una estudiante que cursa cinco semestres de Ingeniería en la **Universidad Nacional de Colombia** y decide trasladarse o cursar una maestría en la **Universidad Distrital Francisco José de Caldas**. Tradicionalmente, para homologar sus materias:
+1. La estudiante debe desplazarse físicamente a la oficina de Admisiones y Registro de su universidad de origen.
+2. Solicitar un certificado de notas en papel sellado (proceso que puede tardar semanas).
+3. Pagar derechos pecuniarios y llevar físicamente el papel a la universidad receptora.
+4. La universidad receptora debe confiar a ciegas en que el papel no haya sido falsificado, o iniciar un engorroso intercambio de oficios y correos electrónicos para verificar la autenticidad de las calificaciones.
+
+Este modelo genera cuellos de botella humanos, demoras burocráticas, altos costos administrativos y riesgos de fraude académico.
+
+#### La solución de RFHA-IES:
+**RFHA-IES (Red Federada de Historiales Académicos para Instituciones de Educación Superior)** es una plataforma digital distribuida en la nube que conecta a las universidades participantes en una red de confianza mutua. Permite que:
+* Las universidades sincronicen de manera segura y periódica los expedientes de sus estudiantes en un almacén federado de intercambio.
+* **El estudiante sea el dueño exclusivo de su información:** ninguna universidad puede ver las notas de un estudiante de otra institución a menos que el alumno ingrese a su portal y le otorgue un permiso digital explícito (Token JWT) con fecha de caducidad.
+* Si el sistema de la universidad de origen se cae o está fuera de servicio por mantenimiento, la universidad receptora puede consultar una **réplica autorizada de contingencia** sin interrupciones.
+* Cada consulta queda grabada para siempre en una bitácora inmutable que nadie (ni siquiera los administradores) puede borrar o alterar.
+
+---
+
+### 25.2 La analogía cotidiana para entender el flujo
+
+Para visualizar cómo interactúan las piezas, usemos la analogía de un **Casillero de Seguridad Bancario con Llave Compartida**:
+* **El Estudiante** es el dueño de los documentos dentro del casillero. Posee una llave maestra digital.
+* **La Universidad de Origen** es la entidad notarial que certifica las notas y coloca una copia sellada criptográficamente dentro del casillero.
+* **La Universidad Receptora** es quien desea revisar las notas para autorizar una homologación. Sin embargo, cuando llega a la puerta del casillero, el guardia de seguridad (**el Middleware en AWS**) le exige dos cosas obligatorias:
+  1. Su credencial oficial de universidad autorizada (**API Key institucional**).
+  2. Una carta de autorización firmada digitalmente por el estudiante (**Token de Consentimiento**) que dice textualmente: *"Autorizo exclusivamente a la Universidad Receptora a ver mis notas durante las próximas 24 horas"*.
+* Si la carta fue emitida para otra universidad, si ya pasaron las 24 horas, o si el estudiante llamó al banco para cancelar la carta (**revocación**), el guardia bloquea el acceso en seco y registra el intento en el libro de visitas (**Bitácora de Auditoría**).
+
+---
+
+### 25.3 Glosario Técnico Exhaustivo
+
+A continuación se define cada término técnico fundamental utilizado en el proyecto, explicando su concepto teórico y su aplicación exacta en el código:
+
+* **Sistemas Distribuidos (Distributed Systems):**
+  * *Definición:* Colección de computadores independientes que se comunican a través de una red compartida y coordinan sus acciones mediante el paso de mensajes, presentándose ante los usuarios como un sistema único y coherente.
+  * *En RFHA-IES:* Cada universidad participante actúa como un nodo autónomo; el middleware en AWS Lambda y DynamoDB coordina la federación de consultas y réplicas.
+* **Middleware (Software de Mediación):**
+  * *Definición:* Capa lógica de software situada entre el sistema operativo/red y las aplicaciones de usuario. Su función es ocultar la heterogeneidad de las plataformas subyacentes, ofreciendo servicios comunes como autenticación, enrutamiento, transformación de datos y control de fallos.
+  * *En RFHA-IES:* La API en FastAPI desplegada sobre AWS Lambda actúa como middleware; recibe peticiones de distintas universidades, valida credenciales, arbitra el acceso y consulta la base de datos adecuada.
+* **Plano de Control vs. Plano de Datos:**
+  * *Definición:* En redes y arquitectura distribuida, el *Plano de Datos* transporta la carga útil de los usuarios (las notas y materias), mientras que el *Plano de Control* toma las decisiones de enrutamiento, políticas de seguridad y señalización (quién puede consultar a quién).
+  * *En RFHA-IES:* El middleware es el plano de control que evalúa los tokens JWT y decide si entrega o bloquea el historial académico.
+* **Serverless (Computación sin Servidor):**
+  * *Definición:* Modelo de ejecución en la nube donde el proveedor (AWS) gestiona por completo la infraestructura de servidores, asignando recursos de cómputo bajo demanda de forma dinámica. El usuario solo paga por los milisegundos exactos en que su código se ejecuta.
+  * *En RFHA-IES:* Se utiliza **AWS Lambda**; no hay máquinas virtuales encendidas 24/7 generando costos fijos innecesarios.
+* **Cold Start vs. Warm Start:**
+  * *Definición:* Un *Cold Start* (arranque en frío) ocurre cuando Lambda recibe una petición y debe aprovisionar un micro-contenedor nuevo, descargar el código e iniciar el runtime de Python (toma entre 500 y 1500 ms). Un *Warm Start* (arranque caliente) ocurre cuando la petición se atiende en un contenedor que ya estaba en memoria, respondiendo en apenas 10 a 20 ms.
+* **NoSQL y Modelo Clave-Valor / Documento:**
+  * *Definición:* Base de datos no relacional diseñada para escalabilidad horizontal masiva y latencia predecible. En lugar de tablas con filas fijas y sentencias `JOIN` costosas, almacena documentos JSON asociados a una clave primaria.
+  * *En RFHA-IES:* **Amazon DynamoDB** almacena los historiales como documentos JSON estructurados bajo la clave única `record_key`.
+* **Partition Key (Clave de Partición) y Sort Key (Clave de Ordenación):**
+  * *Definición:* La *Partition Key* (PK) es el atributo cuyo valor pasa por una función hash interna de DynamoDB para determinar en qué partición física de almacenamiento se guarda el registro. La *Sort Key* (SK) permite ordenar múltiples ítems dentro de una misma partición.
+  * *En RFHA-IES:* En `RecordsTable`, la PK es `record_key` (`node_id#student_id`), distribuyendo uniformemente los datos de cada universidad sin generar cuellos de botella.
+* **Time To Live (TTL):**
+  * *Definición:* Característica de bases de datos que asigna una fecha de caducidad automática a cada registro mediante un timestamp Unix. Al vencer, el motor purga el registro en segundo plano sin costo de cómputo.
+  * *En RFHA-IES:* `TokensTable` usa el atributo `ttl` para eliminar automáticamente los tokens de consentimiento expirados tras 24 horas.
+* **Hash Criptográfico y Algoritmo SHA-256:**
+  * *Definición:* Algoritmo matemático unidireccional que convierte cualquier entrada en una cadena alfanumérica fija de 256 bits (64 caracteres hexadecimales). Es irreversible: no se puede deducir la entrada a partir del hash.
+  * *En RFHA-IES:* Se usa para resguardar las API Keys en `NodesTable` y para calcular la firma digital de los historiales (`record_signature()`).
+* **JSON Web Token (JWT) y Algoritmo HS256:**
+  * *Definición:* Estándar abierto (RFC 7519) para emitir credenciales digitales compactas compuestas por tres partes separadas por puntos: Encabezado (Header), Carga útil (Payload) y Firma (Signature). `HS256` indica que la firma se calcula usando HMAC con SHA-256 mediante una clave secreta simétrica.
+  * *En RFHA-IES:* Representa el consentimiento del estudiante en `src/app/tokens.py`.
+* **Claim de Audiencia (`aud`):**
+  * *Definición:* Atributo estándar dentro de un JWT que especifica con exactitud para quién fue emitido el token.
+  * *En RFHA-IES:* Si el estudiante autoriza a la Universidad B (`aud: "IES-2222BBBB"`), el middleware rechaza de inmediato cualquier intento de la Universidad C de usar ese mismo token.
+* **TLS 1.3 (Transport Layer Security):**
+  * *Definición:* Protocolo criptográfico de vanguardia que asegura la privacidad y la integridad de la comunicación a través de Internet, cifrando todo el tráfico entre cliente y servidor.
+* **Cifrado en Reposo y Algoritmo AES-256:**
+  * *Definición:* Protección de los datos almacenados físicamente en disco. **AES-256** es el estándar de cifrado simétrico por bloques más robusto del mundo. En DynamoDB, todos los datos se cifran automáticamente en los discos duros mediante claves administradas en AWS KMS.
+* **Tolerancia a Fallos y Failover:**
+  * *Definición:* La capacidad de un sistema de seguir funcionando correctamente incluso cuando uno o más de sus componentes individuales fallan. El *Failover* es el mecanismo automático de conmutación hacia un sistema de respaldo o réplica.
+  * *En RFHA-IES:* Si la consulta a `RecordsTable` falla, el middleware conmuta a `ReplicasTable` y añade la cabecera `X-Data-Source: Replica`.
+* **Consistencia Eventual y Teorema CAP:**
+  * *Definición:* El Teorema CAP demuestra que ningún sistema distribuido puede garantizar simultáneamente Consistencia estricta (C), Disponibilidad (A) y Tolerancia a Particiones (P). RFHA-IES es un sistema **AP**: ante una desconexión o fallo, prioriza responder con la última réplica conocida (Disponibilidad) en lugar de bloquearse.
+* **Concurrencia Optimista y `ConditionExpression`:**
+  * *Definición:* Estrategia de control de concurrencia donde se asume que las colisiones son raras. En lugar de bloquear la base de datos con candados pesados (*locks*), se incluye una condición al escribir (`ConditionExpression` en DynamoDB): solo se guarda el registro si la versión en la base no es más reciente que la entrante.
+* **Idempotencia:**
+  * *Definición:* Propiedad de una operación que produce exactamente el mismo resultado sin importar cuántas veces se ejecute con los mismos parámetros.
+  * *En RFHA-IES:* Sincronizar dos veces el mismo historial académico actualiza el registro existente por clave `record_key` sin crear duplicados ni generar inconsistencias.
+* **SPOF (Single Point of Failure - Punto Único de Fallo):**
+  * *Definición:* Componente de un sistema cuya falla provoca el colapso total de todo el servicio.
+  * *En RFHA-IES:* Se mitiga a nivel de infraestructura apoyándose en la alta disponibilidad multi-zona de AWS Lambda y DynamoDB (que replican internamente en 3 zonas de disponibilidad físicas distintas).
+* **Service Registry (Registro de Descubrimiento de Servicios):**
+  * *Definición:* Base de datos centralizada o distribuida donde los nodos de una red registran su ubicación y disponibilidad para que otros nodos puedan descubrirlos dinámicamente.
+  * *En RFHA-IES:* El endpoint `GET /api/v1/nodes/active` actúa como registro de descubrimiento.
+
+---
+
+## 26. Análisis de Tablas de DynamoDB con Párrafos Explicativos Ricos
+
+A diferencia de esquemas de datos relacionales tradicionales, cada tabla de DynamoDB en RFHA-IES cumple una función arquitectónica altamente especializada. A continuación se desglosan en detalle:
+
+### 26.1 Tabla `NodesTable` (Directorio y Credenciales Institucionales)
+
+| Atributo | Tipo NoSQL | Función Técnica y Justificación en el Sistema |
+|---|---|---|
+| `node_id` **(Partition Key)** | String (Cadena) | Identificador único institucional con formato `IES-XXXXXXXX` generado mediante `uuid.uuid4().hex[:8].upper()`. Actúa como clave primaria de la tabla y es el valor que se distribuye a lo largo de las particiones físicas de DynamoDB para garantizar lecturas directas en menos de 10 milisegundos. |
+| `nit` | String (Cadena) | Número de Identificación Tributaria de la universidad solicitante (con o sin dígito de verificación). Se valida mediante expresiones regulares estrictas (`^\d{6,12}(-\d)?$`) para impedir registros duplicados de una misma institución. |
+| `name` | String (Cadena) | Razón social oficial de la universidad (ej. "Universidad Distrital Francisco José de Caldas"). Se almacena para que el portal de estudiantes pueda mostrar nombres comprensibles en lugar de códigos opacos. |
+| `domain` | String (Cadena) | Dominio institucional de Internet (ej. "udistrital.edu.co"). Valida que la entidad posea presencia web legítima y previene suplantaciones institucionales. |
+| `contact_email` | String (Cadena) | Correo electrónico oficial del representante de Admisiones y Registro asignado como contacto institucional para notificaciones de auditoría. |
+| `status` | String (Cadena) | Estado de ciclo de vida del nodo: `PENDIENTE_APROBACION` (recién registrado por HU-01), `ACTIVO` (aprobado por el administrador por HU-02) o `DEGRADADO` (nodo con problemas de conectividad marcable por SD-04). |
+| `api_key_hash` | String (Cadena) | Resumen criptográfico SHA-256 de la API Key generada para la universidad. Por principio de seguridad de privilegio mínimo, **la API Key original nunca se guarda en texto claro**; solo se almacena su hash para comparar igualdades. |
+| `created_at` | String (ISO-8601 UTC) | Marca temporal inmutable que certifica el instante exacto en que la universidad radicó su solicitud en la red federada. |
+| `approved_at` | String (ISO-8601 UTC) | Marca temporal fijada por el administrador general en el momento en que se aprueba formalmente el nodo y se emite su API Key única. |
+
+#### Explicación en prosa de `NodesTable`:
+Esta tabla resuelve el problema de la **identidad federada institucional**. No cualquier entidad puede enviar datos ni consultar historiales; la tabla actúa como el guardián perimetral. Su ciclo de vida comienza cuando una universidad llena el formulario en `/registro-nodo` (`src/app/routers/nodes.py`), insertando un ítem en estado `PENDIENTE_APROBACION`. Cuando el administrador revisa la solicitud en `/admin` (`src/app/routers/admin.py`), el endpoint `approve_node` genera una API Key con prefijo `rfha_`, calcula su hash SHA-256, actualiza el ítem a `ACTIVO` y devuelve la clave al usuario por única vez. En consultas subsecuentes, el middleware toma la cabecera `X-Node-API-Key`, calcula su hash y ejecuta un scan/get indexado sobre esta tabla para verificar la validez de la institución en tiempo real.
+
+---
+
+### 26.2 Tabla `RecordsTable` (Almacén Primario de Historiales Académicos)
+
+| Atributo | Tipo NoSQL | Función Técnica y Justificación en el Sistema |
+|---|---|---|
+| `record_key` **(Partition Key)** | String (Cadena compuesta) | Clave de partición estructurada con la fórmula `<node_id>#<student_id>` (ej. `IES-1111AAAA#20262678029`). Esta clave compuesta garantiza que un estudiante que curse materias en dos universidades distintas mantenga dos historiales completamente separados y particionados sin riesgo de colisión. |
+| `node_id` | String (Cadena) | Código del nodo universitario dueño de la información. Proviene exclusivamente de la API Key autenticada en el backend, impidiendo que una universidad intente cargar registros a nombre de otra institución. |
+| `student_id` | String (Cadena) | Código institucional del estudiante asignado por la universidad de origen (longitud de 6 a 15 dígitos numéricos). |
+| `document_number` | String (Cadena) | Número de documento de identidad nacional del alumno (cédula o tarjeta de identidad). Permite indexar y buscar los expedientes de un alumno cuando ingresa al portal estudiantil. |
+| `full_name` | String (Cadena) | Nombres y apellidos completos del estudiante tal como figuran en los registros oficiales de admisiones. |
+| `program` | String (Cadena) | Nombre del programa académico o carrera universitaria en curso (ej. "Ingeniería en Telemática"). |
+| `academic_status` | String (Enum) | Situación académica del alumno en la universidad emisor: `ACTIVO`, `GRADUADO` o `RETIRADO`. |
+| `courses` | List of Maps (Lista de Objetos) | Estructura jerárquica con el desglose de materias cursadas. Cada elemento contiene: `code` (código de asignatura), `name` (nombre de materia), `credits` (número de créditos), `grade` (calificación numérica decimal o null si está en curso) y `status` (`APROBADA`, `REPROBADA`, `EN_CURSO`). |
+| `password_hash` | String (Cadena con sal) | Hash seguro de la contraseña del estudiante generado mediante PBKDF2-HMAC-SHA256 con sal aleatoria de 16 bytes y 100.000 iteraciones. Protege el acceso al portal del estudiante. |
+| `digital_signature_hash` | String (Hex SHA-256) | Huella digital criptográfica inmutable calculada sobre el JSON canónico de los datos académicos. Cualquier cambio de notas altera este valor, delatando manipulación no autorizada. |
+| `synced_at` | String (ISO-8601 UTC) | Marca temporal de la última sincronización. Se utiliza en la condición de concurrencia optimista (`ConditionExpression`) para rechazar escrituras desfasadas. |
+
+#### Explicación en prosa de `RecordsTable`:
+Esta tabla constituye el núcleo del **Plano de Datos Académico**. Se alimenta a través del endpoint `POST /api/v1/node/sync-records` (`src/app/routers/sync.py`), donde un nodo activo envía lotes de expedientes de estudiantes. Para mitigar colisiones concurrentes (Hallazgo SD-01), el método `upsert()` en `src/app/repositories.py` aplica una expresión condicional: la escritura sobreescribe el ítem únicamente si este no existía previamente o si el atributo `synced_at` entrante es cronológicamente igual o superior al que ya reside en disco. Esto asegura que si dos procesos de una misma universidad sincronizan simultáneamente, nunca una versión antigua sobrescriba datos recientes.
+
+---
+
+### 26.3 Tabla `ReplicasTable` (Respaldo Redundante para Tolerancia a Fallos)
+
+| Atributo | Tipo NoSQL | Función Técnica y Justificación en el Sistema |
+|---|---|---|
+| `record_key` **(Partition Key)** | String (Cadena) | Idéntica clave de partición `<node_id>#<student_id>` que en la tabla primaria, permitiendo consultas cruzadas inmediatas en tiempo constante O(1). |
+| `node_id` | String (Cadena) | Identificador del nodo institucional emisor de la réplica. |
+| `student_id` | String (Cadena) | Código institucional del estudiante replicado. |
+| `document_number` | String (Cadena) | Cédula del estudiante para permitir consultas federadas de contingencia. |
+| `full_name` | String (Cadena) | Nombre completo del alumno replicado. |
+| `courses` | List of Maps | Copia idéntica y redundante del listado de materias, créditos y estados académicos. |
+| `digital_signature_hash` | String (Hex SHA-256) | Huella digital de integridad. Permite verificar que la réplica no haya sido alterada mientras residía en el almacén de contingencia. |
+| `synced_at` | String (ISO-8601 UTC) | Momento exacto en que se generó la réplica de contingencia. |
+
+#### Explicación en prosa de `ReplicasTable`:
+`ReplicasTable` es el pilar de la **tolerancia a fallos (HU-08)** del sistema federado. Cada vez que una universidad ejecuta `sync-records`, el backend escribe de forma secuencial en `RecordsTable` y en `ReplicasTable`. Aunque residen en la misma infraestructura física de DynamoDB por motivos de costos académicos, arquitectónicamente actúan como dos almacenes segregados. Si durante una consulta federada en `/api/v1/federated/academic-history/{id}` el nodo de origen está caído (o se activa la cabecera `X-Simulate-Down`), el middleware salta automáticamente a consultar esta tabla de réplicas, garantizando que el estudiante y la universidad receptora completen el trámite sin interrupción del servicio.
+
+---
+
+### 26.4 Tabla `TokensTable` (Lista Negra y Soberanía del Consentimiento)
+
+| Atributo | Tipo NoSQL | Función Técnica y Justificación en el Sistema |
+|---|---|---|
+| `jti` **(Partition Key)** | String (UUID hexadecimal) | Identificador único del token JWT (*JWT ID*). Representa la clave primaria de la tabla y permite buscar un token en menos de 5 ms para verificar su estado de revocación. |
+| `document_number` | String (Cadena) | Documento de identidad del alumno que emitió la autorización. Permite listar en el portal web todos los tokens activos o revocados generados por ese estudiante. |
+| `student_id` | String (Cadena) | Código institucional del estudiante asociado al token. |
+| `origin` | String (Cadena) | Nodo de origen propietario de los datos que se autorizan a consultar (ej. `IES-1111AAAA`). |
+| `aud` | String (Cadena) | Nodo de destino expresamente autorizado a consultar el historial (ej. `IES-2222BBBB`). |
+| `issued_at` | Number (Unix Epoch) | Timestamp numérico en segundos que certifica el segundo exacto de expedición del consentimiento. |
+| `exp` | Number (Unix Epoch) | Timestamp numérico en segundos que marca el vencimiento estricto del token (por defecto `issued_at + 86400` segundos = 24 horas). |
+| `ttl` | Number (Unix Epoch) | Atributo configurado con la funcionalidad nativa **TTL (*Time To Live*) de Amazon DynamoDB**. Cuando el reloj de AWS supera este valor, DynamoDB marca el registro como caducado y lo borra automáticamente del disco sin consumir unidades de cómputo. |
+| `revoked` | Boolean (Booleano) | Bandera de revocación (*Lista Negra*). Comienza en `false`. Si el estudiante pulsa "Revocar" en su portal, el backend ejecuta un `update_item` atómico cambiando este valor a `true`. |
+
+#### Explicación en prosa de `TokensTable`:
+Esta tabla materializa el **principio de soberanía de datos del estudiante**. Los tokens JWT son técnicamente válidos criptográficamente mientras no expire su firma; sin embargo, en un sistema distribuido real, el usuario debe tener el poder de cancelar un permiso antes de su vencimiento si sospecha de mal uso. Para lograrlo sin volver el sistema monolítico, `TokensTable` opera como una **lista negra distribuida**: cuando la universidad receptora presenta un token, el middleware no solo valida la firma matemática del JWT, sino que consulta esta tabla por clave `jti`. Si `revoked == true`, el acceso es denegado de inmediato con HTTP 403.
+
+---
+
+### 26.5 Tabla `AuditLogsTable` (Bitácora Distribuida Inmutable de Auditoría)
+
+| Atributo | Tipo NoSQL | Función Técnica y Justificación en el Sistema |
+|---|---|---|
+| `log_id` **(Partition Key)** | String (Cadena) | Identificador único de auditoría generado como `AUDIT-` seguido de 12 caracteres hexadecimales aleatorios. Garantiza unicidad absoluta por cada evento registrado en la red. |
+| `timestamp` | String (ISO-8601 UTC) | Marca de tiempo precisa en formato universal coordinado que certifica el milisegundo exacto del evento de auditoría. |
+| `consulting_node_id` | String (Cadena) | Identificador institucional de la universidad que realizó la consulta federada. |
+| `target_student_id` | String (Cadena) | Identificador del estudiante cuyo historial fue solicitado. |
+| `origin_node_id` | String (Cadena o null) | Identificador del nodo propietario del historial académico consultado. |
+| `outcome` | String (Enum) | Resultado de la operación: `SUCCESS` (consulta exitosa autorizada), `DENIED` (bloqueo por token inválido, expirado, revocado o audiencia no coincidente) o `ERROR` (falla de integridad criptográfica o historial inexistente). |
+| `reason` | String (Cadena) | Motivo descriptivo del resultado registrado (ej. "Consulta exitosa (Primary)", "El token fue revocado por el estudiante", "Integridad del historial no verificable"). |
+| `data_source` | String (Enum) | Fuente de datos utilizada para resolver la petición: `Primary` (tabla principal), `Replica` (conmutación por failover a la réplica) o `None` (en peticiones denegadas). |
+| `client_ip` | String (Cadena) | Dirección IP pública del cliente que originó la petición HTTP hacia API Gateway, facilitando análisis forense en caso de intentos de ataque o escaneo. |
+
+#### Explicación en prosa de `AuditLogsTable`:
+Esta tabla es el corazón del **no-repudio y la transparencia de la red (HU-09)**. Cada vez que una universidad o usuario ejecuta una acción sobre el endpoint federado, el router `federated.py` invoca la función interna `_log()`, la cual realiza una inserción directa (`put_item`) en `AuditLogsTable`. Por diseño de seguridad, la política de permisos IAM adjunta a la función Lambda carece por completo de las acciones `dynamodb:DeleteItem` y `dynamodb:UpdateItem` sobre esta tabla. Esto significa que **nadie puede alterar el pasado ni borrar registros de auditoría**, garantizando una pista forense matemáticamente inmutable.
+
+---
+
+## 27. Defensa Arquitectónica de Sistemas Distribuidos y Refutación de Críticas
+
+Esta sección blinda al equipo frente a cualquier interrogatorio o sustentación ante un tribunal académico estricto de Sistemas Distribuidos y Teoría General de Sistemas, refutando con rigor técnico y evidencia del código las objeciones comunes.
+
+### 27.1 ¿Por qué RFHA-IES NO es una base de datos centralizada aunque resida en AWS?
+
+Una crítica superficial muy frecuente al observar el proyecto es: *"Como todas las tablas están en la misma cuenta de AWS DynamoDB y las peticiones pasan por una sola API Gateway, el sistema es un monolito centralizado tradicional"*. Esta afirmación confunde la **infraestructura física de hosting** con la **arquitectura lógica distribuida**:
+
+#### 1. Particionamiento lógico e islas de datos soberanas:
+En una base de datos centralizada clásica, existe un esquema global unificado donde cualquier administrador o consulta autorizada puede hacer un `SELECT * FROM estudiantes` y cruzar los datos de todas las universidades. En **RFHA-IES**, esto es técnicamente imposible:
+* Los datos están estrictamente particionados por `node_id` (`record_key = f"{node_id}#{student_id}"` en `src/app/repositories.py`).
+* La Universidad Distrital no tiene visibilidad sobre los registros de la Universidad Nacional. Cada universidad posee una "isla de datos" lógica completamente estanca.
+* El nodo dueño se inyecta desde la API Key validada por el servidor (`node["node_id"]` en `src/app/routers/sync.py`), lo que hace imposible que un nodo escriba, consulte o modifique datos pertenecientes a otro nodo institucional.
+
+#### 2. Separación entre Plano de Control y Almacenes de Origen:
+En una arquitectura puramente centralizada, el servidor central es la única fuente de verdad operativa donde se registran matrículas, pagos y notas día a día. En **RFHA-IES**, el sistema académico interno de cada universidad (su propio ERP o sistema SIA institucional) sigue residiendo dentro de los servidores locales de cada universidad. DynamoDB en este proyecto actúa exclusivamente como un **almacén federado de intercambio y réplica de contingencia**, intermediado por el plano de control para permitir la interoperabilidad segura.
+
+#### 3. Cero estado compartido local y escalabilidad elástica:
+A nivel de infraestructura, AWS Lambda no es un único servidor físico central. Cada petición que entra por API Gateway puede ser ejecutada por micro-contenedores completamente independientes corriendo en distintos racks o centros de datos dentro de la región `us-east-2`. No existe memoria compartida, ni variables globales locales, ni bloqueos pesados de base de datos relacional.
+
+---
+
+### 27.2 Matriz de Refutación ante Objeciones de Evaluadores
+
+A continuación se analizan 7 objeciones severas que un evaluador académico podría formular, junto con su respuesta técnica irrebatible basada en el código del repositorio:
+
+| # | Objeción / Ataque del Evaluador | Refutación Técnica Rigurosa con Evidencia en Código y AWS |
+|---|---|---|
+| **1** | *"Todo corre en una sola función AWS Lambda; eso es un monolito centralizado, no un sistema distribuido."* | **Falso.** AWS Lambda no es un proceso único en ejecución; es una plataforma de computación elástica distribuida. Cuando 50 universidades realizan peticiones simultáneas, AWS levanta 50 entornos de ejecución aislados con micro-máquinas Firecracker independientes. La evidencia irrefutable se observa en **CloudWatch Logs**, donde cada petición presenta un `RequestId` y un contenedor independiente ejecutándose en paralelo sin compartir memoria local. La aplicación es totalmente *stateless*. |
+| **2** | *"Todas las universidades apuntan a la misma URL de API Gateway; es un esquema cliente-servidor tradicional."* | **Falso.** Confunde el punto de entrada de la red con la topología del sistema. API Gateway actúa exactamente igual que un **Router BGP en Internet** o un **Name Server en el sistema DNS**: es un mediador de direccionamiento y plano de control federado neutral. Los participantes de la red son nodos autónomos con identidades criptográficas únicas (API Keys con hash SHA-256) que controlan cuándo y qué sincronizan. |
+| **3** | *"Si guardan copias de los historiales en DynamoDB, centralizaron la base de datos de las universidades."* | **Falso.** DynamoDB opera bajo el modelo federado de islas de datos particionadas. La clave de partición obligatoria `record_key = node_id#student_id` impide cruces relacionales globales. Además, el acceso a la lectura de cualquier historial está bloqueado por defecto: se requiere un token de consentimiento firmado por el estudiante con claim de audiencia estricto (`aud`). Sin ese token, nadie puede extraer información de la base. |
+| **4** | *"No tienen algoritmos de consenso distribuido como Raft o Paxos; sin eso no hay consistencia distribuida."* | **Aclaración de modelo:** Los algoritmos de consenso como Raft o Paxos son obligatorios cuando un clúster de nodos debe ponerse de acuerdo sobre un único registro global compartido (como en una blockchain o el log de etcd). En RFHA-IES, **las universidades no compiten por escribir el mismo registro**: la Universidad A es la dueña exclusiva de sus notas y la Universidad B de las suyas. Para escrituras concurrentes del mismo nodo, el sistema implementa **Concurrencia Optimista con `ConditionExpression` en DynamoDB** (`Attr("synced_at").lte(new_synced_at)` en `repositories.py`), lo que resuelve formalmente la consistencia en sistemas federados. |
+| **5** | *"El failover es reactivo y simulado; no hay servidores físicos corriendo en distintos países."* | **Respuesta:** En sistemas serverless de nube moderna, la tolerancia a fallos física está delegada en la infraestructura multi-zona de AWS (DynamoDB replica automáticamente en 3 Zonas de Disponibilidad físicas independientes con tolerancia a inundaciones o fallas eléctricas en un centro de datos). A nivel de aplicación, el failover implementado en `src/app/routers/federated.py` (L.100-114) demuestra conmutación transparente de lectura: si `RecordsTable` no responde, el sistema lee de `ReplicasTable` y lo evidencia mediante la cabecera HTTP `X-Data-Source: Replica`. |
+| **6** | *"Si la región de AWS donde está desplegada la Lambda cae, todo el sistema muere (SPOF)."* | **Reconocimiento y mitigación:** Se reconoce con honestidad técnica que un despliegue en una sola región (`us-east-2`) posee como límite el SLA de 99.95% de AWS Lambda. Sin embargo, para producción comercial, la arquitectura actual está lista para desplegarse como **Active-Active Multi-Region** utilizando **Amazon Route 53** con enrutamiento basado en latencia y **DynamoDB Global Tables**, eliminando por completo cualquier punto único de fallo regional. |
+| **7** | *"El JWT usa firma simétrica `HS256`, lo que significa que el middleware conoce el secreto; no hay descentralización de confianza."* | **Justificación técnica:** `HS256` se eligió porque el middleware actúa como la autoridad neutral centralizada de validación y emisión de tokens (equivalente al Authorization Server en el estándar RFC 6749 OAuth2). El estudiante no firma directamente con una llave privada en su navegador porque requeriría almacenar certificados X.509 en el dispositivo del alumno. Para una evolución a confianza totalmente descentralizada, se adoptaría criptografía asimétrica **RS256** o **Ed25519**, donde cada universidad o estudiante poseería un par de llaves pública/privada. |

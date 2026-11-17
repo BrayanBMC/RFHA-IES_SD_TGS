@@ -681,3 +681,216 @@ Esta guía describe el procedimiento exacto para sustentar el proyecto en vivo f
 5. **Auditoría Forense Inmediata:**
    * Ve a `/auditoria`, ingresa la clave de administrador y carga la bitácora.
    * Muestra las dos entradas consecutivas: la primera con fuente `Primary` y la segunda con fuente `Replica`, demostrando la trazabilidad inmutable y el funcionamiento en tiempo real.
+
+
+---
+
+## 19. Fundamentos Básicos de Protocolos y Redes Aplicados al Proyecto
+
+Para comprender a fondo la arquitectura de **RFHA-IES**, es indispensable analizar los protocolos de comunicación y mecanismos de red desde sus fundamentos más elementales hasta su aplicación práctica en el código.
+
+### 19.1 Protocolo HTTP / HTTPS y Arquitectura Cliente-Servidor
+El protocolo de transferencia de hipertexto (**HTTP - Hypertext Transfer Protocol**) es el estándar sin estado (*stateless*) mediante el cual dialogan clientes y servidores a través de mensajes de solicitud (**Request**) y respuesta (**Response**). En RFHA-IES, cada interacción se efectúa bajo **HTTPS** (HTTP sobre **TLS 1.3**), garantizando autenticidad y privacidad en el canal.
+
+#### Métodos HTTP empleados en la red:
+* **`GET`:** Consulta segura e idempotente que no altera el estado del servidor.
+  * `GET /api/v1/nodes/active`: Consulta el catálogo de universidades autorizadas (`src/app/routers/nodes.py`).
+  * `GET /api/v1/federated/academic-history/{student_id}`: Recupera el historial federado del estudiante validando previamente su token (`src/app/routers/federated.py`).
+* **`POST`:** Creación de recursos o envío de datos confidenciales en el cuerpo.
+  * `POST /api/v1/nodes/register`: Registra una nueva solicitud institucional en `NodesTable` (`src/app/routers/nodes.py`).
+  * `POST /api/v1/node/sync-records`: Carga o actualiza lotes de historiales académicos (`src/app/routers/sync.py`).
+  * `POST /api/v1/students/token`: Emisión del JWT de consentimiento estudiantil (`src/app/routers/students.py`).
+* **`PATCH`:** Modificación parcial de un recurso existente.
+  * `PATCH /api/v1/admin/nodes/{node_id}/status`: Actualiza manualmente el estado de salud de un nodo (`ACTIVO` o `DEGRADADO`) sin sobreescribir sus demás atributos institucionales (`src/app/routers/admin.py`).
+* **`DELETE`:** Eliminación lógica o revocación de un recurso.
+  * `DELETE /api/v1/students/token/{jti}`: Marca inmediatamente como revocado un token en `TokensTable` (`src/app/routers/students.py`).
+
+#### Códigos de estado HTTP y su significado en el proyecto:
+* **`200 OK`:** Petición procesada exitosamente con payload retornado.
+* **`201 Created`:** Recurso institucional registrado exitosamente (`POST /api/v1/nodes/register`).
+* **`403 Forbidden`:** Acceso denegado por credencial inválida, API Key errónea, token vencido o audiencia no autorizada (`src/app/security.py` y `tokens.py`).
+* **`404 Not Found`:** Estudiante o nodo inexistente en las tablas de datos.
+* **`409 Conflict`:** Conflicto de unicidad (NIT ya registrado en `NodesTable`) o choque de concurrencia optimista en DynamoDB.
+* **`422 Unprocessable Entity`:** Fallo de validación semántica de Pydantic (ej. formato de correo o semestre inválido).
+* **`500 Internal Server Error`:** Fallo de integridad criptográfica en los datos (la firma SHA-256 no coincide).
+
+#### Cabeceras HTTP personalizadas utilizadas en el sistema:
+* **`X-Admin-Key`:** Clave de administración general requerida en endpoints de `/api/v1/admin/*` y `/api/v1/audit/logs`.
+* **`X-Node-API-Key`:** Llave de autenticación institucional asignada a cada nodo aprobado para firmar sus transacciones.
+* **`X-Student-Consent-Token`:** Token JWT de autorización emitido por el estudiante para permitir la consulta de su historial.
+* **`X-Data-Source`:** Cabecera de respuesta inyectada por el middleware (`Primary` o `Replica`) indicando si la información provino de la tabla principal o de contingencia.
+* **`X-Simulate-Down`:** Cabecera de prueba que fuerza la conmutación a réplica sin necesidad de desconectar el nodo real.
+
+---
+
+### 19.2 Protocolo TLS (Transport Layer Security) y Cifrado en Tránsito
+**TLS** es el protocolo criptográfico que cifra la sesión punto a punto entre el navegador del usuario y **AWS API Gateway**.
+1. **Confidencialidad:** Impide que actores intermediarios en la red pública puedan leer en claro contraseñas, documentos de identidad o las API Keys enviadas en las cabeceras.
+2. **Integridad del Transporte:** Protege los mensajes contra manipulaciones intermedias (*Man-in-the-Middle*).
+3. **Autenticación del Servidor:** API Gateway certifica criptográficamente ante el cliente que está conectado al dominio legítimo de AWS bajo certificados gestionados por Amazon Trust Services.
+
+---
+
+### 19.3 Formato JSON y Paradigma REST
+* **REST (Representational State Transfer):** La arquitectura desacopla completamente el cliente (frontend web HTML/CSS/JS estático) del servidor (FastAPI en AWS Lambda). Todas las operaciones se orientan a recursos identificados mediante URIs predecibles.
+* **JSON (JavaScript Object Notation):** Es el lenguaje de intercambio común. En el cliente, JavaScript serializa objetos mediante `JSON.stringify()` y los envía; en el servidor, los modelos Pydantic (`src/app/models.py`) deserializan y validan estrictamente tipos de datos, rangos y expresiones regulares antes de tocar la base de datos.
+
+---
+
+### 19.4 Protocolo JWT (JSON Web Token) y Hashes Criptográficos SHA-256
+Un **JSON Web Token** (RFC 7519) es un objeto JSON compacto y autónomo para transmitir de forma segura afirmaciones (*claims*) verificables entre partes.
+
+```mermaid
+flowchart LR
+    subgraph JWT["Estructura del JWT (Codificado en Base64URL)"]
+        H["Header (Algoritmo HS256)"]
+        P["Payload (Claims: sub, doc, origin, aud, jti, exp)"]
+        S["Signature = HMACSHA256(H + P, JWT_SECRET)"]
+    end
+    H --- P --- S
+```
+
+#### Estructura en RFHA-IES (`src/app/tokens.py`):
+1. **Header:** Define el algoritmo de firma simétrica (`{"alg": "HS256", "typ": "JWT"}`).
+2. **Payload:** Contiene la autorización delegada por el estudiante:
+   * `sub`: Identificador institucional del estudiante (`student_id`).
+   * `doc`: Número de documento de identidad nacional.
+   * `origin`: Nodo emisor propietario de la información (ej. `IES-1111AAAA`).
+   * `aud`: Nodo destino estrictamente autorizado para consultar (ej. `IES-2222BBBB`). Si otra universidad intenta usar el token, `jwt.decode` rechaza la petición con `InvalidAudienceError`.
+   * `jti`: Identificador único aleatorio de 128 bits (UUID4) que permite registrar el token en la lista negra para revocación instantánea.
+   * `iat` y `exp`: Timestamps Unix de emisión y vencimiento (24 horas).
+3. **Signature:** Firma criptográfica calculada con la clave secreta `JWT_SECRET`. Garantiza que ningún atacante pueda alterar la audiencia o el estudiante sin invalidar el token.
+
+#### Hashes Criptográficos SHA-256 en el Código:
+* **API Keys de Universidades:** `src/app/security.py` ejecuta `hash_api_key(api_key)`. En `NodesTable` **nunca se guarda la clave original**, únicamente su resumen SHA-256. Al recibir una petición, se calcula el hash y se busca por igualdad en DynamoDB.
+* **Firma de Integridad del Historial:** `record_signature()` ordena las llaves alfabéticamente (`sort_keys=True`) para construir un JSON canónico y calcula su digest SHA-256. Cualquier alteración de una nota o crédito produce una firma totalmente distinta, detectando manipulación de datos.
+
+---
+
+## 20. Análisis Detallado de Cada Diagrama y Tabla Existente en el README
+
+Para asegurar máxima claridad académica, esta sección analiza paso a paso cada uno de los elementos visuales y tabulares incluidos en el documento.
+
+### 20.1 Diagrama de Arquitectura General (§1)
+* **Bloque Nodos IES (`N1`, `N2`):** Representa las distintas universidades participantes. Cada una actúa como cliente independiente con credenciales propias.
+* **Bloque Middleware RFHA-IES:** Agrupa la infraestructura de plano de control en AWS. La flecha hacia `GW` (API Gateway) centraliza la recepción; `LM` (AWS Lambda) ejecuta el procesamiento sin estado y se conecta bidireccionalmente a `DB` (Amazon DynamoDB).
+* **Bloque Actores Externos:** Modela al `Estudiante` interactuando con el portal de consentimiento y al `Administrador` operando la consola central.
+* **Flujos de Flechas:** Las etiquetas explicitan el verbo HTTP, la URI y las cabeceras de autorización necesarias para cruzar la frontera del sistema.
+
+### 20.2 Diagrama de Secuencia del Flujo Completo (§1)
+* **Líneas de Vida (`Lifelines`):** Universidad B, API Gateway, Lambda y DynamoDB.
+* **Paso 1 (Invocación):** Petición GET con dos cabeceras simultáneas (`X-Node-API-Key` y `X-Student-Consent-Token`).
+* **Paso 2 y 3 (Validación de Nodo y Token):** Verificación de identidad institucional contra `NodesTable` y posterior evaluación criptográfica del JWT (audiencia, expiración y estado en `TokensTable`).
+* **Paso 4 (Bifurcación Alt/Else - Failover):**
+  * Rama `Alt (Nodo caído)`: Si la consulta a `RecordsTable` falla o está simulada, Lambda conmuta a `ReplicasTable` y etiqueta `X-Data-Source: Replica`.
+  * Rama `Else (Nodo activo)`: Recupera directamente de `RecordsTable` con etiqueta `X-Data-Source: Primary`.
+* **Paso 5 (Integridad y Auditoría):** Validación de la firma SHA-256 del registro y persistencia no repudiable en `AuditLogsTable` antes de responder al cliente con HTTP 200.
+
+### 20.3 Diagrama de Bucles de Retroalimentación TGS (§9)
+* **Bucle 1 (Aprobación Institucional):** Flujo de control donde la entrada (solicitud de registro) produce una decisión administrativa que cambia el estado a `ACTIVO` o `RECHAZADO`, habilitando o bloqueando la capacidad operativa del nodo.
+* **Bucle 2 (Consentimiento Estudiantil):** Ciclo donde el estudiante otorga el token; tras la consulta por parte de la universidad, el registro en auditoría permite al alumno supervisar el acceso y, en caso de detectar anomalías, disparar la revocación inmediata.
+
+### 20.4 Diagramas DFD Nivel 0 y Nivel 1 (§11)
+* **DFD Nivel 0 (Contexto):** Muestra los límites del sistema. Los tres entes externos (Universidad, Estudiante, Administrador) entregan flujos de datos y reciben productos transformados (historial validado, tokens activos, reportes consolidados).
+* **DFD Nivel 1 (Descomposición Funcional):** Desglosa el procesamiento en 6 procesos atómicos (`P1` a `P6`), vinculando cada uno con su correspondiente almacén de datos DynamoDB (`DS1` a `DS5`) y su archivo ejecutable en el backend.
+
+---
+
+## 21. Análisis Exhaustivo de las 5 Tablas de Amazon DynamoDB
+
+DynamoDB es una base de datos NoSQL totalmente administrada que almacena datos estructurados en formato documento/clave-valor con latencia consistente de un solo dígito de milisegundos. A continuación se desglosan las tablas oficiales de la red:
+
+```mermaid
+classDiagram
+    class NodesTable {
+        +String node_id (PK)
+        +String nit
+        +String name
+        +String domain
+        +String contact_email
+        +String status
+        +String api_key_hash
+        +String created_at
+        +String approved_at
+    }
+
+    class RecordsTable {
+        +String record_key (PK: node_id#student_id)
+        +String node_id
+        +String student_id
+        +String document_number
+        +String full_name
+        +String program
+        +String academic_status
+        +List courses
+        +String password_hash
+        +String digital_signature_hash
+        +String synced_at
+    }
+
+    class ReplicasTable {
+        +String record_key (PK: node_id#student_id)
+        +String node_id
+        +String student_id
+        +List courses
+        +String digital_signature_hash
+        +String synced_at
+    }
+
+    class TokensTable {
+        +String jti (PK)
+        +String document_number
+        +String student_id
+        +String origin
+        +String aud
+        +Number issued_at
+        +Number exp
+        +Number ttl (TTL Attribute)
+        +Boolean revoked
+    }
+
+    class AuditLogsTable {
+        +String log_id (PK)
+        +String timestamp
+        +String consulting_node_id
+        +String target_student_id
+        +String origin_node_id
+        +String outcome
+        +String reason
+        +String data_source
+        +String client_ip
+    }
+```
+
+### 1. `NodesTable` (Catálogo Institucional y Credenciales)
+* **Propósito:** Registro y control del ciclo de vida de las Instituciones de Educación Superior dentro de la red.
+* **Clave de Partición (Partition Key):** `node_id` (Cadena con formato `IES-XXXXXXXX`).
+* **Atributos Principales:** `nit`, `name`, `domain`, `contact_email`, `status` (`PENDIENTE_APROBACION`, `ACTIVO`, `DEGRADADO`), `api_key_hash` (digest SHA-256 de la API Key), `created_at`, `approved_at`.
+* **Seguridad y Accesos:** Protegida con cifrado en reposo. Se interactúa mediante `DynamoNodeRepository` en `src/app/repositories.py` (`create_node`, `get_node`, `list_nodes`, `update_node`, `find_by_api_key_hash`).
+
+### 2. `RecordsTable` (Historiales Académicos - Primario)
+* **Propósito:** Almacén primario de historiales de estudiantes cargados por cada universidad propietaria.
+* **Clave de Partición (Partition Key):** `record_key` (Cadena compuesta `<node_id>#<student_id>`, ej. `IES-1111AAAA#20262678029`). Esta clave compuesta garantiza que un estudiante tenga un historial estrictamente particionado por cada universidad donde curse estudios.
+* **Atributos Principales:** `student_id`, `document_number`, `full_name`, `program`, `academic_status`, lista serializada `courses` (código, nombre, créditos, nota, estado), `password_hash` (PBKDF2 del portal), `digital_signature_hash` (SHA-256 canónico) y timestamp `synced_at`.
+* **Control de Concurrencia:** Utiliza `ConditionExpression` en el método `upsert()` para validar que peticiones concurrentes o desfasadas no sobreescriban historiales más recientes.
+* **Mapeo:** Gestionada en `DynamoRecordRepository` (`src/app/repositories.py`).
+
+### 3. `ReplicasTable` (Copia Redundante para Tolerancia a Fallos)
+* **Propósito:** Almacén secundario que preserva una copia fiel e independiente del historial académico para garantizar disponibilidad total (modelo AP) si el nodo origen primario experimenta caídas.
+* **Clave de Partición (Partition Key):** `record_key`.
+* **Atributos:** Réplica idéntica de los datos del estudiante y cursos firmados.
+* **Mapeo:** Actualizada de forma síncrona en `sync_records` (`src/app/routers/sync.py`) y leída por `academic_history` en `src/app/routers/federated.py` en caso de failover.
+
+### 4. `TokensTable` (Lista Negra y Control de Consentimiento)
+* **Propósito:** Gestionar los tokens de autorización emitidos por los alumnos y garantizar su revocación inmediata.
+* **Clave de Partición (Partition Key):** `jti` (UUID de 32 caracteres hexadecimales correspondiente al identificador único del JWT).
+* **Atributos:** `document_number`, `student_id`, `origin`, `aud` (nodo destino autorizado), `issued_at`, `exp`, `revoked` (booleano) y `ttl` (entero Unix timestamp).
+* **Mecanismo TTL (Time to Live):** DynamoDB monitorea automáticamente el atributo `ttl`. Cuando el tiempo actual supera este valor, el registro es purgado de la tabla sin costo adicional de lectura o escritura, manteniendo la base libre de registros obsoletos.
+* **Mapeo:** Implementada en `DynamoTokenRepository` en `src/app/repositories.py`.
+
+### 5. `AuditLogsTable` (Bitácora Distribuida Inmutable)
+* **Propósito:** Trazabilidad forense y registro no repudiable de toda consulta o intento de acceso dentro de la red federada.
+* **Clave de Partición (Partition Key):** `log_id` (Cadena con formato `AUDIT-XXXXXXXXXXXX`).
+* **Atributos:** `timestamp` (ISO-8601 UTC), `consulting_node_id`, `target_student_id`, `origin_node_id`, `outcome` (`SUCCESS`, `DENIED`, `ERROR`), `reason`, `data_source` (`Primary`, `Replica`, `None`), `client_ip`.
+* **Inmutabilidad y No-Repudio:** La política de permisos IAM de Lambda restringe las operaciones sobre esta tabla a `PutItem` y `Scan`; no existe permiso para modificar (`UpdateItem`) ni eliminar (`DeleteItem`) registros.
+* **Mapeo:** Gestionada en `DynamoAuditRepository` (`src/app/repositories.py`) e invocada en cada flujo del router `federated.py`.

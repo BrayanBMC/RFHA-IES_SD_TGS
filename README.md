@@ -10,27 +10,27 @@
 
 ## Tabla de módulos
 
-| Módulo web | URL | Descripción |
-|------------|-----|-------------|
-| Inicio | `/` | Menú principal |
-| Registro de universidad | `/registro-nodo` | HU-01 |
-| Administración | `/admin` | HU-02 |
-| Panel del nodo | `/panel-nodo` | HU-03 |
-| Portal del estudiante | `/portal-estudiante` | HU-04 / HU-05 |
-| Consulta federada | `/consulta` | HU-06 / HU-07 / HU-08 |
-| Bitácora de auditoría | `/auditoria` | HU-09 |
-| Reportes ejecutivos | `/reportes` | PDF por tipo de reporte |
+| Módulo web | URL | Descripción Detallada, Propósito y Conexiones (5 a 7 líneas completas) |
+|------------|-----|-------------------------------------------------------------------------|
+| Inicio | `/` | Es el punto de partida visual y la puerta de entrada principal para cualquier usuario que abre la aplicación en su navegador web. Despliega la pantalla interactiva construida en HTML5 semántico (`inicio.html`) y estilizada con CSS adaptativo (`styles.css`), sirviendo como menú central ergonómico. Presenta de forma clara y accesible las tarjetas de navegación hacia cada uno de los subsistemas de la red federada (registro, administración, nodo, estudiante, consulta, auditoría e informes). No exige autenticación previa para permitir que rectores, directores de registro y estudiantes conozcan el propósito de la plataforma. Si este módulo fallara, los usuarios no tendrían un menú gráfico amigable para acceder a los distintos servicios del sistema. |
+| Registro de universidad | `/registro-nodo` | Implementa la Historia de Usuario HU-01 permitiendo que una nueva institución de educación superior solicite formalmente su afiliación a la red federada. Captura el NIT tributario oficial, el nombre institucional, el dominio de internet y el correo electrónico del director de admisiones a través del formulario en `registro-nodo.html` y el script `registro.js`. Se conecta mediante una petición segura HTTPS utilizando el método POST hacia el backend en `src/app/routers/nodes.py`. Valida que el NIT no exista previamente y guarda la solicitud en la tabla física `NodesTable` de Amazon DynamoDB en estado preliminar `PENDIENTE_APROBACION`. Si este módulo no existiera o fallara, ninguna universidad nueva podría radicar su ingreso al ecosistema de interoperabilidad. |
+| Administración | `/admin` | Implementa la Historia de Usuario HU-02 actuando como la consola privada de gobernanza y control exclusivo del Administrador General de la Red. Exige obligatoriamente la cabecera de seguridad `X-Admin-Key` (una clave maestra secreta que se compara en tiempo constante en el servidor) para restringir el acceso a funcionarios autorizados. Permite al oficial revisar solicitudes pendientes, evaluar la legitimidad jurídica de cada institución y aprobar nodos mediante el endpoint `approve_node` en `src/app/routers/admin.py`. Al aprobar, genera una API Key secreta única con prefijo `rfha_`, guarda su huella digital SHA-256 en `NodesTable` y entrega la clave en pantalla por única vez. Sin este módulo administrativo, la red carecería de una autoridad de control que admita instituciones y emita credenciales oficiales. |
+| Panel del nodo | `/panel-nodo` | Implementa la Historia de Usuario HU-03 proveyendo la interfaz de trabajo diario donde los funcionarios de las universidades sincronizan los expedientes de sus estudiantes. Cuenta con un generador dinámico de prueba (`generateExample()` en `panel-nodo.js`) que fabrica entre dos y cuatro expedientes aleatorios en milisegundos con nombres, notas y materias diversas para demostraciones en vivo. Envía los datos hacia el endpoint `POST /api/v1/node/sync-records` en `src/app/routers/sync.py` exigiendo la cabecera `X-Node-API-Key`. El servidor calcula firmas digitales de integridad SHA-256 (`digital_signature_hash`) y escribe simultáneamente en el almacén primario `RecordsTable` y en el almacén de respaldo `ReplicasTable` aplicando concurrencia optimista. Si fallara, las universidades no podrían transferir notas a la red federada. |
+| Portal del estudiante | `/portal-estudiante` | Implementa las Historias de Usuario HU-04 y HU-05 materializando la soberanía absoluta del estudiante sobre la privacidad de sus calificaciones. Permite que el alumno inicie sesión ingresando su cédula y su contraseña protegida con sal PBKDF2 de 100.000 iteraciones en `portal-estudiante.html` y `portal-estudiante.js`. Al seleccionar una universidad receptora en una lista desplegable poblada desde `GET /api/v1/nodes/active`, invoca a `src/app/routers/students.py` para emitir un pase digital de autorización firmado criptográficamente con algoritmo HS256 (JWT) y vigencia estricta de 24 horas (`TokensTable`). Además, permite al estudiante supervisar sus pases históricos y revocar permisos previos con un solo clic mediante una sentencia atómica `DELETE`. Sin este módulo, se violaría la soberanía del estudiante al permitir consultas sin su consentimiento. |
+| Consulta federada | `/consulta` | Implementa las Historias HU-06, HU-07 y HU-08 permitiendo que una universidad receptora consulte el expediente académico de un aspirante en tiempo real sin intervención humana. Requiere simultáneamente la API Key institucional de la universidad que consulta (`X-Node-API-Key`) y el pase digital otorgado por el alumno (`X-Student-Consent-Token`). El backend en `src/app/routers/federated.py` valida siete barreras de seguridad (firma matemática, vigencia, coincidencia estricta de audiencia `aud` y no-revocación en lista negra). Si el nodo de origen está caído o se marca la casilla de simulación de falla (`X-Simulate-Down: true`), el middleware conmuta de forma transparente hacia la tabla de réplicas `ReplicasTable` devolviendo la cabecera `X-Data-Source: Replica`. Si fallara este módulo, las universidades no podrían homologar materias digitalmente. |
+| Bitácora de auditoría | `/auditoria` | Implementa la Historia de Usuario HU-09 exponiendo una pista forense inmutable de todas las transacciones, consultas, bloqueos y fallos ocurridos en la red federada. Permite acceso global al Administrador General (con `X-Admin-Key`) y acceso acotado a cada universidad para ver solo sus propios eventos (con `X-Node-API-Key`) a través de `src/app/routers/audit.py`. Consulta la base de datos `AuditLogsTable` en DynamoDB (la cual tiene prohibidas las operaciones de borrado mediante políticas IAM) e inyecta cabeceras `Cache-Control: no-store` para garantizar visibilidad en tiempo real sin retrasos de caché. Soporta filtrado temporal por parámetro `since` para auditar rangos de fechas precisos. Sin esta bitácora, la red carecería de no-repudio y transparencia legal ante auditorías judiciales. |
+| Reportes ejecutivos | `/reportes` | Es el módulo de inteligencia institucional encargado de compilar y exportar documentos oficiales y métricas de seguridad en formato PDF de alta resolución. A través de la interfaz en `reportes.html` y el script `reportes.js`, el usuario selecciona el tipo de informe deseado (Resumen General, Auditoría Forense, Resiliencia y Fallos, o Directorio de Nodos). Se conecta mediante una petición GET con `X-Admin-Key` al endpoint `/api/v1/admin/reports/network-summary` en `src/app/routers/admin.py`, el cual utiliza la librería `ReportLab` en `src/app/reports.py` para dibujar tablas, gráficos y encabezados en la memoria RAM del servidor. Devuelve un flujo binario descargable automáticamente con el nombre estandarizado del día. Si fallara, los directivos no tendrían informes ejecutivos para sustentar la operación de la red. |
 
 ### Explicación detallada de la tabla de módulos
-Esta tabla resume los puntos de entrada interactivos de la aplicación web que el usuario o evaluador puede abrir en su navegador:
-* **Fila 1 (`/` - Inicio):** Presenta la vista principal (`inicio.html`), sirviendo como puerta de enlace ergonómica hacia todos los subsistemas de la red.
-* **Fila 2 (`/registro-nodo` - Registro de universidad):** Implementa la Historia de Usuario HU-01. Permite a una institución educativa solicitar su afiliación formal a la red federada enviando NIT, nombre, dominio y correo institucional.
-* **Fila 3 (`/admin` - Administración):** Implementa la Historia de Usuario HU-02. Consola restringida mediante la cabecera `X-Admin-Key` donde el administrador general revisa solicitudes pendientes, aprueba nodos y genera credenciales seguras.
-* **Fila 4 (`/panel-nodo` - Panel del nodo):** Implementa la Historia de Usuario HU-03. Permite a las universidades sincronizar de forma masiva o individual los historiales académicos de sus alumnos, aplicando firma criptográfica SHA-256 e inyectando datos tanto en la base principal como en la réplica.
-* **Fila 5 (`/portal-estudiante` - Portal del estudiante):** Implementa las Historias HU-04 y HU-05. Espacio soberano para el alumno donde se autentica con su cédula y contraseña, selecciona a qué universidad receptora autoriza, genera su token JWT temporal (`student_auth_token`) y revoca accesos previos en tiempo real.
-* **Fila 6 (`/consulta` - Consulta federada):** Implementa las Historias HU-06, HU-07 y HU-08. Permite a una universidad receptora autenticada consultar el expediente de un aspirante usando el token de consentimiento, soportando conmutación automática por error a la réplica (`X-Data-Source: Replica`).
-* **Fila 7 (`/auditoria` - Bitácora de auditoría):** Implementa la Historia HU-09. Provee visualización forense en tiempo real y no repudiable de cada intento de consulta, bloqueo o conmutación en la red, con soporte de filtrado temporal (`since`).
-* **Fila 8 (`/reportes` - Reportes ejecutivos):** Permite generar y descargar documentos oficiales compilados dinámicamente en formato PDF con métricas del sistema, resiliencia y auditoría forense.
+Para interpretar correctamente la tabla superior, el lector debe entender que describe de izquierda a derecha la arquitectura modular del sistema:
+* **Columna 1 ("Módulo web"):** Indica el nombre funcional de la pantalla interactiva dentro del dominio universitario. Cada módulo representa un subsistema autónomo concebido para un tipo de actor específico (administradores, funcionarios de admisiones o estudiantes).
+* **Columna 2 ("URL"):** Representa el punto de enlace o ruta web oficial en el navegador. Al ingresar a cualquiera de estas direcciones precedidas por el dominio público en AWS (`https://ypybm0azfg.execute-api.us-east-2.amazonaws.com`), el servidor despacha el archivo HTML correspondiente configurado en el diccionario de páginas de `src/app/main.py`.
+* **Columna 3 ("Descripción Detallada, Propósito y Conexiones"):** Explica el problema real que resuelve cada pantalla, cómo se comunica a través de internet con el servidor backend mediante peticiones HTTP (GET, POST, PATCH, DELETE), qué algoritmos de seguridad aplica (como SHA-256 o JWT) y con qué tablas de Amazon DynamoDB interactúa.
+
+En la operación cotidiana de la red, estos módulos no funcionan de forma aislada, sino en una cadena secuencial estricta:
+1. Una universidad no puede usar el **Panel del nodo** (`/panel-nodo`) sin haber completado antes el **Registro de universidad** (`/registro-nodo`) y haber recibido la aprobación en la consola de **Administración** (`/admin`).
+2. Una universidad receptora no puede ejecutar una **Consulta federada** (`/consulta`) si el alumno no ha entrado previamente al **Portal del estudiante** (`/portal-estudiante`) a expedir su pase digital con audiencia específica.
+3. Cada acción, éxito o intento de acceso no autorizado ejecutado en cualquiera de las pantallas dispara de inmediato un registro automático en la **Bitácora de auditoría** (`/auditoria`), cuyos datos consolidados son los que finalmente alimentan las gráficas y tablas de los **Reportes ejecutivos** (`/reportes`). De este modo, la tabla modela un ecosistema holístico donde cada módulo es indispensable para la armonía y seguridad de todo el sistema.
 
 ---
 
@@ -39,25 +39,25 @@ Esta tabla resume los puntos de entrada interactivos de la aplicación web que e
 ```mermaid
 flowchart TD
     subgraph Nodos["Nodos IES (universidades)"]
-        N1[Universidad A\nPanel del nodo]
-        N2[Universidad B\nPanel del nodo]
+        N1["Universidad A<br>Panel del nodo"]
+        N2["Universidad B<br>Panel del nodo"]
     end
 
-    subgraph Middleware["Middleware RFHA-IES\n(AWS Lambda + API Gateway)"]
-        GW[API Gateway\nus-east-2]
-        LM[AWS Lambda\nFastAPI + Mangum]
-        DB[(DynamoDB\n5 tablas)]
+    subgraph Middleware["Middleware RFHA-IES<br>(AWS Lambda + API Gateway)"]
+        GW["API Gateway<br>us-east-2"]
+        LM["AWS Lambda<br>FastAPI + Mangum"]
+        DB[("DynamoDB<br>5 tablas")]
     end
 
     subgraph Actores["Actores externos"]
-        STU[Estudiante\nPortal web]
-        ADM[Administrador\nPanel /admin]
+        STU["Estudiante<br>Portal web"]
+        ADM["Administrador<br>Panel /admin"]
     end
 
     N1 -->|"POST /api/v1/node/sync-records<br>X-Node-API-Key"| GW
-    N2 -->|"GET /api/v1/federated/academic-history/{id}<br>X-Student-Consent-Token"| GW
+    N2 -->|"GET /api/v1/federated/academic-history/:id<br>X-Student-Consent-Token"| GW
     STU -->|"POST /api/v1/students/token<br>Credenciales + nodo destino"| GW
-    ADM -->|"PATCH /api/v1/admin/nodes/{id}/approve<br>X-Admin-Key"| GW
+    ADM -->|"PATCH /api/v1/admin/nodes/:id/approve<br>X-Admin-Key"| GW
 
     GW --> LM
     LM --> DB
@@ -84,11 +84,11 @@ sequenceDiagram
     participant LM as Lambda (FastAPI)
     participant DB as DynamoDB
 
-    U->>GW: GET /api/v1/federated/academic-history/{student_id} (Headers: X-Node-API-Key, X-Student-Consent-Token)
+    U->>GW: GET /api/v1/federated/academic-history/:student_id (Headers: X-Node-API-Key, X-Student-Consent-Token)
     GW->>LM: invoca handler (Mangum adapta ASGI→Lambda)
     LM->>DB: find_by_api_key_hash(sha256(api_key)) → NodesTable
     DB-->>LM: nodo ACTIVO confirmado
-    LM->>LM: verify_token(jwt, audience=node_id, tokens_repo)\n  → valida firma HS256, exp, aud, lista negra
+    LM->>LM: verify_token(jwt, audience=node_id, tokens_repo)<br>valida firma HS256, exp, aud, lista negra
     LM->>DB: records.get(origin_node, student_id) → RecordsTable
     alt Nodo origen caído (HU-08)
         DB-->>LM: None / excepción
@@ -100,7 +100,7 @@ sequenceDiagram
         LM->>LM: X-Data-Source: Primary
     end
     LM->>LM: record_signature(signed_fields) == digital_signature_hash ?
-    LM->>DB: audits.record_log({...}) → AuditLogsTable (inmutable)
+    LM->>DB: audits.record_log(payload) → AuditLogsTable (inmutable)
     LM-->>GW: 200 JSON + X-Data-Source header
     GW-->>U: respuesta cifrada TLS
 ```
@@ -124,31 +124,44 @@ El diagrama de secuencia describe el ciclo de vida síncrono de una consulta int
 
 ### 2.1 ¿Qué es el Middleware y por qué RFHA-IES lo es?
 
-Un **middleware** es una capa de software que actúa como intermediario entre sistemas heterogéneos: recibe mensajes, los valida, transforma o enruta, y los entrega al destino correcto — sin que los extremos se conozcan directamente.
+Un **middleware** (software mediador o plano de control) es una capa lógica de software que se sitúa entre sistemas heterogéneos y desconectados para coordinar su comunicación, transformar formatos de datos y aplicar políticas de seguridad sin que los extremos tengan que conocerse directamente ni compartir bases de datos internas. Es exactamente como un notario público o un árbitro de aduanas que se para en la frontera entre dos países: no es dueño de las mercancías, pero revisa los pasaportes, valida los permisos de importación y sella los manifiestos antes de dejar pasar la carga.
 
-RFHA-IES cumple exactamente este rol:
+RFHA-IES cumple con exactitud este rol de mediación, desacoplamiento y gobierno a través de las siguientes funciones clave:
 
-| Función de middleware | Dónde ocurre en el código |
-|-----------------------|---------------------------|
-| **Interceptación** de cada petición | `src/app/security.py` → `require_node()` y `require_admin()` validan la identidad antes de que el router procese nada |
-| **Transformación** de datos | `src/app/routers/federated.py` → `_plain()` convierte `Decimal` de DynamoDB a tipos JSON; `_summary()` agrega GPA y créditos |
-| **Enrutamiento federado** | `federated.py` → decide entre `records` (primario) y `replicas` (réplica) según el estado del nodo origen |
-| **Verificación de integridad** | `security.py` → `record_signature()` recalcula SHA-256 del JSON canónico y compara con `digital_signature_hash` |
-| **Bitácora transversal** | `federated.py` → `_log()` escribe en `AuditLogsTable` en cada rama del flujo (éxito, denegado, error) |
+| Función de middleware | Descripción Detallada del Rol y Justificación (5 a 7 líneas completas) | Dónde ocurre en el código |
+|---|---|---|
+| **Interceptación de peticiones** | Detiene y examina cada solicitud que llega por internet antes de permitirle tocar los datos del sistema. Evalúa las credenciales en las cabeceras HTTP mediante las dependencias `require_node()` y `require_admin()` en `src/app/security.py`, comprobando que las API Keys institucionales y las contraseñas maestras sean válidas y legítimas. Si una petición carece de credenciales o presenta firmas corruptas, el middleware la expulsa en microsegundos con código HTTP 403 Forbidden sin consumir memoria ni computación en los módulos internos. Es el portero perimetral que protege al sistema contra accesos no autorizados. | `src/app/security.py` (L.62-77) |
+| **Transformación y normalización** | Recibe datos estructurados en diferentes formatos y los convierte a tipos estándar comprensibles por todas las partes. Convierte los números de tipo `Decimal` devueltos por la base de datos DynamoDB a tipos numéricos nativos de Python (`float` o `int`) mediante la función `_plain()`, y calcula el promedio acumulado GPA y la suma de créditos aprobados mediante `_summary()`. Esta mediación permite que los navegadores web reciban respuestas JSON limpias y listas para graficar sin preocuparse por las peculiaridades de almacenamiento de la base de datos de Amazon. | `src/app/routers/federated.py` (L.25-42) |
+| **Enrutamiento federado y failover** | Actúa como un conmutador inteligente de tráfico de datos decidiendo de forma dinámica de qué fuente de información se deben extraer las calificaciones. Si el servidor de la universidad de origen está en línea, dirige la lectura hacia la tabla primaria `RecordsTable`; pero si el nodo emisor sufre un apagón o se activa la simulación de caída mediante `X-Simulate-Down: true`, desvía la consulta de forma transparente hacia la tabla de réplicas de contingencia `ReplicasTable`. Garantiza que las universidades receptoras obtengan siempre el historial del estudiante sin interrupciones del servicio. | `src/app/routers/federated.py` (L.96-119) |
+| **Verificación de integridad canónica** | Certifica matemáticamente que las calificaciones y materias no hayan sido manipuladas o adulteradas mientras descansaban en el disco duro. Reconstruye el texto JSON canónico de las asignaturas ordenando las llaves alfabéticamente y calcula su resumen criptográfico SHA-256 mediante `record_signature()`, comparándolo contra el precinto `digital_signature_hash` guardado previamente. Si un hacker lograra entrar a la base de datos y cambiar una nota reprobada por aprobada, el hash no coincidiría y el middleware aborta la entrega con error HTTP 500 para proteger la verdad académica. | `src/app/security.py` (L.55-58) y `federated.py` (L.121-125) |
+| **Bitácora transversal de auditoría** | Graba de forma automática e imborrable cada acción, consulta exitosa o bloqueo de seguridad que ocurre en cualquier rincón del sistema. Invoca la función `_log()` en cada bifurcación lógica para asentar un registro inmutable en la tabla `AuditLogsTable` de DynamoDB con el código de las universidades, el estudiante investigado, el resultado, la fuente de datos (`Primary` o `Replica`) y la dirección IP pública del cliente. Aplica una política IAM que prohíbe el borrado de registros, garantizando una memoria histórica forense inalterable y con pleno valor probatorio. | `src/app/routers/federated.py` (L.68-80) |
+
+#### Explicación detallada de la tabla de funciones del middleware
+Para interpretar correctamente la tabla anterior, el lector debe comprender cómo actúa el software como un plano de control federado:
+* **Columna 1 ("Función de middleware"):** Nombra el patrón de diseño clásico de la teoría de Sistemas Distribuidos que el código está implementando.
+* **Columna 2 ("Descripción Detallada del Rol y Justificación"):** Detalla el problema concreto que resuelve cada mecanismo, qué pasaría si no estuviera implementado y cómo protege la soberanía institucional de las universidades.
+* **Columna 3 ("Dónde ocurre en el código"):** Señala los archivos de programación y números de línea exactos del repositorio donde el desarrollador o auditor puede verificar la implementación real en Python.
+
+En conjunto, estas cinco funciones demuestran que **RFHA-IES no es un simple programa de consulta de bases de datos, sino un verdadero middleware de mediación**: las universidades nunca se conectan directamente entre sí ni comparten contraseñas de red; toda la interoperabilidad ocurre a través de este árbitro neutral que transforma datos, valida firmas y garantiza la soberanía del estudiante en cada milisegundo.
 
 ### 2.2 Sistema distribuido vs. centralizado
 
-RFHA-IES es un **sistema distribuido federado**, no un monolito, por las siguientes evidencias en el código:
+RFHA-IES es formalmente un **sistema distribuido federado** y no un monolito centralizado tradicional. A continuación se detallan las evidencias en el código que demuestran este principio arquitectónico:
 
-| Propiedad SD | Evidencia en el código |
-|---|---|
-| **Nodos autónomos con identidad propia** | Cada universidad recibe una API Key única (`security.py → new_api_key()`) cuyo hash SHA-256 se guarda en `NodesTable`. El nodo **nunca** puede escribir datos de otro: `sync.py` L.40 → `"node_id": node["node_id"]` viene de la API Key autenticada, no del body. |
-| **Particionamiento de datos** | `repositories.py → record_key()` L.152: `f"{node_id}#{student_id}"` — cada registro está segmentado por nodo. Un nodo no puede acceder a registros ajenos. |
-| **Comunicación por red con protocolo** | Todo intercambio es HTTP REST con cabeceras de autenticación (`X-Node-API-Key`, `X-Student-Consent-Token`, `X-Admin-Key`). |
-| **Ausencia de estado local compartido** | Lambda es stateless: cada invocación es independiente. El estado está exclusivamente en DynamoDB. |
-| **Tolerancia a particiones (CAP)** | `federated.py` L.100-114: si el nodo origen falla, se activa failover automático a `ReplicasTable` (modelo AP). |
-| **Service Registry** | `nodes.py → GET /api/v1/nodes/active`: devuelve los nodos disponibles — equivalente a Eureka/Consul. |
-| **Autorización delegada** | El estudiante emite un JWT con `aud` = ID del nodo destino (`tokens.py`). Un token para Universidad A no sirve para Universidad B (`verify_token` lanza `InvalidAudienceError`). |
+| Propiedad de Sistemas Distribuidos | Evidencia Exhaustiva en el Código y Justificación Técnica (5 a 7 líneas completas) | Archivo y Referencia en Código |
+|---|---|---|
+| **Nodos autónomos con identidad propia** | Cada universidad opera como un participante descentralizado con credenciales exclusivas. Al ser aprobada en `src/app/routers/admin.py`, la institución recibe una API Key secreta generada con `new_api_key()` cuyo hash SHA-256 se resguarda en `NodesTable`. En el router de sincronización `src/app/routers/sync.py`, el código extrae la identidad del nodo (`node_id`) directamente desde la clave autenticada por el servidor y jamás del texto que el usuario envía en el cuerpo. Esto garantiza que un nodo jamás pueda escribir o modificar notas a nombre de otra institución de la red. | `src/app/security.py` y `sync.py` (L.26-40) |
+| **Particionamiento estricto de datos** | Los historiales académicos no residen en una bolsa común ni en un esquema relacional global unificado. La clave de partición obligatoria en DynamoDB se construye con la fórmula matemática `record_key = f"{node_id}#{student_id}"` en `src/app/repositories.py`. Esto crea "islas de datos" completamente estancas: la Universidad Distrital no tiene permiso ni capacidad técnica para consultar los registros de la Universidad Nacional. Cada universidad es dueña de su partición física, eliminando cualquier concepto de base de datos centralizada. | `src/app/repositories.py` (L.152-154) |
+| **Comunicación por red basada en protocolos** | Las universidades no comparten memoria RAM, ni procesadores locales, ni archivos físicos en un disco duro compartido. Todo el diálogo entre nodos se realiza a través de internet mediante mensajes HTTP REST fuertemente tipados utilizando modelos Pydantic y protegidos con cabeceras de autorización (`X-Node-API-Key`, `X-Student-Consent-Token`, `X-Admin-Key`). Cada universidad puede estar programada en tecnologías totalmente distintas en sus servidores locales y aun así interoperar con la red mediante este protocolo común. | `src/app/routers/*.py` y `main.py` |
+| **Ausencia total de estado local compartido** | La capa de cómputo en AWS Lambda es 100% sin estado (*stateless*). Cada petición que llega por internet es atendida por micro-máquinas virtuales Firecracker independientes que se levantan y apagan en milisegundos sin conservar variables globales ni memoria entre peticiones. Toda la persistencia reside en DynamoDB, lo que permite que el sistema atienda a cincuenta universidades simultáneas en paralelo sin bloqueos de memoria ni cuellos de botella de servidores centralizados. | `src/app/main.py` (`Mangum`) |
+| **Tolerancia a particiones de red (CAP)** | El sistema está diseñado para sobrevivir a cortes de red o caídas de servidores universitarios sin detener su operación. Si el nodo emisor donde están las notas originales sufre un apagón o se activa la simulación de falla en `src/app/routers/federated.py`, el middleware activa automáticamente el mecanismo de conmutación por error (**Failover**) leyendo la información desde `ReplicasTable` y entregando la respuesta con la cabecera `X-Data-Source: Replica`. Demuestra en vivo el modelo AP del Teorema CAP. | `src/app/routers/federated.py` (L.100-114) |
+| **Registro dinámico de descubrimiento** | Los nodos de la red no tienen grabadas en código duro las direcciones de las demás universidades. El endpoint público `GET /api/v1/nodes/active` en `src/app/routers/nodes.py` consulta en tiempo real qué instituciones tienen estado `ACTIVO` en `NodesTable` y entrega la lista a los clientes. Cumple formalmente la función de un **Service Registry (como Consul o Eureka en microservicios)**, permitiendo que el portal del estudiante descubra dinámicamente qué universidades están disponibles para recibir autorizaciones. | `src/app/routers/nodes.py` (L.31-36) |
+| **Autorización descentralizada y delegada** | El control de acceso a las calificaciones no lo decide un administrador central ni el middleware; lo decide de forma soberana el estudiante. El alumno ingresa a su portal y emite un token JWT firmado simétricamente con algoritmo HS256, grabando dentro del campo de audiencia (`aud`) el código de la universidad receptora autorizada. Si otra institución intenta usar ese mismo token, la función `verify_token()` en `src/app/tokens.py` rechaza la consulta con `InvalidAudienceError`, demostrando que los permisos están delegados en el usuario final. | `src/app/tokens.py` (L.25-75) |
+
+#### Explicación detallada de la tabla de Sistemas Distribuidos
+Esta tabla constituye la prueba científica de que **RFHA-IES cumple con los siete pilares fundamentales de la computación distribuida**:
+* Cada fila analiza un principio teórico formal (desacoplamiento, particionamiento, paso de mensajes, stateless, tolerancia a fallos, service discovery y autorización delegada).
+* Se demuestra con nombres de funciones y líneas de código exactas cómo la plataforma materializa estos conceptos en AWS, desmintiendo cualquier afirmación que confunda la infraestructura de hosting en la nube con la arquitectura lógica del software.
 
 ### 2.3 Teorema CAP
 
@@ -316,14 +329,14 @@ python scripts/deploy_aws.py app --profile rfha --region us-east-2
 
 ```mermaid
 flowchart LR
-    A[Universidad solicita registro] --> B[Admin aprueba/rechaza]
-    B --> C{Estado del nodo}
-    C -->|ACTIVO| D[Nodo puede sincronizar y ser consultado]
-    C -->|RECHAZADO| E[Nodo inactivo - sin acceso]
+    A["Universidad solicita registro"] --> B["Admin aprueba o rechaza"]
+    B --> C{"Estado del nodo"}
+    C -->|"ACTIVO"| D["Nodo puede sincronizar y ser consultado"]
+    C -->|"RECHAZADO"| E["Nodo inactivo - sin acceso"]
 
-    F[Estudiante emite token] --> G[Universidad consulta historial]
-    G --> H[Bitácora registra IP y resultado]
-    H --> I[Estudiante puede revocar si detecta abuso]
+    F["Estudiante emite token"] --> G["Universidad consulta historial"]
+    G --> H["Bitácora registra IP y resultado"]
+    H --> I["Estudiante puede revocar si detecta abuso"]
     I --> F
 ```
 
@@ -369,37 +382,37 @@ tests/                     # suite pytest
 
 ```mermaid
 flowchart LR
-    UNI([Universidad\nNodo IES])
-    STU([Estudiante])
-    ADM([Administrador])
-    SYS[RFHA-IES\nMiddleware]
+    UNI(["Universidad<br>Nodo IES"])
+    STU(["Estudiante"])
+    ADM(["Administrador"])
+    SYS["RFHA-IES<br>Middleware"]
 
-    UNI -->|Historiales académicos| SYS
-    STU -->|Consentimiento / Token| SYS
-    ADM -->|Aprobaciones / Configuración| SYS
-    SYS -->|Historial verificado + auditoría| UNI
-    SYS -->|Estado de tokens activos| STU
-    SYS -->|Reportes + logs de red| ADM
+    UNI -->|"Historiales académicos"| SYS
+    STU -->|"Consentimiento / Token"| SYS
+    ADM -->|"Aprobaciones / Configuración"| SYS
+    SYS -->|"Historial verificado + auditoría"| UNI
+    SYS -->|"Estado de tokens activos"| STU
+    SYS -->|"Reportes + logs de red"| ADM
 ```
 
 ### DFD Nivel 1 — Procesos internos del Middleware
 
 ```mermaid
 flowchart TD
-    P1["P1\nAutenticación\nde Nodo\nsecurity.py"]
-    P2["P2\nValidación JWT\ntokens.py"]
-    P3["P3\nEnrutamiento\nFederado\nfederated.py"]
-    P4["P4\nFailover\nRéplica\nfederated.py"]
-    P5["P5\nVerificación\nIntegridad SHA-256\nsecurity.py"]
-    P6["P6\nAuditoría\nInmutable\nrepositories.py"]
+    P1["P1<br>Autenticación<br>de Nodo<br>security.py"]
+    P2["P2<br>Validación JWT<br>tokens.py"]
+    P3["P3<br>Enrutamiento<br>Federado<br>federated.py"]
+    P4["P4<br>Failover<br>Réplica<br>federated.py"]
+    P5["P5<br>Verificación<br>Integridad SHA-256<br>security.py"]
+    P6["P6<br>Auditoría<br>Inmutable<br>repositories.py"]
 
-    DS1[(NodesTable)]
-    DS2[(TokensTable)]
-    DS3[(RecordsTable)]
-    DS4[(ReplicasTable)]
-    DS5[(AuditLogsTable)]
+    DS1[("NodesTable")]
+    DS2[("TokensTable")]
+    DS3[("RecordsTable")]
+    DS4[("ReplicasTable")]
+    DS5[("AuditLogsTable")]
 
-    REQ([Petición\nde consulta]) --> P1
+    REQ(["Petición<br>de consulta"]) --> P1
     P1 --> DS1
     DS1 --> P1
     P1 --> P2
@@ -408,14 +421,14 @@ flowchart TD
     P2 --> P3
     P3 --> DS3
     DS3 --> P3
-    P3 -->|Nodo caído| P4
+    P3 -->|"Nodo caído"| P4
     P4 --> DS4
     DS4 --> P4
     P4 --> P5
     P3 --> P5
     P5 --> P6
     P6 --> DS5
-    P5 --> RESP([Respuesta\nverificada])
+    P5 --> RESP(["Respuesta<br>verificada"])
 ```
 
 ---
@@ -541,24 +554,24 @@ La interfaz de usuario está construida en HTML5 semántico, CSS moderno con var
 
 ```mermaid
 flowchart TD
-    Client([Navegador / Cliente HTTP]) -->|HTTPS / TLS 1.3| APIGW[Amazon API Gateway\nHTTP API v2]
+    Client(["Navegador / Cliente HTTP"]) -->|"HTTPS / TLS 1.3"| APIGW["Amazon API Gateway<br>HTTP API v2"]
     
     subgraph Compute["Plano de Cómputo Serverless"]
-        APIGW -->|$default route / proxy| Lambda[AWS Lambda\nRuntime Python 3.12]
-        Lambda --> Mangum[Adaptador ASGI Mangum]
-        Mangum --> FastAPI[FastAPI App Core]
+        APIGW -->|"Ruta proxy por defecto"| Lambda["AWS Lambda<br>Runtime Python 3.12"]
+        Lambda --> Mangum["Adaptador ASGI Mangum"]
+        Mangum --> FastAPI["FastAPI App Core"]
     end
 
     subgraph Storage["Plano de Datos NoSQL Distribuido"]
-        FastAPI -->|Boto3 Table API| T1[(NodesTable\nPK: node_id)]
-        FastAPI -->|Boto3 Table API| T2[(RecordsTable\nPK: record_key)]
-        FastAPI -->|Boto3 Table API| T3[(ReplicasTable\nPK: record_key)]
-        FastAPI -->|Boto3 Table API + TTL| T4[(TokensTable\nPK: jti)]
-        FastAPI -->|Boto3 Table API PutOnly| T5[(AuditLogsTable\nPK: log_id)]
+        FastAPI -->|"Boto3 Table API"| T1[("NodesTable<br>PK: node_id")]
+        FastAPI -->|"Boto3 Table API"| T2[("RecordsTable<br>PK: record_key")]
+        FastAPI -->|"Boto3 Table API"| T3[("ReplicasTable<br>PK: record_key")]
+        FastAPI -->|"Boto3 Table API + TTL"| T4[("TokensTable<br>PK: jti")]
+        FastAPI -->|"Boto3 Table API PutOnly"| T5[("AuditLogsTable<br>PK: log_id")]
     end
 
     subgraph Observability["Monitoreo y Auditoría"]
-        Lambda -.->|Stdout / Stderr| CWL[Amazon CloudWatch Logs\nStreams concurrentes]
+        Lambda -.->|"Stdout / Stderr"| CWL["Amazon CloudWatch Logs<br>Streams concurrentes"]
     end
 ```
 
@@ -642,11 +655,11 @@ Ambas interfaces se encuentran completamente habilitadas tanto en la ejecución 
 
 ```mermaid
 flowchart LR
-    A[Ingresar a /docs] --> B[Explorar Endpoints]
-    B --> C[Click 'Try it out']
-    C --> D[Llenar parámetros y Headers]
-    D --> E[Click 'Execute']
-    E --> F[Inspeccionar Respuesta HTTP y JSON]
+    A["Ingresar a /docs"] --> B["Explorar Endpoints"]
+    B --> C["Click en Try it out"]
+    C --> D["Llenar parámetros y Headers"]
+    D --> E["Click en Execute"]
+    E --> F["Inspeccionar Respuesta HTTP y JSON"]
 ```
 
 1. **Acceso:** Abre en tu navegador `https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/docs`.
@@ -839,7 +852,7 @@ DynamoDB es una base de datos NoSQL totalmente administrada que almacena datos e
 ```mermaid
 classDiagram
     class NodesTable {
-        +String node_id (PK)
+        +String node_id PK
         +String nit
         +String name
         +String domain
@@ -851,7 +864,7 @@ classDiagram
     }
 
     class RecordsTable {
-        +String record_key (PK: node_id#student_id)
+        +String record_key PK
         +String node_id
         +String student_id
         +String document_number
@@ -865,7 +878,7 @@ classDiagram
     }
 
     class ReplicasTable {
-        +String record_key (PK: node_id#student_id)
+        +String record_key PK
         +String node_id
         +String student_id
         +List courses
@@ -874,19 +887,19 @@ classDiagram
     }
 
     class TokensTable {
-        +String jti (PK)
+        +String jti PK
         +String document_number
         +String student_id
         +String origin
         +String aud
         +Number issued_at
         +Number exp
-        +Number ttl (TTL Attribute)
+        +Number ttl
         +Boolean revoked
     }
 
     class AuditLogsTable {
-        +String log_id (PK)
+        +String log_id PK
         +String timestamp
         +String consulting_node_id
         +String target_student_id
@@ -991,26 +1004,26 @@ La seguridad en **RFHA-IES** no depende de un único mecanismo, sino de un enfoq
 ```mermaid
 flowchart TD
     subgraph Capa1["Capa 1: En Tránsito (TLS 1.3)"]
-        Browser[Navegador Web / Cliente API] -->|"HTTPS (Cifrado Asimétrico RSA/ECDHE + Simétrico AES-GCM)"| APIGW[Amazon API Gateway]
+        Browser["Navegador Web / Cliente API"] -->|"HTTPS (Cifrado Asimétrico RSA/ECDHE + Simétrico AES-GCM)"| APIGW["Amazon API Gateway"]
     end
 
     subgraph Capa2["Capa 2: Aislamiento Perimetral y CSP"]
-        APIGW -->|"Headers de Seguridad:<br>CSP, X-Content-Type-Options, Referrer-Policy"| Lambda[AWS Lambda Execution Environment]
+        APIGW -->|"Headers de Seguridad:<br>CSP, X-Content-Type-Options, Referrer-Policy"| Lambda["AWS Lambda Execution Environment"]
     end
 
     subgraph Capa3["Capa 3: Identidad y Autorización Criptográfica"]
-        Lambda -->|"API Keys: Hashing SHA-256 (Never Plaintext)"| AuthNode[Autenticación de Nodos]
-        Lambda -->|"Contraseñas: PBKDF2-HMAC-SHA256 (100k iters + Salt)"| AuthStu[Autenticación Estudiantes]
-        Lambda -->|"Consentimiento: JWT HS256 con Audience Restringida"| AuthTok[Tokens de Consentimiento]
+        Lambda -->|"API Keys: Hashing SHA-256 (Never Plaintext)"| AuthNode["Autenticación de Nodos"]
+        Lambda -->|"Contraseñas: PBKDF2-HMAC-SHA256 (100k iters + Salt)"| AuthStu["Autenticación Estudiantes"]
+        Lambda -->|"Consentimiento: JWT HS256 con Audience Restringida"| AuthTok["Tokens de Consentimiento"]
     end
 
     subgraph Capa4["Capa 4: Integridad Criptográfica"]
-        AuthTok -->|"Firma SHA-256 del JSON Canónico del Historial"| IntegrityCheck[Verificación de Huella Digital]
+        AuthTok -->|"Firma SHA-256 del JSON Canónico del Historial"| IntegrityCheck["Verificación de Huella Digital"]
     end
 
     subgraph Capa5["Capa 5: En Reposo (Storage Security)"]
-        IntegrityCheck -->|"DynamoDB Server-Side Encryption (AES-256 KMS)"| DynamoDB[(Tablas DynamoDB Físicas)]
-        IntegrityCheck -->|"Inmutabilidad Estricta: IAM Append-Only"| AuditLogs[(AuditLogsTable)]
+        IntegrityCheck -->|"DynamoDB Server-Side Encryption (AES-256 KMS)"| DynamoDB[("Tablas DynamoDB Físicas")]
+        IntegrityCheck -->|"Inmutabilidad Estricta: IAM Append-Only"| AuditLogs[("AuditLogsTable")]
     end
 ```
 
@@ -1049,27 +1062,27 @@ A continuación se presentan los diagramas de arquitectura interna que desglosan
 
 ```mermaid
 flowchart TD
-    Req([Petición Externa\nGET /api/v1/federated/...]) --> Intercept[1. Interceptación y Extracción de Headers]
+    Req(["Petición Externa<br>GET /api/v1/federated/..."]) --> Intercept["1. Interceptación y Extracción de Headers"]
     
     subgraph SecurityFilter["Filtro de Seguridad e Identidad"]
-        Intercept --> CheckNode{2. ¿API Key del nodo válida\ny nodo ACTIVO?}
-        CheckNode -->|No| Reject403[403 Forbidden\nAPI Key inválida]
-        CheckNode -->|Sí| CheckToken{3. ¿JWT válido, vigente\ny aud = nodo consultante?}
-        CheckToken -->|No / Revocado| LogDeny[Registrar DENIED\nen AuditLogsTable] --> RejectToken403[403 Forbidden\nToken no autorizado]
+        Intercept --> CheckNode{"2. ¿API Key del nodo válida<br>y nodo ACTIVO?"}
+        CheckNode -->|No| Reject403["403 Forbidden<br>API Key inválida"]
+        CheckNode -->|Sí| CheckToken{"3. ¿JWT válido, vigente<br>y aud = nodo consultante?"}
+        CheckToken -->|"No o Revocado"| LogDeny["Registrar DENIED<br>en AuditLogsTable"] --> RejectToken403["403 Forbidden<br>Token no autorizado"]
     end
 
     subgraph DataRouting["Plano de Enrutamiento y Failover"]
-        CheckToken -->|Válido| CheckPrimary{4. ¿Nodo primario responde\ny X-Simulate-Down es false?}
-        CheckPrimary -->|Sí| FetchPrimary[Recuperar de RecordsTable\nX-Data-Source = Primary]
-        CheckPrimary -->|Falla / Simulado| FetchReplica[Conmutación: Leer ReplicasTable\nX-Data-Source = Replica]
+        CheckToken -->|Válido| CheckPrimary{"4. ¿Nodo primario responde<br>y X-Simulate-Down es false?"}
+        CheckPrimary -->|Sí| FetchPrimary["Recuperar de RecordsTable<br>X-Data-Source = Primary"]
+        CheckPrimary -->|"Falla o Simulado"| FetchReplica["Conmutación: Leer ReplicasTable<br>X-Data-Source = Replica"]
     end
 
     subgraph IntegrityAndAudit["Plano de Integridad y Trazabilidad"]
-        FetchPrimary --> VerifyHash{5. ¿record_signature ==\ndigital_signature_hash?}
+        FetchPrimary --> VerifyHash{"5. ¿record_signature ==<br>digital_signature_hash?"}
         FetchReplica --> VerifyHash
-        VerifyHash -->|No| ErrIntegrity[500 Error\nFallo de Integridad]
-        VerifyHash -->|Sí| WriteAudit[6. Escribir Log Inmutable\nen AuditLogsTable]
-        WriteAudit --> SendResponse[7. Responder 200 OK con Historial\n+ Cabecera X-Data-Source]
+        VerifyHash -->|No| ErrIntegrity["500 Error<br>Fallo de Integridad"]
+        VerifyHash -->|Sí| WriteAudit["6. Escribir Log Inmutable<br>en AuditLogsTable"]
+        WriteAudit --> SendResponse["7. Responder 200 OK con Historial<br>+ Cabecera X-Data-Source"]
     end
 ```
 
@@ -1535,7 +1548,7 @@ sequenceDiagram
     DB-->>LM: Confirmación de guardado
     LM-->>Web: 201 Created (Mensaje: Solicitud en revisión)
     Note over Admin,DB: El administrador ingresa a /admin con X-Admin-Key
-    Admin->>LM: POST /api/v1/admin/nodes/{node_id}/approve
+    Admin->>LM: POST /api/v1/admin/nodes/:node_id/approve
     LM->>LM: Genera API Key rfha_... y calcula su hash SHA-256
     LM->>DB: Actualiza estado a ACTIVO y guarda hash
     LM-->>Admin: Retorna la API Key en pantalla (una sola vez)
@@ -1631,7 +1644,7 @@ sequenceDiagram
     participant Aud as AuditLogsTable
 
     U->>Web: Ingresa API Key de su universidad y el Token del estudiante
-    Web->>LM: GET /api/v1/federated/academic-history/{id} (Headers: X-Node-API-Key, X-Student-Consent-Token)
+    Web->>LM: GET /api/v1/federated/academic-history/:id (Headers: X-Node-API-Key, X-Student-Consent-Token)
     LM->>LM: 1. Valida API Key del nodo consultante
     LM->>Tok: 2. Verifica firma JWT, vigencia, aud == consulting_node y revoked == false
     alt Token Inválido, Vencido, para otra Universidad o Revocado (HU-07)
@@ -1703,7 +1716,7 @@ sequenceDiagram
     actor Admin as Auditor / Administrador
 
     S->>Web: Pulsa "Revocar" junto a un token emitido
-    Web->>LM: DELETE /api/v1/students/token/{jti}
+    Web->>LM: DELETE /api/v1/students/token/:jti
     LM->>Tok: update_item SET revoked = true por clave jti
     Tok-->>LM: Confirmación
     LM-->>Web: 200 OK (Estado: REVOCADO)
@@ -2445,3 +2458,147 @@ La respuesta científica e ingenieril a esta crítica es contundente: **se está
 3. **Cero Estado Compartido Local y Concurrencia Stateless:**
    * En un servidor monolítico centralizado, todos los usuarios comparten la misma memoria RAM, el mismo procesador físico y los mismos bloqueos de base de datos. Si diez mil usuarios hacen clic a la vez, el servidor central colapsa y se apaga.
    * En **RFHA-IES sobre AWS Lambda**, cada petición es atendida por micro-máquinas virtuales Firecracker independientes que corren en servidores físicos totalmente distintos dentro de los centros de cómputo de Amazon. No existe memoria compartida ni variables de estado locales. Si mil universidades sincronizan al mismo segundo, Amazon levanta mil contenedores en paralelo, lo que constituye la definición más pura de computación distribuida elástica en la nube.
+
+
+---
+
+## 37. Sección Especial: Funcionamiento Profundo del Nodo de Réplica y Escenarios de Producción
+
+Esta sección explica de manera exhaustiva y detallada cómo funciona el **nodo de réplica** en **RFHA-IES**, qué mecanismos de contingencia intervienen y qué produce exactamente el sistema en cada uno de los cuatro escenarios operativos del mundo real.
+
+### 37.1 ¿Qué es un Nodo de Réplica en RFHA-IES?
+
+En la disciplina de Sistemas Distribuidos, un nodo de réplica no es simplemente una copia de respaldo pasiva guardada en una cinta magnética; es un componente de almacenamiento activo, redundante y sincronizado diseñado para mantener viva la disponibilidad de un servicio cuando el nodo emisor principal sufre un fallo técnico. En el contexto de **RFHA-IES**, el nodo de réplica está materializado a nivel de base de datos en la tabla física **`ReplicasTable`** de Amazon DynamoDB, y a nivel de código en la lógica de mediación inteligente de la función Lambda ubicada en el archivo `src/app/routers/federated.py` (líneas 100 a 114) y en el router de sincronización `src/app/routers/sync.py` (líneas 57 a 58).
+
+Para entender su propósito con una analogía sencilla de la vida diaria, pensemos en el sistema de frenos de un avión comercial moderno: el avión cuenta con un circuito hidráulico principal que acciona los frenos de las ruedas al aterrizar; sin embargo, si por una fuga o avería la presión del circuito primario cae a cero, los pilotos no se estrellan, pues un circuito hidráulico secundario de reserva (la réplica de emergencia) entra en acción de forma automática y transparente en una fracción de segundo, deteniendo la aeronave con exactamente la misma potencia de frenado. En este proyecto, `RecordsTable` es el circuito principal y `ReplicasTable` es el circuito de reserva que salva la operación de convalidación académica ante cualquier contingencia.
+
+---
+
+### 37.2 Análisis Detallado de los Cuatro Escenarios Reales y Qué Produce el Sistema
+
+#### Escenario 1: Sincronización Normal (Escritura en Almacén Primario + Almacén de Réplica)
+* **Qué ocurre paso a paso en el código:** Cuando una universidad activa carga notas mediante `POST /api/v1/node/sync-records` (`src/app/routers/sync.py`), el servidor valida la API Key de la institución mediante la función `require_node` en `src/app/security.py`. A continuación, para cada estudiante del lote:
+  1. Se calcula la contraseña del portal estudiantil usando el algoritmo de derivación de claves con sal **PBKDF2-HMAC-SHA256** con 100.000 iteraciones.
+  2. Se construye el JSON canónico de las materias y se calcula su huella digital criptográfica mediante la función matemática **SHA-256** (`digital_signature_hash`).
+  3. Se ejecuta la escritura en el almacén primario: `records.upsert(item_to_save)`. En este punto, la clase `DynamoRecordRepository` aplica una condición de concurrencia optimista (`ConditionExpression`) que valida que la fecha de sincronización entrante no sea más vieja que la que ya reside en disco.
+  4. Inmediatamente después, el código ejecuta en el mismo hilo de ejecución la escritura en la réplica: `replicas.upsert(item_to_save)`.
+* **Qué pasa si falla el segundo paso:** Si por una interrupción de red en AWS la inserción en `ReplicasTable` llega a fallar tras haberse guardado en `RecordsTable`, la función de Python arroja una excepción no controlada (`ClientError` de la librería Boto3), interrumpiendo el request y respondiendo con un error HTTP 500 al cliente. Esto le avisa de inmediato al funcionario que la sincronización quedó incompleta, obligándolo a reenviar el paquete para asegurar que la réplica siempre esté al día.
+* **Qué datos exactos quedan almacenados:** Tanto en `RecordsTable` como en `ReplicasTable` queda guardado exactamente el mismo ítem con clave `record_key = "<node_id>#<student_id>"`, conteniendo el código del alumno, su documento nacional, el programa, el estado académico, la lista serializada de materias con notas y créditos, el hash de contraseña, el sello SHA-256 y la marca de tiempo `synced_at`.
+* **Qué respuesta produce el sistema:** El servidor responde un código **HTTP 200 OK** entregando un cuerpo JSON estructurado con el modelo `SyncResponse`:
+  ```json
+  {
+    "node_id": "IES-1111AAAA",
+    "received": 3,
+    "created": 3,
+    "updated": 0
+  }
+  ```
+
+#### Escenario 2: Consulta Normal con Nodo Primario Saludable
+* **Qué ocurre paso a paso en el código:** La universidad receptora solicita el expediente académico a través de `GET /api/v1/federated/academic-history/{student_id}` (`src/app/routers/federated.py`), adjuntando en las cabeceras HTTP su API Key institucional (`X-Node-API-Key`) y el pase digital del alumno (`X-Student-Consent-Token`). El middleware ejecuta las siguientes validaciones:
+  1. Valida que el nodo consultante sea una universidad activa en `NodesTable`.
+  2. Verifica la firma matemática del token JWT con algoritmo **HS256**, confirma que el reloj no haya superado la fecha de caducidad `exp` y comprueba que el claim de audiencia `aud` coincida con la universidad que consulta.
+  3. Verifica en `TokensTable` que el pase no figure con `revoked == true`.
+  4. Como la bandera de simulación de caída no está activa (`x_simulate_down == False`), el código ejecuta `records.get(origin_node, student_id)` sobre la tabla primaria `RecordsTable`.
+  5. La base de datos responde exitosamente en menos de diez milisegundos con el expediente original. La variable de origen se establece en `source = "Primary"`.
+  6. Se recalcula la huella digital SHA-256 sobre las notas extraídas; al confirmar que coincide con el atributo `digital_signature_hash`, se aprueba la entrega.
+* **Qué cabecera HTTP responde:** La función inyecta en la respuesta la cabecera personalizada **`X-Data-Source: Primary`**, indicando al cliente que los datos provinieron de la fuente principal.
+* **Qué registro exacto genera en `AuditLogsTable`:** Se genera un ítem inmutable con la siguiente estructura:
+  ```json
+  {
+    "log_id": "AUDIT-A1B2C3D4E5F6",
+    "timestamp": "2026-11-17T17:30:15.123456+00:00",
+    "consulting_node_id": "IES-2222BBBB",
+    "target_student_id": "20262678029",
+    "origin_node_id": "IES-1111AAAA",
+    "outcome": "SUCCESS",
+    "reason": "Consulta exitosa (Primary)",
+    "data_source": "Primary",
+    "client_ip": "186.84.90.15"
+  }
+  ```
+* **Qué resultado visual recibe el usuario:** La pantalla en `/consulta` renderiza el expediente con una insignia verde en la parte superior que certifica que los datos provienen del servidor primario original.
+
+#### Escenario 3: Caída del Nodo Primario o Simulación Activa (Failover a Réplica)
+* **Qué ocurre paso a paso en el código:** Este escenario ocurre cuando la universidad de origen sufre una caída de sus servidores locales, una partición de red o cuando el evaluador marca la casilla de verificación en la pantalla de consulta enviando la cabecera HTTP **`X-Simulate-Down: true`** (o se configura la variable de entorno `SIMULATE_NODE_DOWN`):
+  1. El middleware valida normalmente la API Key de la universidad consultante y la legitimidad del token JWT del estudiante.
+  2. En la línea 101 de `src/app/routers/federated.py`, el código evalúa la condición de caída:
+     ```python
+     node_down = x_simulate_down or (bool(config.SIMULATE_NODE_DOWN) and config.SIMULATE_NODE_DOWN == origin_node)
+     ```
+     Al ser verdadera, el sistema **no realiza la consulta sobre `RecordsTable`**, simulando de forma idéntica que el servidor primario no responde.
+  3. La variable de datos `item` permanece vacía (`None`). En lugar de arrojar un error HTTP 500, se dispara la lógica de conmutación por error (**Failover** en líneas 110-114):
+     ```python
+     if item is None:
+         replica_item = replicas.get(origin_node, student_id)
+         if replica_item is not None:
+             item = replica_item
+             source = "Replica"
+     ```
+  4. El middleware salta de forma transparente hacia la tabla de respaldo **`ReplicasTable`** en Amazon DynamoDB. La réplica responde de inmediato entregando las materias, créditos y notas sincronizadas previamente.
+  5. Se recalcula el hash SHA-256 de las asignaturas de la réplica para certificar que el respaldo no fue alterado mientras descansaba en el almacén de contingencia.
+* **Qué cabecera HTTP responde:** El servidor inyecta en la respuesta la cabecera personalizada **`X-Data-Source: Replica`**.
+* **Qué registro exacto genera en `AuditLogsTable`:** La función de auditoría asienta el siguiente registro formal:
+  ```json
+  {
+    "log_id": "AUDIT-F6E5D4C3B2A1",
+    "timestamp": "2026-11-17T17:32:45.654321+00:00",
+    "consulting_node_id": "IES-2222BBBB",
+    "target_student_id": "20262678029",
+    "origin_node_id": "IES-1111AAAA",
+    "outcome": "SUCCESS",
+    "reason": "Consulta exitosa (Replica)",
+    "data_source": "Replica",
+    "client_ip": "186.84.90.15"
+  }
+  ```
+* **Qué resultado visual recibe el usuario:** El funcionario de admisiones recibe el historial completo con su promedio GPA y créditos aprobados, pero la interfaz dibuja una insignia de advertencia visual destacada en color ámbar que dice: **`Fuente de datos: Replica (Conmutación por tolerancia a fallos)`**, demostrando al jurado que el sistema mantuvo la continuidad del servicio ante la falla del nodo emisor.
+
+#### Escenario 4: Fallo Total de Datos o Bloqueo por Token Revocado
+* **Caso 4A: Estudiante Inexistente o Sin Réplica Previa:** Si una universidad intenta consultar un código de estudiante que jamás fue sincronizado (o cuyo nodo emisor jamás cargó una réplica previa en `ReplicasTable`), tanto `RecordsTable` como `ReplicasTable` retornan `None`. En este caso:
+  * El código en `src/app/routers/federated.py` (L.116-118) ejecuta `_log("ERROR", "No existe un historial para ese estudiante", origin=origin_node)`.
+  * Asienta en `AuditLogsTable` un registro con `outcome: "ERROR"` y `data_source: "None"`.
+  * Responde al navegador con un código **HTTP 404 Not Found** y el cuerpo JSON:
+    ```json
+    {
+      "detail": "No existe un historial para ese estudiante."
+    }
+    ```
+* **Caso 4B: Token de Consentimiento Revocado por el Estudiante:** Si el alumno ingresó previamente a su portal y presionó el botón rojo "Revocar permiso" (ejecutando `DELETE /api/v1/students/token/{jti}`):
+  * Al llegar la consulta federada, la función `verify_token()` en `src/app/tokens.py` extrae el `jti` y consulta `TokensTable`. Al leer que el atributo `revoked` tiene el valor booleano `true`, lanza de inmediato la excepción `TokenError("El token fue revocado por el estudiante o no está registrado.")`.
+  * El router atrapa la excepción e invoca `_log("DENIED", "El token fue revocado por el estudiante o no está registrado.")`.
+  * Asienta en `AuditLogsTable` un evento con `outcome: "DENIED"`, `data_source: "None"` y la IP pública del consultante.
+  * Responde con un código de seguridad **HTTP 403 Forbidden** y el cuerpo JSON:
+    ```json
+    {
+      "detail": "El token fue revocado por el estudiante o no está registrado."
+    }
+    ```
+    La pantalla de consulta del funcionario se bloquea en rojo, impidiendo cualquier acceso no autorizado a la información.
+
+---
+
+### 37.3 Glosario Técnico Exhaustivo In-Situ de los Términos del Nodo de Réplica
+
+Para cumplir rigurosamente con la regla de cero términos sin explicar, a continuación se desglosan los conceptos que intervienen en el nodo de réplica aplicando la fórmula de los cuatro pasos:
+
+1. **Replicación de Datos (Data Replication):**
+   * *Qué es en palabras simples:* Es la práctica de guardar copias idénticas y actualizadas de la misma información en dos o más lugares de almacenamiento independientes.
+   * *Cómo funciona por dentro:* Cada vez que una operación de escritura se procesa con éxito en la base de datos principal, el software toma ese mismo paquete de datos y lo escribe en la base de datos de respaldo antes de confirmar que la operación terminó.
+   * *Analogía cotidiana:* Es como cuando una persona firma una escritura pública en una notaría: se firman dos ejemplares idénticos; uno se entrega al comprador y el otro se guarda en el archivo notarial para que, si el comprador pierde su copia en un incendio, la notaría pueda expedir un duplicado legítimo en cualquier momento.
+   * *Uso exacto en este proyecto:* En `src/app/routers/sync.py`, donde se ejecuta `records.upsert()` sobre `RecordsTable` e inmediatamente después `replicas.upsert()` sobre `ReplicasTable`.
+2. **Failover (Conmutación Automática por Error):**
+   * *Qué es en palabras simples:* Es la capacidad automática que tiene un programa de saltar hacia un sistema de respaldo cuando el sistema principal deja de responder, sin que el usuario tenga que hacer nada manualmente.
+   * *Cómo funciona por dentro:* El software rodea la llamada al almacén principal con un bloque de detección de excepciones (`try/except`). Si la llamada falla o se agota el tiempo de espera, el código ejecuta una ruta alternativa preprogramada que lee del almacén secundario y añade una etiqueta indicando la procedencia de contingencia.
+   * *Analogía cotidiana:* Es como el doble motor de un avión de pasajeros: si el motor izquierdo se apaga en pleno vuelo por una falla mecánica, el motor derecho asume automáticamente la propulsión de la aeronave para que el avión continúe volando y aterrice con seguridad en su destino.
+   * *Uso exacto en este proyecto:* En `src/app/routers/federated.py` (L.100-114), donde el middleware detecta si el nodo de origen está caído y redirige la consulta hacia `ReplicasTable`.
+3. **Consistencia Eventual (Eventual Consistency):**
+   * *Qué es en palabras simples:* Es un modelo de bases de datos distribuidas donde se acepta que una copia de respaldo pueda estar unos pocos milisegundos por detrás de la base principal, con la garantía matemática de que, al cabo de un tiempo, ambas copias terminarán siendo exactamente idénticas.
+   * *Cómo funciona por dentro:* Para no hacer esperar a los usuarios con bloqueos pesados en la red, el sistema permite que la réplica se actualice inmediatamente después del registro primario. Si la red se corta antes de actualizar la réplica, la réplica sigue entregando la última versión que alcanzó a guardar; en cuanto la red regresa y se vuelve a sincronizar, la réplica se pone al día.
+   * *Analogía cotidiana:* Es como la sincronización de contactos en tu teléfono celular con tu cuenta de Google o iCloud: si agregas un teléfono nuevo y apagas el Wi-Fi, el número queda guardado en tu celular; en cuanto te conectas de nuevo a internet, el teléfono sincroniza con la nube y ambos registros quedan exactamente iguales.
+   * *Uso exacto en este proyecto:* En la relación entre `RecordsTable` y `ReplicasTable`, permitiendo que la red federada opere bajo el modelo AP del Teorema CAP.
+4. **Circuit Breaker (Interruptor de Circuito):**
+   * *Qué es en palabras simples:* Es un patrón de diseño de software que detecta cuando un servidor externo está fallando y corta las llamadas hacia él para no saturarlo ni hacer esperar al usuario en vano, desviando el tráfico hacia una alternativa funcional.
+   * *Cómo funciona por dentro:* Monitorea los errores de conexión. Si un servidor arroja fallas continuas o está marcado como inactivo, el código interrumpe los intentos de conexión sobre el servidor dañado y despacha las peticiones directamente hacia el almacén de respaldo.
+   * *Analogía cotidiana:* Es como los tacos o interruptores termomagnéticos en la caja de fusibles de una casa: si ocurre un cortocircuito en la cocina, el interruptor se dispara y corta la energía en esa zona específica para evitar que se queme toda la instalación eléctrica del hogar.
+   * *Uso exacto en este proyecto:* En `src/app/routers/federated.py`, donde la bandera `node_down` y el control de estado `DEGRADADO` en `NodesTable` evitan consultar un nodo que se sabe que está fuera de servicio.

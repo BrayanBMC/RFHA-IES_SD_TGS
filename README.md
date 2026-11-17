@@ -21,6 +21,17 @@
 | Bitácora de auditoría | `/auditoria` | HU-09 |
 | Reportes ejecutivos | `/reportes` | PDF por tipo de reporte |
 
+### Explicación detallada de la tabla de módulos
+Esta tabla resume los puntos de entrada interactivos de la aplicación web que el usuario o evaluador puede abrir en su navegador:
+* **Fila 1 (`/` - Inicio):** Presenta la vista principal (`inicio.html`), sirviendo como puerta de enlace ergonómica hacia todos los subsistemas de la red.
+* **Fila 2 (`/registro-nodo` - Registro de universidad):** Implementa la Historia de Usuario HU-01. Permite a una institución educativa solicitar su afiliación formal a la red federada enviando NIT, nombre, dominio y correo institucional.
+* **Fila 3 (`/admin` - Administración):** Implementa la Historia de Usuario HU-02. Consola restringida mediante la cabecera `X-Admin-Key` donde el administrador general revisa solicitudes pendientes, aprueba nodos y genera credenciales seguras.
+* **Fila 4 (`/panel-nodo` - Panel del nodo):** Implementa la Historia de Usuario HU-03. Permite a las universidades sincronizar de forma masiva o individual los historiales académicos de sus alumnos, aplicando firma criptográfica SHA-256 e inyectando datos tanto en la base principal como en la réplica.
+* **Fila 5 (`/portal-estudiante` - Portal del estudiante):** Implementa las Historias HU-04 y HU-05. Espacio soberano para el alumno donde se autentica con su cédula y contraseña, selecciona a qué universidad receptora autoriza, genera su token JWT temporal (`student_auth_token`) y revoca accesos previos en tiempo real.
+* **Fila 6 (`/consulta` - Consulta federada):** Implementa las Historias HU-06, HU-07 y HU-08. Permite a una universidad receptora autenticada consultar el expediente de un aspirante usando el token de consentimiento, soportando conmutación automática por error a la réplica (`X-Data-Source: Replica`).
+* **Fila 7 (`/auditoria` - Bitácora de auditoría):** Implementa la Historia HU-09. Provee visualización forense en tiempo real y no repudiable de cada intento de consulta, bloqueo o conmutación en la red, con soporte de filtrado temporal (`since`).
+* **Fila 8 (`/reportes` - Reportes ejecutivos):** Permite generar y descargar documentos oficiales compilados dinámicamente en formato PDF con métricas del sistema, resiliencia y auditoría forense.
+
 ---
 
 ## 1. Arquitectura general
@@ -52,6 +63,18 @@ flowchart TD
     LM --> DB
 ```
 
+### Explicación detallada de la arquitectura general
+El diagrama superior modela la topología global de **RFHA-IES** dividida en tres macro-capas:
+1. **Nodos IES (Universidades Descentralizadas):** Representados por `N1` (Universidad emisora) y `N2` (Universidad receptora). Cada institución mantiene soberanía sobre su infraestructura, operando como clientes HTTP independientes que se autentican con su propia API Key criptográfica.
+2. **Middleware RFHA-IES (Plano de Control en la Nube):**
+   * **`GW` (Amazon API Gateway):** Punto de entrada único en la región `us-east-2`. Termina la conexión segura TLS 1.3, aplica enrutamiento proxy y entrega las peticiones a la función de cómputo.
+   * **`LM` (AWS Lambda + FastAPI + Mangum):** Unidad de procesamiento serverless sin estado (*stateless*). Se escala automáticamente ante picos de demanda y ejecuta las reglas de validación criptográfica, mediación y auditoría.
+   * **`DB` (Amazon DynamoDB):** Clúster de 5 tablas NoSQL distribuidas que gestionan nodos, historiales primarios, réplicas de contingencia, tokens de consentimiento y bitácoras inmutables.
+3. **Actores Externos:**
+   * **`STU` (Estudiante):** Dueño de sus datos. Accede al portal web para emitir o revocar tokens JWT de consentimiento.
+   * **`ADM` (Administrador de la Red):** Ejerce gobernanza institucional validando solicitudes de registro mediante la consola administrativa protegida por `X-Admin-Key`.
+4. **Flujo de Interconexión:** Las flechas detallan los endpoints específicos expuestos, los métodos HTTP y las cabeceras requeridas para cruzar la frontera de seguridad del middleware.
+
 ### Flujo completo de una petición
 
 ```mermaid
@@ -81,6 +104,19 @@ sequenceDiagram
     LM-->>GW: 200 JSON + X-Data-Source header
     GW-->>U: respuesta cifrada TLS
 ```
+
+### Explicación detallada del flujo completo de una petición
+El diagrama de secuencia describe el ciclo de vida síncrono de una consulta interuniversitaria ejecutada paso a paso:
+1. **Paso 1 (Invocación Externa):** La Universidad B envía una petición `GET /api/v1/federated/academic-history/{student_id}` a través de Internet protegida con HTTPS hacia API Gateway, adjuntando su API Key institucional (`X-Node-API-Key`) y el token otorgado por el aspirante (`X-Student-Consent-Token`).
+2. **Paso 2 (Adaptación ASGI):** API Gateway recibe el evento HTTP y despacha la invocación al micro-contenedor de AWS Lambda. El adaptador `Mangum` deserializa el payload JSON v2 transformándolo en un objeto ASGI que FastAPI procesa.
+3. **Paso 3 (Autenticación del Nodo Consultante):** FastAPI ejecuta la dependencia `require_node`. Calcula el hash SHA-256 de la API Key y realiza un `find_by_api_key_hash` sobre `NodesTable`. Al verificar que existe y su estado es `ACTIVO`, autoriza la prosecución del flujo.
+4. **Paso 4 (Verificación Criptográfica del Token):** La función `verify_token` valida: (a) la firma criptográfica simétrica con `JWT_SECRET`, (b) que la fecha actual no exceda el tiempo de expiración `exp`, (c) que el claim de audiencia `aud` coincida exactamente con el `node_id` de la Universidad B, y (d) consulta `TokensTable` por clave `jti` para certificar que el estudiante no haya revocado el token (`revoked == false`).
+5. **Paso 5 (Bifurcación de Datos y Failover):**
+   * **Rama Normal:** El middleware intenta leer el registro en `RecordsTable` mediante la clave `record_key(origin_node, student_id)`. Si el nodo primario responde, extrae los datos y setea el metadato interno `X-Data-Source: Primary`.
+   * **Rama de Contingencia (HU-08):** Si la lectura primaria arroja excepción, retorna `None` o el cliente envió la cabecera de simulación `X-Simulate-Down: true`, el sistema conmuta instantáneamente a `ReplicasTable`, extrayendo la copia de seguridad sincronizada y fijando `X-Data-Source: Replica`.
+6. **Paso 6 (Verificación de Integridad):** Se reconstruye el JSON canónico de las asignaturas y datos personales y se calcula `record_signature()`. Si el hash no coincide con `digital_signature_hash`, la petición aborta con HTTP 500 para evitar fugas de datos manipulados.
+7. **Paso 7 (Registro Inmutable en Auditoría):** Sin importar si la consulta fue exitosa o denegada, se asienta de forma inmediata un nuevo ítem `AUDIT-XXXXXXXXXXXX` en `AuditLogsTable` con timestamp UTC, IPs, motivo y fuente de datos.
+8. **Paso 8 (Retorno Seguro):** API Gateway devuelve la respuesta JSON formateada a la Universidad B acompañada de la cabecera `X-Data-Source`.
 
 ---
 

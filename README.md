@@ -2445,3 +2445,147 @@ La respuesta científica e ingenieril a esta crítica es contundente: **se está
 3. **Cero Estado Compartido Local y Concurrencia Stateless:**
    * En un servidor monolítico centralizado, todos los usuarios comparten la misma memoria RAM, el mismo procesador físico y los mismos bloqueos de base de datos. Si diez mil usuarios hacen clic a la vez, el servidor central colapsa y se apaga.
    * En **RFHA-IES sobre AWS Lambda**, cada petición es atendida por micro-máquinas virtuales Firecracker independientes que corren en servidores físicos totalmente distintos dentro de los centros de cómputo de Amazon. No existe memoria compartida ni variables de estado locales. Si mil universidades sincronizan al mismo segundo, Amazon levanta mil contenedores en paralelo, lo que constituye la definición más pura de computación distribuida elástica en la nube.
+
+
+---
+
+## 37. Sección Especial: Funcionamiento Profundo del Nodo de Réplica y Escenarios de Producción
+
+Esta sección explica de manera exhaustiva y detallada cómo funciona el **nodo de réplica** en **RFHA-IES**, qué mecanismos de contingencia intervienen y qué produce exactamente el sistema en cada uno de los cuatro escenarios operativos del mundo real.
+
+### 37.1 ¿Qué es un Nodo de Réplica en RFHA-IES?
+
+En la disciplina de Sistemas Distribuidos, un nodo de réplica no es simplemente una copia de respaldo pasiva guardada en una cinta magnética; es un componente de almacenamiento activo, redundante y sincronizado diseñado para mantener viva la disponibilidad de un servicio cuando el nodo emisor principal sufre un fallo técnico. En el contexto de **RFHA-IES**, el nodo de réplica está materializado a nivel de base de datos en la tabla física **`ReplicasTable`** de Amazon DynamoDB, y a nivel de código en la lógica de mediación inteligente de la función Lambda ubicada en el archivo `src/app/routers/federated.py` (líneas 100 a 114) y en el router de sincronización `src/app/routers/sync.py` (líneas 57 a 58).
+
+Para entender su propósito con una analogía sencilla de la vida diaria, pensemos en el sistema de frenos de un avión comercial moderno: el avión cuenta con un circuito hidráulico principal que acciona los frenos de las ruedas al aterrizar; sin embargo, si por una fuga o avería la presión del circuito primario cae a cero, los pilotos no se estrellan, pues un circuito hidráulico secundario de reserva (la réplica de emergencia) entra en acción de forma automática y transparente en una fracción de segundo, deteniendo la aeronave con exactamente la misma potencia de frenado. En este proyecto, `RecordsTable` es el circuito principal y `ReplicasTable` es el circuito de reserva que salva la operación de convalidación académica ante cualquier contingencia.
+
+---
+
+### 37.2 Análisis Detallado de los Cuatro Escenarios Reales y Qué Produce el Sistema
+
+#### Escenario 1: Sincronización Normal (Escritura en Almacén Primario + Almacén de Réplica)
+* **Qué ocurre paso a paso en el código:** Cuando una universidad activa carga notas mediante `POST /api/v1/node/sync-records` (`src/app/routers/sync.py`), el servidor valida la API Key de la institución mediante la función `require_node` en `src/app/security.py`. A continuación, para cada estudiante del lote:
+  1. Se calcula la contraseña del portal estudiantil usando el algoritmo de derivación de claves con sal **PBKDF2-HMAC-SHA256** con 100.000 iteraciones.
+  2. Se construye el JSON canónico de las materias y se calcula su huella digital criptográfica mediante la función matemática **SHA-256** (`digital_signature_hash`).
+  3. Se ejecuta la escritura en el almacén primario: `records.upsert(item_to_save)`. En este punto, la clase `DynamoRecordRepository` aplica una condición de concurrencia optimista (`ConditionExpression`) que valida que la fecha de sincronización entrante no sea más vieja que la que ya reside en disco.
+  4. Inmediatamente después, el código ejecuta en el mismo hilo de ejecución la escritura en la réplica: `replicas.upsert(item_to_save)`.
+* **Qué pasa si falla el segundo paso:** Si por una interrupción de red en AWS la inserción en `ReplicasTable` llega a fallar tras haberse guardado en `RecordsTable`, la función de Python arroja una excepción no controlada (`ClientError` de la librería Boto3), interrumpiendo el request y respondiendo con un error HTTP 500 al cliente. Esto le avisa de inmediato al funcionario que la sincronización quedó incompleta, obligándolo a reenviar el paquete para asegurar que la réplica siempre esté al día.
+* **Qué datos exactos quedan almacenados:** Tanto en `RecordsTable` como en `ReplicasTable` queda guardado exactamente el mismo ítem con clave `record_key = "<node_id>#<student_id>"`, conteniendo el código del alumno, su documento nacional, el programa, el estado académico, la lista serializada de materias con notas y créditos, el hash de contraseña, el sello SHA-256 y la marca de tiempo `synced_at`.
+* **Qué respuesta produce el sistema:** El servidor responde un código **HTTP 200 OK** entregando un cuerpo JSON estructurado con el modelo `SyncResponse`:
+  ```json
+  {
+    "node_id": "IES-1111AAAA",
+    "received": 3,
+    "created": 3,
+    "updated": 0
+  }
+  ```
+
+#### Escenario 2: Consulta Normal con Nodo Primario Saludable
+* **Qué ocurre paso a paso en el código:** La universidad receptora solicita el expediente académico a través de `GET /api/v1/federated/academic-history/{student_id}` (`src/app/routers/federated.py`), adjuntando en las cabeceras HTTP su API Key institucional (`X-Node-API-Key`) y el pase digital del alumno (`X-Student-Consent-Token`). El middleware ejecuta las siguientes validaciones:
+  1. Valida que el nodo consultante sea una universidad activa en `NodesTable`.
+  2. Verifica la firma matemática del token JWT con algoritmo **HS256**, confirma que el reloj no haya superado la fecha de caducidad `exp` y comprueba que el claim de audiencia `aud` coincida con la universidad que consulta.
+  3. Verifica en `TokensTable` que el pase no figure con `revoked == true`.
+  4. Como la bandera de simulación de caída no está activa (`x_simulate_down == False`), el código ejecuta `records.get(origin_node, student_id)` sobre la tabla primaria `RecordsTable`.
+  5. La base de datos responde exitosamente en menos de diez milisegundos con el expediente original. La variable de origen se establece en `source = "Primary"`.
+  6. Se recalcula la huella digital SHA-256 sobre las notas extraídas; al confirmar que coincide con el atributo `digital_signature_hash`, se aprueba la entrega.
+* **Qué cabecera HTTP responde:** La función inyecta en la respuesta la cabecera personalizada **`X-Data-Source: Primary`**, indicando al cliente que los datos provinieron de la fuente principal.
+* **Qué registro exacto genera en `AuditLogsTable`:** Se genera un ítem inmutable con la siguiente estructura:
+  ```json
+  {
+    "log_id": "AUDIT-A1B2C3D4E5F6",
+    "timestamp": "2026-11-17T17:30:15.123456+00:00",
+    "consulting_node_id": "IES-2222BBBB",
+    "target_student_id": "20262678029",
+    "origin_node_id": "IES-1111AAAA",
+    "outcome": "SUCCESS",
+    "reason": "Consulta exitosa (Primary)",
+    "data_source": "Primary",
+    "client_ip": "186.84.90.15"
+  }
+  ```
+* **Qué resultado visual recibe el usuario:** La pantalla en `/consulta` renderiza el expediente con una insignia verde en la parte superior que certifica que los datos provienen del servidor primario original.
+
+#### Escenario 3: Caída del Nodo Primario o Simulación Activa (Failover a Réplica)
+* **Qué ocurre paso a paso en el código:** Este escenario ocurre cuando la universidad de origen sufre una caída de sus servidores locales, una partición de red o cuando el evaluador marca la casilla de verificación en la pantalla de consulta enviando la cabecera HTTP **`X-Simulate-Down: true`** (o se configura la variable de entorno `SIMULATE_NODE_DOWN`):
+  1. El middleware valida normalmente la API Key de la universidad consultante y la legitimidad del token JWT del estudiante.
+  2. En la línea 101 de `src/app/routers/federated.py`, el código evalúa la condición de caída:
+     ```python
+     node_down = x_simulate_down or (bool(config.SIMULATE_NODE_DOWN) and config.SIMULATE_NODE_DOWN == origin_node)
+     ```
+     Al ser verdadera, el sistema **no realiza la consulta sobre `RecordsTable`**, simulando de forma idéntica que el servidor primario no responde.
+  3. La variable de datos `item` permanece vacía (`None`). En lugar de arrojar un error HTTP 500, se dispara la lógica de conmutación por error (**Failover** en líneas 110-114):
+     ```python
+     if item is None:
+         replica_item = replicas.get(origin_node, student_id)
+         if replica_item is not None:
+             item = replica_item
+             source = "Replica"
+     ```
+  4. El middleware salta de forma transparente hacia la tabla de respaldo **`ReplicasTable`** en Amazon DynamoDB. La réplica responde de inmediato entregando las materias, créditos y notas sincronizadas previamente.
+  5. Se recalcula el hash SHA-256 de las asignaturas de la réplica para certificar que el respaldo no fue alterado mientras descansaba en el almacén de contingencia.
+* **Qué cabecera HTTP responde:** El servidor inyecta en la respuesta la cabecera personalizada **`X-Data-Source: Replica`**.
+* **Qué registro exacto genera en `AuditLogsTable`:** La función de auditoría asienta el siguiente registro formal:
+  ```json
+  {
+    "log_id": "AUDIT-F6E5D4C3B2A1",
+    "timestamp": "2026-11-17T17:32:45.654321+00:00",
+    "consulting_node_id": "IES-2222BBBB",
+    "target_student_id": "20262678029",
+    "origin_node_id": "IES-1111AAAA",
+    "outcome": "SUCCESS",
+    "reason": "Consulta exitosa (Replica)",
+    "data_source": "Replica",
+    "client_ip": "186.84.90.15"
+  }
+  ```
+* **Qué resultado visual recibe el usuario:** El funcionario de admisiones recibe el historial completo con su promedio GPA y créditos aprobados, pero la interfaz dibuja una insignia de advertencia visual destacada en color ámbar que dice: **`Fuente de datos: Replica (Conmutación por tolerancia a fallos)`**, demostrando al jurado que el sistema mantuvo la continuidad del servicio ante la falla del nodo emisor.
+
+#### Escenario 4: Fallo Total de Datos o Bloqueo por Token Revocado
+* **Caso 4A: Estudiante Inexistente o Sin Réplica Previa:** Si una universidad intenta consultar un código de estudiante que jamás fue sincronizado (o cuyo nodo emisor jamás cargó una réplica previa en `ReplicasTable`), tanto `RecordsTable` como `ReplicasTable` retornan `None`. En este caso:
+  * El código en `src/app/routers/federated.py` (L.116-118) ejecuta `_log("ERROR", "No existe un historial para ese estudiante", origin=origin_node)`.
+  * Asienta en `AuditLogsTable` un registro con `outcome: "ERROR"` y `data_source: "None"`.
+  * Responde al navegador con un código **HTTP 404 Not Found** y el cuerpo JSON:
+    ```json
+    {
+      "detail": "No existe un historial para ese estudiante."
+    }
+    ```
+* **Caso 4B: Token de Consentimiento Revocado por el Estudiante:** Si el alumno ingresó previamente a su portal y presionó el botón rojo "Revocar permiso" (ejecutando `DELETE /api/v1/students/token/{jti}`):
+  * Al llegar la consulta federada, la función `verify_token()` en `src/app/tokens.py` extrae el `jti` y consulta `TokensTable`. Al leer que el atributo `revoked` tiene el valor booleano `true`, lanza de inmediato la excepción `TokenError("El token fue revocado por el estudiante o no está registrado.")`.
+  * El router atrapa la excepción e invoca `_log("DENIED", "El token fue revocado por el estudiante o no está registrado.")`.
+  * Asienta en `AuditLogsTable` un evento con `outcome: "DENIED"`, `data_source: "None"` y la IP pública del consultante.
+  * Responde con un código de seguridad **HTTP 403 Forbidden** y el cuerpo JSON:
+    ```json
+    {
+      "detail": "El token fue revocado por el estudiante o no está registrado."
+    }
+    ```
+    La pantalla de consulta del funcionario se bloquea en rojo, impidiendo cualquier acceso no autorizado a la información.
+
+---
+
+### 37.3 Glosario Técnico Exhaustivo In-Situ de los Términos del Nodo de Réplica
+
+Para cumplir rigurosamente con la regla de cero términos sin explicar, a continuación se desglosan los conceptos que intervienen en el nodo de réplica aplicando la fórmula de los cuatro pasos:
+
+1. **Replicación de Datos (Data Replication):**
+   * *Qué es en palabras simples:* Es la práctica de guardar copias idénticas y actualizadas de la misma información en dos o más lugares de almacenamiento independientes.
+   * *Cómo funciona por dentro:* Cada vez que una operación de escritura se procesa con éxito en la base de datos principal, el software toma ese mismo paquete de datos y lo escribe en la base de datos de respaldo antes de confirmar que la operación terminó.
+   * *Analogía cotidiana:* Es como cuando una persona firma una escritura pública en una notaría: se firman dos ejemplares idénticos; uno se entrega al comprador y el otro se guarda en el archivo notarial para que, si el comprador pierde su copia en un incendio, la notaría pueda expedir un duplicado legítimo en cualquier momento.
+   * *Uso exacto en este proyecto:* En `src/app/routers/sync.py`, donde se ejecuta `records.upsert()` sobre `RecordsTable` e inmediatamente después `replicas.upsert()` sobre `ReplicasTable`.
+2. **Failover (Conmutación Automática por Error):**
+   * *Qué es en palabras simples:* Es la capacidad automática que tiene un programa de saltar hacia un sistema de respaldo cuando el sistema principal deja de responder, sin que el usuario tenga que hacer nada manualmente.
+   * *Cómo funciona por dentro:* El software rodea la llamada al almacén principal con un bloque de detección de excepciones (`try/except`). Si la llamada falla o se agota el tiempo de espera, el código ejecuta una ruta alternativa preprogramada que lee del almacén secundario y añade una etiqueta indicando la procedencia de contingencia.
+   * *Analogía cotidiana:* Es como el doble motor de un avión de pasajeros: si el motor izquierdo se apaga en pleno vuelo por una falla mecánica, el motor derecho asume automáticamente la propulsión de la aeronave para que el avión continúe volando y aterrice con seguridad en su destino.
+   * *Uso exacto en este proyecto:* En `src/app/routers/federated.py` (L.100-114), donde el middleware detecta si el nodo de origen está caído y redirige la consulta hacia `ReplicasTable`.
+3. **Consistencia Eventual (Eventual Consistency):**
+   * *Qué es en palabras simples:* Es un modelo de bases de datos distribuidas donde se acepta que una copia de respaldo pueda estar unos pocos milisegundos por detrás de la base principal, con la garantía matemática de que, al cabo de un tiempo, ambas copias terminarán siendo exactamente idénticas.
+   * *Cómo funciona por dentro:* Para no hacer esperar a los usuarios con bloqueos pesados en la red, el sistema permite que la réplica se actualice inmediatamente después del registro primario. Si la red se corta antes de actualizar la réplica, la réplica sigue entregando la última versión que alcanzó a guardar; en cuanto la red regresa y se vuelve a sincronizar, la réplica se pone al día.
+   * *Analogía cotidiana:* Es como la sincronización de contactos en tu teléfono celular con tu cuenta de Google o iCloud: si agregas un teléfono nuevo y apagas el Wi-Fi, el número queda guardado en tu celular; en cuanto te conectas de nuevo a internet, el teléfono sincroniza con la nube y ambos registros quedan exactamente iguales.
+   * *Uso exacto en este proyecto:* En la relación entre `RecordsTable` y `ReplicasTable`, permitiendo que la red federada opere bajo el modelo AP del Teorema CAP.
+4. **Circuit Breaker (Interruptor de Circuito):**
+   * *Qué es en palabras simples:* Es un patrón de diseño de software que detecta cuando un servidor externo está fallando y corta las llamadas hacia él para no saturarlo ni hacer esperar al usuario en vano, desviando el tráfico hacia una alternativa funcional.
+   * *Cómo funciona por dentro:* Monitorea los errores de conexión. Si un servidor arroja fallas continuas o está marcado como inactivo, el código interrumpe los intentos de conexión sobre el servidor dañado y despacha las peticiones directamente hacia el almacén de respaldo.
+   * *Analogía cotidiana:* Es como los tacos o interruptores termomagnéticos en la caja de fusibles de una casa: si ocurre un cortocircuito en la cocina, el interruptor se dispara y corta la energía en esa zona específica para evitar que se queme toda la instalación eléctrica del hogar.
+   * *Uso exacto en este proyecto:* En `src/app/routers/federated.py`, donde la bandera `node_down` y el control de estado `DEGRADADO` en `NodesTable` evitan consultar un nodo que se sabe que está fuera de servicio.

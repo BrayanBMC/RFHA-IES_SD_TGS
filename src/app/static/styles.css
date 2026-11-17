@@ -61,7 +61,7 @@
 
 @layer components {
   .site-header { background: var(--surface); border-block-end: 1px solid var(--border); }
-  .header-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 0.75rem; }
+  .header-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 0.75rem; flex-wrap: wrap; }
   .brand { display: inline-flex; align-items: center; gap: 0.6rem; font-weight: 700; font-size: var(--step-1); color: var(--text); text-decoration: none; }
   .env { font-size: var(--step--1); color: var(--muted); background: var(--surface-2); padding: 0.25rem 0.75rem; border-radius: 99rem; }
   .env strong { color: var(--text); }
@@ -201,10 +201,10 @@
 
 /* App final: navegación y pantallas de administración, nodo y estudiante (HU-02 a HU-05) */
 @layer components {
-  .main-nav { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  .main-nav { display: flex; flex-wrap: wrap; gap: 0.25rem; min-width: 0; overflow: visible; }
   .main-nav a {
     display: inline-flex; align-items: center; min-block-size: 2.75rem; padding-inline: 0.85rem;
-    border-radius: 0.6rem; color: var(--text); text-decoration: none; font-weight: 600;
+    border-radius: 0.6rem; color: var(--text); text-decoration: none; font-weight: 600; white-space: nowrap;
     &:hover { background: var(--surface-2); }
   }
   .main-nav a[aria-current="page"] { color: var(--brand); box-shadow: inset 0 -3px 0 var(--brand); border-radius: 0.6rem 0.6rem 0 0; }

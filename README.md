@@ -1718,3 +1718,172 @@ sequenceDiagram
 1. **Paso 1 a 4:** Si el estudiante sospecha que una universidad ya completó su trámite y desea cerrarle el acceso antes de las 24 horas, entra a `/portal-estudiante` y presiona el botón rojo "Revocar" junto al token respectivo. Lambda ejecuta una actualización atómica en `TokensTable` marcando `revoked = true`.
 2. **Efecto Inmediato:** A partir de ese mismo segundo, si cualquier funcionario intenta volver a usar ese token, el sistema lo expulsará con HTTP 403 Forbidden ("El token fue revocado por el estudiante").
 3. **Paso 5 a 8:** El auditor de seguridad o el administrador entra a `/auditoria` con su clave maestra. Lambda consulta `AuditLogsTable` y sirve los eventos en tiempo real con cabeceras `Cache-Control: no-store` para garantizar que la pantalla muestre los datos frescos de este milisegundo, revelando quién consultó, a qué hora exacta, desde qué IP pública y si el acceso fue permitido o denegado.
+
+
+---
+
+## 30. Compendio Pedagógico Maestro: Explicación In-Situ en 4 Pasos de Todas las Tecnologías del Proyecto
+
+Para erradicar de forma definitiva cualquier duda, sigla suelta o mención sin contexto, esta sección aplica de forma exhaustiva la **Fórmula de Explicación In-Situ en 4 Pasos** (1. Qué es en palabras simples, 2. Cómo funciona por dentro paso a paso, 3. Para qué sirve con analogía cotidiana, 4. Cómo y dónde se usa en este proyecto) para cada uno de los componentes, librerías, protocolos y algoritmos presentes en **RFHA-IES**.
+
+---
+
+### 30.1 Protocolos y Redes Explicados con la Fórmula de 4 Pasos
+
+#### 1. TLS 1.3 (Transport Layer Security versión 1.3)
+1. **Qué es en palabras simples:** Es el protocolo de seguridad criptográfica más avanzado del mundo para proteger las comunicaciones en internet.
+2. **Cómo funciona por dentro:** Cuando el navegador del usuario se conecta a la aplicación, se ejecuta un "apretón de manos" (*TLS Handshake*) en milisegundos. El servidor presenta un certificado de identidad digital emitido por una entidad de confianza mundial; ambos computadores acuerdan mediante matemáticas de curvas elípticas una clave secreta temporal efímera y, a partir de ese instante, cada paquete de datos viaja transformado en bytes ilegibles utilizando el algoritmo simétrico AES-GCM de 256 bits.
+3. **Para qué sirve (Analogía cotidiana):** Es exactamente igual que enviar una carta dentro de una caja fuerte blindada de titanio que viaja por el correo: aunque un ladrón intercepte el camión postal en la carretera, no puede abrir la caja ni espiar lo que dice la carta porque solo el destinatario legítimo tiene la combinación secreta.
+4. **Cómo y dónde se usa en RFHA-IES:** **Amazon API Gateway** activa TLS 1.3 de forma obligatoria en la URL pública `https://ypybm0azfg.execute-api.us-east-2.amazonaws.com`. Asegura que cuando una universidad envíe su clave de acceso secreta (`X-Node-API-Key`) o un estudiante escriba su contraseña, nadie conectado a la misma red Wi-Fi o proveedor de internet pueda interceptar ni robar esa información confidencial.
+
+#### 2. HTTPS (HyperText Transfer Protocol Secure)
+1. **Qué es en palabras simples:** Es el canal seguro y estándar de internet para navegar y transferir información web protegida con candado de seguridad.
+2. **Cómo funciona por dentro:** Toma el protocolo web tradicional (HTTP) y lo encapsula dentro del túnel blindado de TLS. Toda la información enviada (páginas web, formularios, cabeceras y notas académicas) se cifra antes de salir de la tarjeta de red del computador y solo se descifra cuando llega al destino.
+3. **Para qué sirve (Analogía cotidiana):** Mientras que navegar por HTTP normal es como gritar tus secretos en medio de una plaza pública con un megáfono, navegar por HTTPS es como hablar mediante un teléfono rojo de línea privada blindada directamente con el presidente del banco.
+4. **Cómo y dónde se usa en RFHA-IES:** Se aplica en el 100% de las rutas del sistema en `src/app/main.py`. Si alguien intentara conectarse por HTTP inseguro, el sistema o la infraestructura de AWS rechazan la conexión o exigen el canal seguro HTTPS.
+
+#### 3. API REST (Representational State Transfer)
+1. **Qué es en palabras simples:** Es un estilo arquitectónico de diseño de software que establece reglas claras y universales para que dos programas de computador dialoguen e intercambien información por internet sin importar en qué lenguaje estén programados.
+2. **Cómo funciona por dentro:** Asigna a cada recurso del sistema una dirección web única (llamada URI o *Endpoint*) y utiliza los verbos universales de internet para indicar qué acción se desea ejecutar: `GET` para consultar datos, `POST` para guardar datos nuevos, `PATCH` para actualizar un dato existente y `DELETE` para eliminar o revocar un permiso.
+3. **Para qué sirve (Analogía cotidiana):** Es como la ventanilla de atención al público de una notaría: en lugar de que los ciudadanos entren desordenadamente a los archivos a buscar expedientes, se acercan a la ventanilla 1 para radicar un documento (`POST`), a la ventanilla 2 para pedir una copia (`GET`) o a la ventanilla 3 para anular un poder (`DELETE`).
+4. **Cómo y dónde se usa en RFHA-IES:** Todos los routers del backend en `src/app/routers/` (`nodes.py`, `admin.py`, `sync.py`, `students.py`, `federated.py`, `audit.py`) están estructurados como una API REST pura bajo el prefijo `/api/v1/`.
+
+#### 4. JSON (JavaScript Object Notation)
+1. **Qué es en palabras simples:** Es un formato estándar de texto muy ordenado, simple y ligero que usan las computadoras para estructurar y compartir listas de información.
+2. **Cómo funciona por dentro:** Organiza los datos en parejas de "clave" y "valor" delimitadas por llaves y corchetes, por ejemplo: `{"nombre": "Laura", "materia": "Cálculo", "nota": 4.5}`. Cualquier lenguaje de programación moderno puede leer y crear este formato en microsegundos.
+3. **Para qué sirve (Analogía cotidiana):** Es como un formulario impreso de aduanas donde cada casilla tiene su etiqueta clara: no hay confusión entre qué es el nombre del viajero, qué es su número de pasaporte y qué es el país de destino.
+4. **Cómo y dónde se usa en RFHA-IES:** Es el vehículo de transporte de datos entre el navegador web, el servidor en Python y la base de datos DynamoDB. Todo el intercambio de historiales de estudiantes y respuestas de auditoría viaja codificado en JSON.
+
+#### 5. Cabeceras HTTP (Headers)
+1. **Qué son en palabras simples:** Son etiquetas y metadatos técnicos que viajan al principio de cada mensaje en internet para darle instrucciones al servidor sobre quién envía la petición o qué credenciales presenta.
+2. **Cómo funcionan por dentro:** Son líneas de texto plano con formato `Nombre-Cabecera: Valor` que se transmiten antes del cuerpo del mensaje. El servidor las lee primero para decidir si permite el paso o expulsa al usuario antes de gastar memoria procesando datos.
+3. **Para qué sirven (Analogía cotidiana):** Son como la estampilla, el sello de "Confidencial" y el documento de identidad grapados en la parte exterior del sobre de una carta formal.
+4. **Cómo y dónde se usan en RFHA-IES:** Se usan para autenticación y señalización: `X-Node-API-Key` transporta la llave institucional de la universidad, `X-Student-Consent-Token` transporta el pase del alumno, `X-Admin-Key` transporta la clave de gobierno y `X-Data-Source` le indica al cliente si los datos vinieron del servidor primario o de la réplica de emergencia.
+
+---
+
+### 30.2 Criptografía y Seguridad Explicadas con la Fórmula de 4 Pasos
+
+#### 1. Hash Criptográfico SHA-256 (Secure Hash Algorithm de 256 bits)
+1. **Qué es en palabras simples:** Es una operación matemática irreversible que toma cualquier cantidad de texto o archivos y calcula una huella digital única de exactamente 64 caracteres alfanuméricos.
+2. **Cómo funciona por dentro:** Procesa los datos de entrada bloque por bloque mediante operaciones matemáticas lógicas complejas (rotaciones de bits, sumas módulo 2^32 y operaciones XOR). Si cambias una sola letra de la entrada, la huella resultante cambia por completo (Efecto Avalancha). Es matemáticamente imposible hacer ingeniería inversa para recuperar los datos originales a partir de la huella.
+3. **Para qué sirve (Analogía cotidiana):** Es como una máquina trituradora que convierte una fruta en un puré de composición química irrepetible. Viendo el puré puedes comprobar si era una manzana fresca, pero nadie en el universo puede volver a reconstruir la manzana entera a partir del puré triturado.
+4. **Cómo y dónde se usa en RFHA-IES:** 
+   * En `src/app/security.py` en la función `hash_api_key()`: las claves de las universidades nunca se guardan en texto claro en `NodesTable`; solo se almacena su hash para comparar igualdades.
+   * En la función `record_signature()`: sella el historial académico de cada estudiante. Si un funcionario malicioso intentara alterar una nota de reprobada a aprobada en la base de datos, el hash SHA-256 no coincidiría y el sistema rechazaría la entrega por violación de integridad.
+
+#### 2. JWT (JSON Web Token) firmado con Algoritmo HS256
+1. **Qué es en palabras simples:** Es un pase de autorización digital compacto y seguro que viaja en forma de texto y que no puede ser alterado ni falsificado por nadie.
+2. **Cómo funciona por dentro:** Está compuesto por tres bloques separados por puntos (`Header.Payload.Signature`) codificados en Base64URL. El algoritmo **HS256 (HMAC-SHA256)** toma el encabezado y los datos del pase, los combina con una clave secreta que solo el servidor conoce (`JWT_SECRET`) y genera un sello criptográfico matemático infalsificable. Si un usuario intenta modificar su nombre o cambiar la fecha de vencimiento en el texto, el sello de la firma deja de coincidir y el servidor lo expulsa inmediatamente.
+3. **Para qué sirve (Analogía cotidiana):** Es exactamente igual que un cheque de gerencia bancario emitido en papel de seguridad con sello de agua y firma autorizada: cualquier persona puede leer a quién va dirigido el dinero, pero nadie puede alterar la cifra escrita porque el cajero del banco detectaría de inmediato que el sello fue adulterado.
+4. **Cómo y dónde se usa en RFHA-IES:** En `src/app/tokens.py` mediante la librería `PyJWT`. La función `issue_token()` crea el pase de consentimiento cuando el estudiante autoriza una consulta, y la función `verify_token()` valida que la firma sea legítima, que no haya vencido y que no haya sido cancelado por el alumno.
+
+#### 3. El Claim de Audiencia (`aud`) en el Token JWT
+1. **Qué es en palabras simples:** Es un campo obligatorio dentro del pase digital que especifica con nombre y código institucional exacto a qué universidad se le otorgó el permiso de consulta.
+2. **Cómo funciona por dentro:** Al decodificar el token con `jwt.decode(..., audience=nodo_consultante)`, la librería comprueba que el valor de la etiqueta `aud` dentro del JSON coincida exactamente con el código del nodo que está haciendo la petición. Si no coinciden, se lanza una excepción `InvalidAudienceError`.
+3. **Para qué sirve (Analogía cotidiana):** Es como un boleto de avión nominativo intransferible que dice: *"Válido únicamente para abordar el vuelo 204 de la aerolínea Avianca"*. Si el pasajero intenta subirse a un avión de LATAM con ese mismo boleto, la azafata lee el boleto y le impide abordar porque ese boleto no tiene autorización para esa aerolínea.
+4. **Cómo y dónde se usa en RFHA-IES:** En `src/app/tokens.py` y `src/app/routers/federated.py`. Garantiza el principio de consentimiento estricto: si un estudiante autorizó a la Universidad Distrital (`aud: "IES-2222BBBB"`), ninguna otra institución (como la Universidad Nacional o la de los Andes) podrá utilizar ese token para espiar el historial académico del estudiante.
+
+#### 4. Cifrado en Reposo AES-256 (Advanced Encryption Standard de 256 bits)
+1. **Qué es en palabras simples:** Es el algoritmo matemático de cifrado simétrico por bloques más robusto del planeta, aprobado internacionalmente para resguardar secretos de estado y transacciones financieras.
+2. **Cómo funciona por dentro:** Toma bloques de datos de 128 bits y aplica múltiples rondas sucesivas de transformaciones matemáticas complejas (sustitución de bytes, desplazamiento de filas, mezcla de columnas y adición de claves derivadas de 256 bits). Para descifrarlo por fuerza bruta sin la clave, una supercomputadora tardaría miles de millones de años.
+3. **Para qué sirve (Analogía cotidiana):** Es como guardar los libros contables de una empresa dentro de una bóveda de banco subterránea protegida por puertas de aleación de acero: aunque un intruso logre colarse físicamente al sótano del edificio, es incapaz de perforar la puerta de la bóveda para leer los libros.
+4. **Cómo y dónde se usa en RFHA-IES:** En las 5 tablas físicas de **Amazon DynamoDB** (`NodesTable`, `RecordsTable`, `ReplicasTable`, `TokensTable`, `AuditLogsTable`). AWS aplica este cifrado de forma transparente mediante el servicio de gestión de llaves **AWS KMS**, asegurando que los discos de almacenamiento físico en los centros de datos estén protegidos contra cualquier robo o lectura no autorizada.
+
+#### 5. Hash con Sal PBKDF2 (Password-Based Key Derivation Function 2)
+1. **Qué es en palabras simples:** Es un algoritmo criptográfico diseñado específicamente para resguardar contraseñas de usuarios de forma ultra-segura, haciendo extremadamente lento y costoso cualquier intento de ataque informático por fuerza bruta.
+2. **Cómo funciona por dentro:** Toma la contraseña escrita por el estudiante, le añade una cadena aleatoria única de 16 bytes llamada "sal" (*Salt*) y aplica el algoritmo HMAC-SHA256 en un bucle repetitivo de **100.000 iteraciones**. Esto genera un texto final estructurado como `pbkdf2_sha256$100000$sal$digest`. Al tardar unos milisegundos intencionales por cada intento, bloquea a los programas de hackers que intentan adivinar millones de contraseñas por segundo.
+3. **Para qué sirve (Analogía cotidiana):** Es como ponerle a la puerta de entrada una cerradura especial que exige girar la llave 100.000 veces con combinaciones variables antes de abrir: a un usuario legítimo le toma un instante entrar, pero a un ladrón que quiera probar todas las llaves posibles le tomaría siglos abrir la puerta.
+4. **Cómo y dónde se usa en RFHA-IES:** En `src/app/security.py` en las funciones `hash_password()` y `verify_password()`. Protege la contraseña que el estudiante utiliza para ingresar a su portal en `/portal-estudiante`.
+
+---
+
+### 30.3 Servicios de la Nube AWS Explicados con la Fórmula de 4 Pasos
+
+#### 1. Computación Serverless (Arquitectura sin Servidor)
+1. **Qué es en palabras simples:** Es una forma moderna de construir aplicaciones en la nube donde los desarrolladores no tienen que alquilar, encender, vigilar ni actualizar computadores físicos ni sistemas operativos. La nube se encarga de todo.
+2. **Cómo funciona por dentro:** El código se empaqueta en pequeños módulos que duermen apagados. Cuando un usuario en internet hace clic y envía una petición, la nube despierta un entorno de ejecución en milisegundos, procesa la solicitud, responde y vuelve a apagarse. La empresa solo paga por la fracción exacta de segundo que duró el cómputo.
+3. **Para qué sirve (Analogía cotidiana):** Es como la red de agua potable de una ciudad: no tienes que construir un pozo propio ni mantener bombas de agua encendidas en tu patio todo el día; simplemente abres el grifo, sale agua al instante, llenas tu vaso, cierras el grifo y la empresa de acueducto solo te cobra los litros exactos que consumiste.
+4. **Cómo y dónde se usa en RFHA-IES:** Toda la aplicación está desplegada bajo este modelo usando **AWS Lambda** y **API Gateway**. Esto permite que el sistema opere con costo de cero dólares cuando nadie está en el portal, y pueda atender a miles de estudiantes en época de inscripciones sin colapsar.
+
+#### 2. Amazon API Gateway (HTTP API v2)
+1. **Qué es en palabras simples:** Es el servicio de Amazon que funciona como la puerta de acceso oficial y el recepcionista para todo el tráfico de internet que llega a la aplicación.
+2. **Cómo funciona por dentro:** Escucha de forma permanente en una dirección de internet segura con certificado TLS administrado. Cuando llega una petición HTTP (por ejemplo `GET /api/v1/nodes/active`), valida el formato, comprueba que la conexión sea segura y canaliza la solicitud hacia la función Lambda correspondiente.
+3. **Para qué sirve (Analogía cotidiana):** Es como el recepcionista de un hospital de alta seguridad: recibe a todas las personas en la puerta principal, revisa que no lleven objetos prohibidos y dirige a cada paciente al consultorio médico que le corresponde.
+4. **Cómo y dónde se usa en RFHA-IES:** Gestiona la URL pública `https://ypybm0azfg.execute-api.us-east-2.amazonaws.com` y redirige todas las rutas hacia la función Lambda del proyecto usando la integración proxy `/{proxy+}`.
+
+#### 3. AWS Lambda
+1. **Qué es en palabras simples:** Es el servicio de computación bajo demanda de Amazon que ejecuta el código del backend en milisegundos sin requerir servidores dedicados.
+2. **Cómo funciona por dentro:** Cuando API Gateway le envía un evento, Lambda descarga el código de la aplicación en un micro-contenedor ultraligero y aislado (tecnología *Firecracker*), ejecuta el intérprete de Python 3.12, le entrega la petición a la librería `Mangum` y retorna la respuesta en menos de 20 milisegundos.
+3. **Para qué sirve (Analogía cotidiana):** Es como un ejército de traductores profesionales que esperan en silencio en una oficina: si llega un cliente que habla francés, un traductor se levanta, traduce la conversación en dos minutos y vuelve a sentarse; si de pronto llegan 100 clientes al mismo tiempo, 100 traductores se levantan simultáneamente para atenderlos a todos en paralelo sin hacerlos esperar en fila.
+4. **Cómo y dónde se usa en RFHA-IES:** En `src/app/main.py` se define la variable `handler = Mangum(app, lifespan="off")`, que es el punto exacto de entrada que AWS Lambda invoca para ejecutar la lógica de FastAPI.
+
+#### 4. Amazon DynamoDB (Base de Datos NoSQL Distribuida)
+1. **Qué es en palabras simples:** Es el motor de base de datos no relacional de Amazon diseñado para guardar y consultar volúmenes masivos de datos en milisegundos sin importar cuántos usuarios estén conectados al tiempo.
+2. **Cómo funciona por dentro:** Almacena la información en formato de documentos o fichas JSON. Utiliza una clave especial llamada *Partition Key* para calcular matemáticamente en qué disco duro exacto de su clúster mundial debe guardar o leer la ficha, logrando tiempos de respuesta de un solo dígito de milisegundos sin hacer búsquedas lentas en tablas gigantes.
+3. **Para qué sirve (Analogía cotidiana):** Es como un archivador automatizado de alta tecnología con millones de cajones numerados: si llegas con el número exacto del cajón en la mano, un brazo robótico extrae tu carpeta en medio segundo, sin tener que revisar los millones de cajones restantes.
+4. **Cómo y dónde se usa en RFHA-IES:** Mediante la librería oficial `boto3` en `src/app/repositories.py`, DynamoDB almacena las 5 tablas oficiales del proyecto (`NodesTable`, `RecordsTable`, `ReplicasTable`, `TokensTable` y `AuditLogsTable`).
+
+#### 5. Time To Live (TTL en DynamoDB)
+1. **Qué es en palabras simples:** Es una función automática de la base de datos que elimina por sí sola los registros viejos o vencidos sin que ningún programador tenga que borrarlos manualmente.
+2. **Cómo funciona por dentro:** Cada vez que se guarda un dato, se incluye un número entero que representa la fecha y hora exacta de vencimiento en segundos Unix (ej. `1763424000`). Un proceso en segundo plano de DynamoDB compara continuamente el reloj mundial con ese número; si la fecha ya pasó, el registro se elimina del disco duro de forma silenciosa y gratuita.
+3. **Para qué sirve (Analogía cotidiana):** Es como los alimentos perecederos en un supermercado con fecha de vencimiento impresa: cuando el producto caduca, un empleado lo retira automáticamente de la estantería para que nadie compre comida en mal estado y el estante quede libre para productos frescos.
+4. **Cómo y dónde se usa en RFHA-IES:** En `TokensTable` sobre el atributo `ttl`. Asegura que los tokens de consentimiento de los estudiantes desaparezcan de la base de datos después de 24 horas, garantizando que el sistema no acumule basura digital (principio de neguentropía en Teoría General de Sistemas).
+
+#### 6. Boto3 (SDK Oficial de AWS para Python)
+1. **Qué es en palabras simples:** Es la librería de programación oficial creada por Amazon para que los programas escritos en Python puedan dar órdenes, guardar datos y comunicarse con todos los servicios de AWS.
+2. **Cómo funciona por dentro:** Construye peticiones HTTP seguras, firma digitalmente cada mensaje con las credenciales secretas de AWS mediante el protocolo criptográfico *Signature Version 4 (SigV4)* y traduce las respuestas de DynamoDB a diccionarios nativos de Python.
+3. **Para qué sirve (Analogía cotidiana):** Es como el cable conector universal y el control remoto que une el televisor con el sistema de sonido: permite que dos aparatos de marcas distintas dialoguen y se entiendan perfectamente al presionar un botón.
+4. **Cómo y dónde se usa en RFHA-IES:** En `src/app/repositories.py` en la función `_dynamo_table()`: ejecuta `import boto3` y crea el objeto `boto3.resource("dynamodb").Table(name)` para realizar lecturas (`get_item`), escrituras (`put_item`) y actualizaciones (`update_item`).
+
+#### 7. Mangum (Adaptador Serverless para FastAPI)
+1. **Qué es en palabras simples:** Es una pequeña librería de software que funciona como un "adaptador de corriente universal" entre AWS Lambda y el framework FastAPI.
+2. **Cómo funciona por dentro:** AWS Lambda entrega los datos de internet en un formato de evento JSON propietario de Amazon. Mangum intercepta ese evento JSON, lo transforma en una petición web estándar de Python (llamada especificación ASGI) para que FastAPI la procese sin problemas y, al terminar, toma la respuesta de FastAPI y la vuelve a empaquetar en el formato que AWS API Gateway espera recibir.
+3. **Para qué sirve (Analogía cotidiana):** Es exactamente igual que el adaptador de enchufe que compras cuando viajas de Colombia a Europa o Estados Unidos: las tomas de corriente en la pared tienen orificios diferentes a las clavijas de tu cargador de celular; el adaptador no cambia la electricidad, simplemente ajusta la forma física para que la energía fluya sin cortocircuitos.
+4. **Cómo y dónde se usa en RFHA-IES:** En `src/app/main.py` en la línea `handler = Mangum(app, lifespan="off")`. Sin esta línea, la aplicación en FastAPI sería incapaz de entender las peticiones enviadas por Amazon API Gateway en la nube.
+
+---
+
+### 30.4 Conceptos Teóricos de Sistemas Distribuidos Explicados con la Fórmula de 4 Pasos
+
+#### 1. Nodos Autónomos y Desacoplamiento
+1. **Qué es en palabras simples:** Significa que cada universidad de la red es una entidad independiente y soberana que tiene sus propios sistemas, sus propios funcionarios y sus propias claves, sin depender jerárquicamente de las demás.
+2. **Cómo funciona por dentro:** Cada universidad recibe una API Key criptográfica exclusiva. El sistema valida la identidad de la universidad directamente desde esa clave (`node["node_id"]` en el backend) y le prohíbe tocar o modificar registros que no le pertenezcan. Las universidades se comunican exclusivamente mediante mensajes estructurados a través de la red, sin compartir memoria ni bases de datos internas.
+3. **Para qué sirve (Analogía cotidiana):** Es como el sistema bancario de cajeros automáticos: el Banco de Bogotá y Bancolombia son entidades totalmente independientes y rivales que guardan su dinero en bóvedas separadas, pero gracias a una red compartida (como Redeban o Servibanca) un usuario puede retirar dinero en cualquier cajero sin que un banco tenga que abrirle sus libros contables secretos al otro.
+4. **Cómo y dónde se usa en RFHA-IES:** Cada universidad aprobada en `NodesTable` opera como un nodo autónomo que sincroniza historiales en su propia isla de datos lógica en `RecordsTable`.
+
+#### 2. Middleware y Plano de Control Federado
+1. **Qué es en palabras simples:** Es el árbitro neutral o software mediador que se sitúa en el centro de la red para coordinar el intercambio seguro de información entre instituciones que no confían ciegamente entre sí.
+2. **Cómo funciona por dentro:** Recibe las peticiones de las universidades, intercepta las cabeceras de autorización, valida que el estudiante haya otorgado su consentimiento mediante un token JWT infalsificable, decide de qué tabla extraer la información (primaria o réplica) y audita cada movimiento antes de entregar los datos.
+3. **Para qué sirve (Analogía cotidiana):** Es como un juez notario en la firma de una compraventa de una vivienda: el comprador no le entrega el dinero al vendedor en la calle ni el vendedor le entrega las escrituras a ciegas; ambos van ante el notario neutral, quien revisa los documentos, confirma la identidad de ambas partes, autoriza la transacción y estampa su sello en el libro notarial.
+4. **Cómo y dónde se usa en RFHA-IES:** Toda la aplicación en FastAPI (`src/app/main.py` y sus routers) cumple exactamente el rol de middleware federado, conectando a las universidades participantes sin que ninguna sea dueña de la infraestructura central.
+
+#### 3. Tolerancia a Fallos y Conmutación Automática por Error (Failover)
+1. **Qué es en palabras simples:** Es la capacidad que tiene el sistema de seguir funcionando sin interrumpir el servicio al usuario, incluso si uno de los computadores principales sufre un apagón, un daño en el disco duro o una desconexión de red.
+2. **Cómo funciona por dentro:** En `src/app/routers/federated.py` (L.100-114), el código intenta leer el historial del estudiante en la tabla primaria `RecordsTable`. Si la lectura arroja un error, se agota el tiempo de espera o el usuario envía la cabecera de simulación `X-Simulate-Down: true`, el software detecta la anomalía en microsegundos y desvía la consulta de forma transparente hacia la tabla de respaldo `ReplicasTable`, respondiendo con la réplica y añadiendo la cabecera `X-Data-Source: Replica`.
+3. **Para qué sirve (Analogía cotidiana):** Es como el generador eléctrico de emergencia a base de diésel en un hospital de alta complejidad: si una tormenta derriba los cables de la luz de la ciudad y la energía principal se corta, el generador auxiliar arranca en dos segundos manteniendo encendidas las máquinas de cirugía y los respiradores sin que los cirujanos tengan que suspender la operación.
+4. **Cómo y dónde se usa en RFHA-IES:** Cumple con la Historia de Usuario HU-08. Garantiza que si la Universidad Nacional sufre una caída en sus servidores locales o en su almacén primario, la Universidad Distrital pueda consultar el historial del estudiante desde la réplica autorizada sin rechazar su trámite de homologación.
+
+#### 4. Consistencia Eventual y el Teorema CAP (Modelo AP)
+1. **Qué es en palabras simples:** El Teorema CAP es una ley matemática de la informática que dice que ningún sistema distribuido puede tener al mismo tiempo Consistencia Inmediata (C), Disponibilidad Total (A) y Tolerancia a Cortes de Red (P). RFHA-IES elige el modelo **AP (Disponibilidad y Tolerancia a Particiones)** con *Consistencia Eventual*.
+2. **Cómo funciona por dentro:** En lugar de congelar y bloquear todo el sistema cuando un nodo se desconecta esperando a que vuelva a revivir, el sistema prefiere seguir disponible respondiendo con la réplica autorizada de contingencia. La "consistencia eventual" significa que si la universidad de origen actualizó una nota hace 5 minutos y se cayó la red antes de sincronizar la réplica, la réplica entregará la última versión guardada con éxito, y en cuanto la conexión se restablezca y el nodo vuelva a sincronizar, ambas bases de datos volverán a quedar exactamente idénticas.
+3. **Para qué sirve (Analogía cotidiana):** Es como consultar el saldo bancario en una libreta de ahorros física sellada por el banco: si el sistema central de computadores del banco se cae momentáneamente, el cajero humano revisa la libreta física sellada ayer y te autoriza un retiro de emergencia porque es el último estado registrado oficialmente, en lugar de cerrarte la puerta en la cara y decirte que no puedes comer hoy porque se cayó el sistema.
+4. **Cómo y dónde se usa en RFHA-IES:** Se evidencia en el router `src/app/routers/sync.py` (donde se actualizan secuencialmente `RecordsTable` y `ReplicasTable`) y en `federated.py` (donde se prioriza la entrega de datos desde la réplica antes que emitir un fallo general del sistema).
+
+#### 5. Concurrencia Optimista con Expresión Condicional (ConditionExpression)
+1. **Qué es en palabras simples:** Es una técnica para evitar que dos funcionarios de una misma universidad que están subiendo notas al mismo tiempo sobreescriban por accidente la información de un alumno con datos desactualizados, sin necesidad de bloquear la base de datos con candados lentos.
+2. **Cómo funciona por dentro:** En `src/app/repositories.py` en el método `upsert()`, se utiliza la funcionalidad nativa de DynamoDB `ConditionExpression = Attr("record_key").not_exists() | Attr("synced_at").lte(new_synced_at)`. La base de datos revisa antes de guardar: si el registro que ya está en el disco tiene una fecha de sincronización más nueva que la que se intenta subir, la base de datos aborta la escritura y lanza una excepción de colisión (`ConditionalCheckFailedException`), que el backend convierte en un error HTTP 409 Conflict.
+3. **Para qué sirve (Analogía cotidiana):** Es como un semáforo inteligente en un cruce estrecho: dos autos llegan al mismo tiempo, el semáforo evalúa cuál tiene prioridad y le da paso al auto correcto, evitando que los dos choquen de frente en medio de la vía.
+4. **Cómo y dónde se usa en RFHA-IES:** Resuelve de raíz el **Hallazgo Crítico SD-01**. Evita colisiones de datos concurrentes cuando múltiples procesos institucionales sincronizan historiales masivos al mismo tiempo.
+
+#### 6. Service Registry (Directorio Dinámico de Nodos)
+1. **Qué es en palabras simples:** Es una guía telefónica o catálogo digital centralizado donde los nodos activos de la red publican su información básica para que los demás puedan saber quiénes están disponibles.
+2. **Cómo funciona por dentro:** El endpoint público `GET /api/v1/nodes/active` en `src/app/routers/nodes.py` consulta `NodesTable` con el filtro `status = "ACTIVO"`. Retorna una lista JSON limpia con el código (`node_id`) y el nombre oficial de cada universidad autorizada, ocultando correos, llaves y datos internos.
+3. **Para qué sirve (Analogía cotidiana):** Es como la lista de contactos verificados en una aplicación de mensajería como WhatsApp: antes de enviarle un mensaje a alguien, la aplicación te muestra únicamente los contactos reales que tienen una cuenta activa y verificada para que no le envíes datos a números equivocados o dados de baja.
+4. **Cómo y dónde se usa en RFHA-IES:** Resuelve el **Hallazgo Crítico SD-03**. El portal del estudiante (`src/app/static/portal-estudiante.js`) consulta este registro automáticamente al cargar la pantalla, llenando la lista desplegable para que el alumno elija con nombre propio a qué universidad desea autorizar.
+
+#### 7. Bitácora Distribuida Inmutable de Auditoría
+1. **Qué es en palabras simples:** Es un libro contable digital de seguridad donde cada acción, consulta o bloqueo queda grabado para siempre, y en el que está terminantemente prohibido borrar o alterar cualquier página del pasado.
+2. **Cómo funciona por dentro:** Cada vez que se consulta la API federada, la función `_log()` en `src/app/routers/federated.py` genera un identificador único `AUDIT-XXXXXXXXXXXX` y ejecuta un `put_item` en `AuditLogsTable`. La política de seguridad IAM de AWS le prohíbe de forma tajante a la función Lambda las operaciones `DeleteItem` y `UpdateItem` sobre esta tabla. Nadie en el mundo posee permisos para borrar una línea de la bitácora.
+3. **Para qué sirve (Analogía cotidiana):** Es como el libro de actas notariadas o la caja negra indestructible de un avión: cada minuto queda registrado con tinta imborrable; si ocurre un incidente, los investigadores pueden reconstruir segundo a segundo qué pasó sin que nadie pueda arrancar hojas del libro para ocultar sus acciones.
+4. **Cómo y dónde se usa en RFHA-IES:** Cumple con la Historia de Usuario HU-09. Alimenta la pantalla `/auditoria` para que administradores y universidades puedan auditar quién consultó a un estudiante, a qué hora exacta, desde qué dirección IP y con qué resultado de seguridad.

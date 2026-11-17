@@ -1,6 +1,6 @@
-# RFHA-IES — Red Federada de Historiales Académicos de Instituciones de Educación Superior
+# RFHA-IES — Red Federada de Historiales Académicos
 
-![CI](https://github.com/BrayanBMC/RFHA-IES_SD_TGS/actions/workflows/ci.yml/badge.svg?branch=dev)
+> Sistema distribuido de intercambio federado de historiales académicos interuniversitarios, desplegado como serverless en AWS.
 
 Sistema distribuido y descentralizado que conecta a las universidades en una red interoperable. Un funcionario de una universidad puede consultar, en segundos, el historial académico de un estudiante de **otra** universidad, **siempre que el estudiante lo autorice** con un token de consentimiento digital. Los datos permanecen en el nodo de origen de cada institución.
 
@@ -43,7 +43,7 @@ Sistema distribuido y descentralizado que conecta a las universidades en una red
 
 ---
 
-## 1. Ficha del proyecto
+## Tabla de módulos
 
 | | |
 |---|---|
@@ -56,448 +56,280 @@ Sistema distribuido y descentralizado que conecta a las universidades en una red
 | **Versión del levantamiento** | 2.0.0, noviembre de 2026 (con la adenda de frontend, 2.1) |
 ---
 
-## 2. Resumen y problema que resuelve
-
-Hoy las instituciones de educación superior (IES) operan como islas de información. El historial académico (notas, asignaturas, créditos, títulos) está fragmentado en bases de datos heterogéneas. Para una homologación, una beca interinstitucional o la validación de un título, el estudiante gestiona certificados firmados a mano. El trámite toma entre **15 y 45 días hábiles**, cuesta dinero y se puede falsificar.
-
-**Por qué no una base de datos nacional única:** sería un punto único de falla y un riesgo de filtración masiva. Por eso los datos **se quedan en el nodo de cada universidad** y la red solo los consulta con consentimiento.
-
-**Beneficios**
-- **Para las IES:** homologaciones de semanas a segundos, menos papeleo y documentos íntegros.
-- **Para los estudiantes:** control total de sus datos mediante un token de consentimiento temporal que pueden revocar.
-- **Para los entes reguladores:** un entorno tolerante a fallos y auditable que dificulta alterar historiales.
-
-**Restricción inviolable:** todo el diseño debe caber en el **AWS Free Tier** (costo cero).
-
----
-
-## 3. Alcance y actores
-
-### Incluido
-- Ciclo de vida completo: registro de una universidad como nodo, emisión de claves de API, gestión de usuarios y consulta de expedientes.
-- Microservicios serverless en AWS: Lambda, API Gateway (HTTP API) y DynamoDB.
-- Middleware de Web Services REST con mensajes JSON entre nodos.
-- Autenticación de nodos con API Key y consentimiento del estudiante con token JWT (`student_auth_token`).
-- Tolerancia a fallos: si un nodo no responde, la consulta se atiende desde una réplica autorizada.
-- Modelado sistémico (diagramas causal y de Forrester) para Teoría General de Sistemas.
-- Aplicación web responsiva (HTML, CSS y JavaScript nativos servidos por la misma Lambda).
-
-### Excluido
-- Integración directa con motores SQL reales de universidades (se simulan con DynamoDB por nodo).
-- Aplicaciones móviles nativas.
-- Infraestructura de pago en AWS.
-
-### Actores
-
-| Actor | Responsabilidad |
-|---|---|
-| **Administrador general de la red** | Valida a las IES, aprueba nodos y emite sus credenciales. |
-| **Administrador institucional (IES)** | Configura su nodo, gestiona funcionarios e integra su base de datos. |
-| **Funcionario de registro y admisiones** | Consulta el historial de un estudiante de otra universidad para homologar. |
-| **Estudiante (titular del dato)** | Genera, ve y revoca tokens de consentimiento temporales. |
-| **Nodo institucional (IES origen)** | Custodia los datos originales y responde a la red tras validar el consentimiento. |
-| **Evaluador académico** | Docentes de Sistemas Distribuidos y TGS. |
-
----
-
-## 4. Requerimientos funcionales
-
-Estado: **Hecho** (completo), **Demo** (solo en la demo del middleware), **Parcial** o **Pendiente**.
-
-| ID | Requerimiento | Prioridad | Estado |
-|---|---|---|---|
-| **RF-01** | Solicitud de registro de un nodo IES (queda en `PENDIENTE_APROBACION`). | Alta | **Hecho** (HU-01: API y formulario web) |
-| **RF-02** | Aprobación del nodo y emisión de `API_KEY` y `NODE_ID`. | Alta | **Hecho** (HU-02: API, pantalla `/admin`, solo se guarda el hash SHA-256) |
-| **RF-03** | Carga y sincronización del historial académico del nodo. | Alta | **Hecho** (HU-03: `POST /api/v1/node/sync-records`, pantalla `/panel-nodo`) |
-| **RF-04** | Generación del token de consentimiento por el estudiante (JWT de 24 h). | Alta | **Hecho** (HU-04: portal del estudiante). La demo lo simula con botones. |
-| **RF-05** | Consulta transparente a través del middleware en menos de 1,5 s. | Alta | Parcial: **Demo** |
-| **RF-06** | Rechazo `403` sin token o con token expirado. | Alta | **Demo** (falta en la app final) |
-| **RF-07** | Visualización del historial para homologación. | Media | **Demo** (materias, créditos, notas y panel de homologación) |
-| **RF-08** | Auditoría y trazabilidad de consultas. | Alta | Pendiente (HU-09) |
-| **RF-09** | Tolerancia a fallos: desvío a una réplica tras 2000 ms. | Alta | Pendiente (HU-08) |
-| **RF-10** | Revocación de consentimiento. | Media | **Hecho** (HU-05: lista negra en `TokensTable`). Falta que la consulta federada (HU-06/07) la aplique. |
-
-**Requerimientos de la interfaz web** (adenda de frontend):
-
-| ID | Requerimiento | Estado |
-|---|---|---|
-| **RF-11** | Consulta visual del historial. | **Demo** |
-| **RF-12** | Visualización de la validación del middleware (4 controles). | **Demo** |
-| **RF-13** | Registro de universidad desde la web. | **Hecho** (HU-01) |
-| **RF-14** | Panel del administrador general. | **Hecho** (HU-02, `/admin`); pulido en HU-10 |
-| **RF-15** | Panel del nodo (carga de historiales). | **Hecho** (HU-03, `/panel-nodo`); pulido en HU-10 |
-| **RF-16** | Portal del estudiante (generar, ver y revocar tokens). | **Hecho** (HU-04 y HU-05, `/portal-estudiante`); pulido en HU-10 |
-| **RF-17** | Indicador de fuente de datos (`X-Data-Source`). | Pendiente (HU-10) |
-| **RF-18** | Consulta de auditoría. | Pendiente (HU-10) |
-| **RF-19** | Modo demostración (simula al estudiante). | **Demo** |
-
----
-
-## 5. Requerimientos no funcionales
-
-| Categoría | Requerimiento | Estado |
-|---|---|---|
-| **Rendimiento** | Tiempo de respuesta total menor a 2000 ms (meta de consulta normal 1,5 s). | Por medir en AWS |
-| **Seguridad y privacidad** | Comunicación por HTTPS (TLS) y datos cifrados en reposo. | HTTPS por defecto en API Gateway; el cifrado por defecto de DynamoDB se usa en lugar de una clave KMS propia (cuesta) |
-| **Disponibilidad** | 99,9 % con el despliegue multi-zona nativo de API Gateway y Lambda. | Diseño serverless aplicado |
-| **Escalabilidad** | De 0 a 1000 solicitudes por minuto sin intervención manual. | Diseño serverless aplicado |
-| **Costo** | 100 % dentro del AWS Free Tier. | Aplicado en el diseño; el costo real se verifica al desplegar |
-| **Accesibilidad (frontend)** | WCAG 2.2 AA, adaptable a celular, modo claro/oscuro, CSP estricta, sin dependencias. | Aplicado en la demo y el formulario de HU-01 |
-
----
-
-## 6. Historias de usuario
-
-| ID | Historia | Talla | Cobertura | Estado |
-|---|---|---|---|---|
-| **HU-01** | Registro e inscripción de un nuevo nodo institucional (IES) | 3 · S | RF-01, RF-13 | **Terminada** y desplegada en AWS |
-| **HU-02** | Aprobación de nodo y expedición de la API Key (se guarda solo el hash SHA-256) | 5 · M | RF-02, RF-14 | **Terminada** y desplegada en AWS |
-| **HU-03** | Carga masiva y sincronización de expedientes (`POST /api/v1/node/sync-records`) | 5 · M | RF-03, RF-15 | **Terminada** y desplegada en AWS |
-| **HU-04** | Autenticación del estudiante y generación del token de consentimiento | 5 · M | RF-04, RF-16 | **Terminada** y desplegada en AWS |
-| **HU-05** | Revocación manual de consentimiento (lista negra) | 3 · S | RF-10, RF-16 | **Terminada** y desplegada en AWS |
-| **HU-06** | Consulta federada interinstitucional de historial | 8 · L | RF-05, RF-07 | **Terminada** (`/consulta`, `GET /api/v1/federated/academic-history/{id}`); falta medir el tiempo en AWS |
-| **HU-07** | Bloqueo de consultas no autorizadas | 3 · S | RF-06 | **Terminada** (6 controles con 403: API Key, token, vigencia, destino, lista negra y titular) |
-| **HU-08** | Conmutación por error a una réplica (`X-Data-Source`) | 8 · L | RF-09 | Pendiente |
-| **HU-09** | Trazabilidad e inmutabilidad de la bitácora de consultas | 5 · M | RF-08 | Pendiente |
-| **HU-10** | Interfaz web de la app final (adenda de frontend) | 13 · XL | RF-11 a RF-19 | Pendiente (el formulario de HU-01 ya existe) |
-
-**Criterios de aceptación de HU-01** (Given / When / Then): *dado* que el representante ingresa al formulario `/registro-nodo`, *cuando* envía NIT, nombre institucional, dominio web y correo de contacto, *entonces* el sistema crea el nodo en estado `PENDIENTE_APROBACION` y genera un ID. Detalle, casos de prueba y matriz de criterios en `docs/historias/HU-01.md`.
-
-**Criterios de HU-02 a HU-05:** en `docs/historias/HU-02.md` a `HU-05.md`, cada uno con su matriz criterio → prueba automática.
-
-**Orden de desarrollo:** una historia a la vez, en el orden de la tabla. El equipo autorizó avanzar de corrido de HU-01 a HU-05. Desde HU-06 se vuelve a pedir el «aprobado» historia por historia.
-
----
-
-## 7. Arquitectura, stack y modelo de datos
-
-### Arquitectura
+## 1. Arquitectura general
 
 ```mermaid
 flowchart TD
-    UI["Navegador<br/>(funcionario, estudiante, administrador)"] -->|HTTPS| APIGW["Amazon API Gateway<br/>(HTTP API)"]
-    APIGW --> L["AWS Lambda<br/>FastAPI + Mangum"]
-    L --> CAT[("NodesTable<br/>Catálogo de nodos y hash de API Key")]
-    L --> REC[("RecordsTable<br/>Historiales de los nodos")]
-    L --> TOK[("TokensTable<br/>Tokens y lista negra")]
-    L -.->|HU-08 y HU-09| AUD[("Réplica y auditoría<br/>(pendientes)")]
+    subgraph Nodos["Nodos IES (universidades)"]
+        N1[Universidad A\nPanel del nodo]
+        N2[Universidad B\nPanel del nodo]
+    end
+
+    subgraph Middleware["Middleware RFHA-IES\n(AWS Lambda + API Gateway)"]
+        GW[API Gateway\nus-east-2]
+        LM[AWS Lambda\nFastAPI + Mangum]
+        DB[(DynamoDB\n5 tablas)]
+    end
+
+    subgraph Actores["Actores externos"]
+        STU[Estudiante\nPortal web]
+        ADM[Administrador\nPanel /admin]
+    end
+
+    N1 -->|POST /api/v1/node/sync-records\nX-Node-API-Key| GW
+    N2 -->|GET /api/v1/federated/academic-history/{id}\nX-Student-Consent-Token| GW
+    STU -->|POST /api/v1/students/token\nCredenciales + nodo destino| GW
+    ADM -->|PATCH /api/v1/admin/nodes/{id}/approve\nX-Admin-Key| GW
+
+    GW --> LM
+    LM --> DB
 ```
 
-En la **demo** los datos están en el código (no usa base de datos). La app final usa hoy tres tablas de DynamoDB (HU-01 a HU-05); la réplica y la auditoría llegan con HU-08 y HU-09. La interfaz web se sirve desde la misma Lambda, sin S3 ni CloudFront. Cómo se comunica el código con AWS: `docs/DEMO.md` (sección 4.11) y `docs/APP_FINAL.md` (secciones 2 y 3).
+### Flujo completo de una petición
 
-### Servicios y stack
+```mermaid
+sequenceDiagram
+    actor U as Universidad B (consulta)
+    participant GW as API Gateway
+    participant LM as Lambda (FastAPI)
+    participant DB as DynamoDB
 
-| Capa | Tecnología | Por qué |
-|---|---|---|
-| Entrada y transporte | **Amazon API Gateway** (HTTP API) | Punto único de entrada y HTTPS nativo. Dentro del Free Tier según el plan de la cuenta (ver `docs/BRECHAS.md`). |
-| Lógica | **AWS Lambda** (Python 3.12) con **FastAPI + Mangum** | Sin servidores; FastAPI genera el contrato OpenAPI y Mangum lo adapta a Lambda. |
-| Datos | **Amazon DynamoDB** (NoSQL) | Esquema flexible para datos académicos heterogéneos; 25 GB gratuitos. |
-| Seguridad | **PyJWT** (HS256), claves de API con hash SHA-256, claves de estudiante con PBKDF2 | Tokens firmados con expiración; nunca se guardan claves en claro. |
-| Validación | **Pydantic** | Validación estricta de entradas y salidas. |
-| Acceso a AWS | **boto3** | SDK oficial. |
-| Despliegue | **CloudFormation** con `scripts/deploy_aws.py` | Lambda + API Gateway + DynamoDB con un comando; plantillas con sintaxis corta de SAM, sin instalar SAM CLI. |
-| Frontend | HTML, CSS y JavaScript nativos | Cero dependencias, accesible y rápido. |
-| Pruebas | **pytest**, **moto** | `moto` simula DynamoDB sin tocar AWS. |
+    U->>GW: GET /api/v1/federated/academic-history/{student_id}\n  Headers: X-Node-API-Key, X-Student-Consent-Token
+    GW->>LM: invoca handler (Mangum adapta ASGI→Lambda)
+    LM->>DB: find_by_api_key_hash(sha256(api_key)) → NodesTable
+    DB-->>LM: nodo ACTIVO confirmado
+    LM->>LM: verify_token(jwt, audience=node_id, tokens_repo)\n  → valida firma HS256, exp, aud, lista negra
+    LM->>DB: records.get(origin_node, student_id) → RecordsTable
+    alt Nodo origen caído (HU-08)
+        DB-->>LM: None / excepción
+        LM->>DB: replicas.get(origin_node, student_id) → ReplicasTable
+        DB-->>LM: ítem de réplica
+        LM->>LM: X-Data-Source: Replica
+    else Nodo origen disponible
+        DB-->>LM: ítem primario
+        LM->>LM: X-Data-Source: Primary
+    end
+    LM->>LM: record_signature(signed_fields) == digital_signature_hash ?
+    LM->>DB: audits.record_log({...}) → AuditLogsTable (inmutable)
+    LM-->>GW: 200 JSON + X-Data-Source header
+    GW-->>U: respuesta cifrada TLS
+```
 
-### Modelo de datos (DynamoDB)
-- **Clave de partición (`PK`):** `INSTITUCION#ID_ESTUDIANTE` (por ejemplo `UDISTRITAL#20262678029`).
-- **Clave de ordenamiento (`SK`):** `ACADEMIC_RECORD#SEMESTRE` (por ejemplo `ACADEMIC_RECORD#2026-1`).
-- **Documento:** datos del estudiante (`student_info`), resumen académico (`academic_summary`: promedio, créditos, estado), lista de asignaturas (`courses`) y metadatos del nodo con el hash de integridad (`node_metadata`).
-- **Tablas que existen hoy en la app final:**
+---
 
-| Tabla | Clave | Contenido |
-|---|---|---|
-| `NodesTable` | `node_id` | NIT, nombre, dominio, correo, estado y `api_key_hash` (SHA-256). |
-| `RecordsTable` | `record_key` = `node_id#student_id` | Cédula, nombre, programa, asignaturas, `password_hash` (PBKDF2) y `digital_signature_hash` (SHA-256). |
-| `TokensTable` | `jti` | Tokens emitidos, universidad destino, `revoked` (lista negra) y `ttl` (borrado automático al vencer). |
+## 2. Fundamentos teóricos aplicados al código
 
-  El diseño de claves `PK`/`SK` de arriba es el objetivo para HU-06 en adelante; hoy `RecordsTable` usa una sola clave compuesta (`docs/historias/HU-03.md`).
+### 2.1 ¿Qué es el Middleware y por qué RFHA-IES lo es?
 
-### Contrato de la API (resumen)
+Un **middleware** es una capa de software que actúa como intermediario entre sistemas heterogéneos: recibe mensajes, los valida, transforma o enruta, y los entrega al destino correcto — sin que los extremos se conozcan directamente.
 
-| Método y ruta | Quién | Historia | Respuestas |
+RFHA-IES cumple exactamente este rol:
+
+| Función de middleware | Dónde ocurre en el código |
+|-----------------------|---------------------------|
+| **Interceptación** de cada petición | `src/app/security.py` → `require_node()` y `require_admin()` validan la identidad antes de que el router procese nada |
+| **Transformación** de datos | `src/app/routers/federated.py` → `_plain()` convierte `Decimal` de DynamoDB a tipos JSON; `_summary()` agrega GPA y créditos |
+| **Enrutamiento federado** | `federated.py` → decide entre `records` (primario) y `replicas` (réplica) según el estado del nodo origen |
+| **Verificación de integridad** | `security.py` → `record_signature()` recalcula SHA-256 del JSON canónico y compara con `digital_signature_hash` |
+| **Bitácora transversal** | `federated.py` → `_log()` escribe en `AuditLogsTable` en cada rama del flujo (éxito, denegado, error) |
+
+### 2.2 Sistema distribuido vs. centralizado
+
+RFHA-IES es un **sistema distribuido federado**, no un monolito, por las siguientes evidencias en el código:
+
+| Propiedad SD | Evidencia en el código |
+|---|---|
+| **Nodos autónomos con identidad propia** | Cada universidad recibe una API Key única (`security.py → new_api_key()`) cuyo hash SHA-256 se guarda en `NodesTable`. El nodo **nunca** puede escribir datos de otro: `sync.py` L.40 → `"node_id": node["node_id"]` viene de la API Key autenticada, no del body. |
+| **Particionamiento de datos** | `repositories.py → record_key()` L.152: `f"{node_id}#{student_id}"` — cada registro está segmentado por nodo. Un nodo no puede acceder a registros ajenos. |
+| **Comunicación por red con protocolo** | Todo intercambio es HTTP REST con cabeceras de autenticación (`X-Node-API-Key`, `X-Student-Consent-Token`, `X-Admin-Key`). |
+| **Ausencia de estado local compartido** | Lambda es stateless: cada invocación es independiente. El estado está exclusivamente en DynamoDB. |
+| **Tolerancia a particiones (CAP)** | `federated.py` L.100-114: si el nodo origen falla, se activa failover automático a `ReplicasTable` (modelo AP). |
+| **Service Registry** | `nodes.py → GET /api/v1/nodes/active`: devuelve los nodos disponibles — equivalente a Eureka/Consul. |
+| **Autorización delegada** | El estudiante emite un JWT con `aud` = ID del nodo destino (`tokens.py`). Un token para Universidad A no sirve para Universidad B (`verify_token` lanza `InvalidAudienceError`). |
+
+### 2.3 Teorema CAP
+
+RFHA-IES es un sistema **AP** (Available + Partition-tolerant):
+
+- **Disponibilidad:** ante fallo del nodo primario, la réplica responde (L.111-114 `federated.py`).
+- **Tolerancia a particiones:** el middleware sigue operando aunque un nodo IES esté caído.
+- **Consistencia eventual:** la réplica puede estar ligeramente detrás del primario; es la última versión sincronizada (`sync.py` L.57-58: `records.upsert()` → `replicas.upsert()` en el mismo request).
+
+---
+
+## 3. Infraestructura AWS — Mapeo código↔nube
+
+| Servicio AWS | Rol | Configuración | Archivo relevante |
 |---|---|---|---|
-| `GET /api/v1/federated/academic-history/{student_id}` con `X-Student-Consent-Token` (demo) | Funcionario | HU-06/07 (demo) | 200, 403, 404 |
-| `POST /api/v1/nodes/register` | Público | HU-01 | 201, 409, 422 |
-| `GET /api/v1/nodes/active` | Público | HU-04 | 200 |
-| `GET /api/v1/admin/nodes` y `POST /api/v1/admin/nodes/{node_id}/approve` con `X-Admin-Key` | Administrador | HU-02 | 200, 403, 404, 409 |
-| `POST /api/v1/node/sync-records` con `X-Node-API-Key` | Nodo activo | HU-03 | 200, 403, 422 |
-| `GET /api/v1/federated/academic-history/{student_id}` con `X-Node-API-Key` y `X-Student-Consent-Token` (app final) | Nodo activo | HU-06/07 | 200, 403, 404, 500 (firma alterada) |
-| `POST /api/v1/student/auth-token` | Estudiante (cédula y clave) | HU-04 | 201, 401, 404, 422 |
-| `POST /api/v1/student/tokens/list` y `POST /api/v1/student/tokens/{jti}/revoke` | Estudiante | HU-05 | 200, 401, 404 |
+| **AWS Lambda** | Ejecuta la app FastAPI (serverless) | Runtime Python 3.12, timeout configurable en SAM template | `src/app/main.py` L.58 → `handler = Mangum(app, lifespan="off")` |
+| **API Gateway (HTTP API)** | Punto de entrada único; enruta al Lambda | Integración proxy (`/{proxy+}`) | `template.yaml` (generado por `scripts/deploy_aws.py`) |
+| **DynamoDB** | Persistencia NoSQL distribuida | 5 tablas, capacidad on-demand, AES-256 en reposo | `src/app/repositories.py` → clases `Dynamo*Repository` |
+| **S3** | Almacenamiento del paquete Lambda antes del deploy | Bucket temporal durante `sam package` | `scripts/deploy_aws.py` |
+| **CloudFormation / SAM** | IaC: define Lambda + API GW + permisos IAM | Stack `rfha-app` en `us-east-2` | `scripts/deploy_aws.py` |
+| **IAM** | Rol de ejecución del Lambda con permisos DynamoDB | Generado automáticamente por SAM | `template.yaml` |
 
-La documentación interactiva (Swagger) está en `/docs` de cada aplicación.
+### ¿Por qué DynamoDB y no RDS/PostgreSQL?
 
----
-
-## 8. Mapeo con Sistemas Distribuidos y Teoría General de Sistemas
-
-### ¿Por qué RFHA-IES es un Sistema Distribuido?
-
-Un **sistema distribuido** es aquel en el que componentes ubicados en computadoras interconectadas en red se comunican y coordinan sus acciones únicamente mediante el paso de mensajes (Tanenbaum & Van Steen, *Distributed Systems*). RFHA-IES cumple esta definición en cuatro dimensiones:
-
-#### 1. Nodos geográficamente distribuidos con autonomía propia
-
-Cada universidad participante opera como un **nodo autónomo e independiente** con su propia identidad criptográfica (`rfha_<API Key>`). Los nodos son entidades físicamente separadas (múltiples instituciones con sus propios servidores y redes) que se integran a la red mediante el middleware sin centralizar sus datos.
-
-```
-Universidad EAN        Universidad Nacional      Universidad Distrital
-(Bogotá)              (Bogotá / Medellín)        (Bogotá)
-     │                        │                        │
-     └────────────────────────┴────────────────────────┘
-                              │
-                    RFHA-IES Middleware (AWS sa-east-1)
-                    (Plano de control federado neutral)
-```
-
-#### 2. Datos particionados por nodo (Sharding lógico)
-
-Los historiales académicos **no están centralizados**: cada registro en `RecordsTable` pertenece al nodo que lo sincronizó (`record_key = node_id#student_id`). La llave `node_id` proviene criptográficamente de la API Key — un nodo no puede leer ni escribir datos de otro nodo, por diseño del middleware.
-
-#### 3. Comunicación exclusiva por paso de mensajes (REST/JSON sobre HTTPS)
-
-Ningún componente del sistema tiene acceso directo a la memoria o el estado interno de otro. Toda coordinación ocurre mediante:
-- `POST /api/v1/node/sync-records` (nodo → middleware: sincronización)
-- `POST /api/v1/student/auth-token` (estudiante → middleware: consentimiento)  
-- `GET /api/v1/federated/academic-history/{id}` (middleware: consulta federada entre nodos)
-- `GET /api/v1/audit/logs` (observabilidad del estado distribuido)
-
-#### 4. Tolerancia a Fallos y Replicación (HU-08)
-
-El sistema implementa el modelo **primary-backup replication**: los historiales se escriben simultáneamente en `RecordsTable` (primario) y `ReplicasTable` (réplica). Ante un fallo del nodo primario, el middleware conmuta automáticamente a la réplica sin intervención humana ni interrupción del servicio. Esto es **fault tolerance**, propiedad central de los sistemas distribuidos.
-
-#### 5. Transparencias de Distribución implementadas
-
-| Transparencia | Implementación en RFHA-IES |
-|---|---|
-| **Acceso** | Interfaz REST/JSON idéntica sin importar cuántos nodos haya |
-| **Ubicación** | El cliente nunca conoce la dirección física del nodo origen |
-| **Concurrencia** | Lambda + DynamoDB atienden peticiones simultáneas de múltiples nodos |
-| **Replicación** | RecordsTable + ReplicasTable (manual) + replicación interna de DynamoDB (3 AZs) |
-| **Fallos (HU-08)** | Failover automático a réplica; AWS Lambda tiene SLA 99.95% |
-| **Escalado** | De 1 a N nodos sin cambiar una línea de código |
-| **Movilidad** | El endpoint no cambia si una universidad migra de infraestructura |
-| **Rendimiento** | API Gateway con throttling y escalado horizontal automático de Lambda |
-
-#### 6. Posición en el Teorema CAP
-
-> RFHA-IES prioriza **Disponibilidad (A) + Tolerancia a Particiones (P)**. Cuando un nodo falla, el sistema permanece disponible usando la réplica. Se acepta **consistencia eventual**: la réplica puede reflejar la última sincronización, no la del mismo instante. Para el caso de uso (transferencias y homologaciones académicas donde los datos cambian poco), este modelo es apropiado.
-
----
-
-### Sistemas Distribuidos: las 8 transparencias (estado por historia)
-
-| Transparencia | Aplicación en RFHA-IES | Historia | Estado |
-|---|---|---|---|
-| **Acceso** | Interfaz REST/JSON sin importar cómo guarde cada nodo sus datos. | HU-01..10 | ✅ Implementada |
-| **Ubicación** | El cliente usa un único endpoint y no conoce dónde están los datos. | HU-06 | ✅ Implementada |
-| **Concurrencia** | Lambda y DynamoDB atienden peticiones simultáneas de N nodos. | Infraestructura | ✅ Por diseño AWS |
-| **Replicación** | RecordsTable (primario) + ReplicasTable (réplica) + 3 AZs de DynamoDB. | HU-08 | ✅ Implementada |
-| **Fallos** | Si el nodo primario falla, se redirige automáticamente a la réplica. | HU-08 | ✅ Implementada |
-| **Movilidad** | La dirección lógica del endpoint no cambia si una universidad migra. | HU-01..10 | ✅ Por diseño |
-| **Rendimiento** | API Gateway con throttling (20 req/s); Lambda escala bajo demanda. | Infraestructura | ✅ Configurado |
-| **Escalado** | De 1 a miles de nodos sin cambiar el código del middleware. | Infraestructura | ✅ Por diseño |
-
-### Teoría General de Sistemas
-
-- **Sistema abierto y complejo:** formado por subsistemas (los nodos universitarios) que interactúan con su suprasistema, la educación superior colombiana.
-- **Entradas:** petición de consulta, credenciales de la IES, token del estudiante y datos académicos.
-- **Proceso:** autenticación, validación del token, enrutamiento federado, verificación de integridad criptográfica y serialización a JSON.
-- **Salidas:** expediente académico consolidado con GPA y créditos; registros inmutables de auditoría; reportes PDF de estadísticas de la red.
-- **Retroalimentación (Feedback Loops):**
-  - *Loop de aprobación:* Solicitud → Revisión admin → Aprobación → Nodo activo con API Key.
-  - *Loop de consentimiento:* Emisión de token → Consulta por universidad → Revocación por estudiante si detecta abuso.
-  - *Loop de auditoría:* Acción federada → Registro en bitácora → Admin revisa → Ajusta política.
-- **Homeostasis:** El sistema mantiene su estado consistente ante fallos gracias al failover automático y la lista negra de tokens revocados.
-- **Equifinalidad:** Diferentes rutas (nodo primario disponible, nodo primario caído + réplica) producen el mismo resultado final correcto: el historial llega al destinatario autorizado.
-- **Neguentropía:** Se combate la entropía mediante firmas SHA-256 (detectan corrupción), bitácora inmutable (preservan la historia), réplicas (redundancia ante pérdida) y TTL automático (eliminan ruido de tokens vencidos).
-- **Sinergia:** La red federada vale más que la suma de universidades aisladas: permite consultas cruzadas que ninguna institución podría hacer sola.
-
----
-
-## 9. Lo que se ha hecho (estado del proyecto)
-
-Detalle cronológico en `docs/BITACORA.md`.
-
-| Área | Estado |
-|---|---|
-| **Análisis de brechas** | Hecho: `docs/BRECHAS.md` (inconsistencias del documento, Free Tier real, seguridad, entorno). |
-| **Decisiones de diseño** | Hecho: `docs/DECISIONES.md` (D-01 a D-35). |
-| **Esqueleto portable** | Hecho: configuración de VS Code, dependencias fijadas, `.env.example`, `.gitignore`, `.gitattributes`. |
-| **Demo del middleware** | **Hecha** (etiqueta `demo-martes`): API con 403/200/404, 6 estudiantes ficticios en 4 universidades, interfaz web accesible con validación en 4 controles, panel de homologación y modo demostración. |
-| **Guía de la demo y AWS** | Hecha: `docs/DEMO.md` (conceptos explicados, 15 escenas de prueba con clics que explican cómo actúa el middleware en cada caso, despliegue en AWS paso a paso). |
-| **HU-01** | **Terminada:** `POST /api/v1/nodes/register` y formulario `/registro-nodo`; repositorio en memoria y DynamoDB. |
-| **HU-02** | **Terminada:** aprobación de nodos en `/admin`; API Key única vez, solo se guarda su hash SHA-256. |
-| **HU-03** | **Terminada:** `POST /api/v1/node/sync-records` y pantalla `/panel-nodo`; upsert, firma SHA-256 y clave del estudiante con PBKDF2. |
-| **HU-04** | **Terminada:** portal `/portal-estudiante`; token JWT de 24 h dirigido a una universidad. |
-| **HU-05** | **Terminada:** el estudiante ve y revoca sus autorizaciones; lista negra en `TokensTable`. |
-| **CI/CD** | Hecho: GitHub Actions corre las pruebas y un job que levanta la demo y la app final. Despliegue a AWS manual y opcional. |
-| **Pruebas** | 170 pruebas automáticas (39 de la demo y 131 de la app final), ejecutadas en GitHub. |
-| **Prompt y planeación** | Hecho: `docs/PROMPT-AGENTE-RFHA-IES.md` (v2) y `docs/ADENDA_FRONTEND.md`. |
-| **Despliegue en AWS** | **Hecho** en la región `us-east-2` con `scripts/deploy_aws.py`: stacks `rfha-demo` y `rfha-app` (Lambda, HTTP API y tres tablas de DynamoDB). Direcciones al inicio de este documento; configuración paso a paso en `docs/DEMO.md` (secciones 4.10 y 4.11) y `docs/APP_FINAL.md`. |
-| **HU-06** | **Terminada:** consulta federada en `/consulta` con DynamoDB, firma verificada y fuente de datos `Primary`. |
-| **HU-07** | **Terminada:** la consulta se bloquea con 403 sin API Key, sin token, vencido, revocado, para otra universidad o de otro estudiante. |
-| **HU-08 a HU-10** | **Terminadas:** failover automático (HU-08), auditoría inmutable (HU-09), frontend completo con navegación (HU-10). |
-| **Módulo de Reportes PDF** | **Terminado:** `GET /api/v1/admin/reports/network-summary` genera PDF ejecutivo con métricas de la red, consultas, resiliencia y auditoría. Pantalla en `/reportes`. |
-
-**Estado actual:** Todas las historias de usuario HU-01 a HU-10 están implementadas y en producción en AWS (`sa-east-1`).
-
----
-
-## 10. Cómo ejecutarlo desde la terminal de VS Code
-
-### 10.1 Requisitos (una sola vez por computador)
-
-| | Windows | macOS / Linux |
+| Criterio | DynamoDB | RDS |
 |---|---|---|
-| **Python** | `winget install Python.Python.3.12` | Python 3.11 o 3.12 (`python3 --version`) |
-| **Git** | `winget install Git.Git` | `git --version` |
-| **VS Code** | https://code.visualstudio.com | https://code.visualstudio.com |
+| Escalado | Automático (on-demand), sin gestión de servidores | Requiere provisionar instancias |
+| Latencia baja | Acceso por clave de partición en < 10 ms | Depende del tamaño de la query |
+| TTL nativo | Elimina tokens vencidos automáticamente (`ttl` = exp del JWT) | Requiere job periódico |
+| Modelo de acceso | Por clave (`node_id#student_id`), sin JOINs | Relacional, óptimo para JOINs |
+| Sin estado de conexión | Perfecto para Lambda (no mantiene conexión persistente) | Connection pooling necesario |
 
-Python 3.14 o superior puede fallar al instalar las dependencias; usa 3.11 o 3.12. Cierra y abre la terminal después de instalar programas.
+El esquema de acceso del proyecto (siempre por `node_id` + `student_id`) es exactamente el caso de uso ideal de DynamoDB.
 
-### 10.2 Descargar el proyecto y abrirlo
+---
 
-**Windows (PowerShell):**
-```powershell
-git clone https://github.com/BrayanBMC/RFHA-IES_SD_TGS.git
-cd RFHA-IES_SD_TGS
-code .
+## 4. Persistencia y base de datos
+
+### Tablas DynamoDB
+
+| Tabla | Clave de partición | Propósito | Clase repositorio |
+|---|---|---|---|
+| `NodesTable` | `node_id` (IES-XXXXXXXX) | Nodos institucionales y hash de API Key | `DynamoNodeRepository` |
+| `RecordsTable` | `record_key` (`node_id#student_id`) | Historiales académicos (primario) | `DynamoRecordRepository` |
+| `ReplicasTable` | `record_key` | Copia de réplica para failover (HU-08) | `DynamoRecordRepository` (misma clase, tabla distinta) |
+| `TokensTable` | `jti` (UUID hex) | Tokens activos del estudiante + lista negra | `DynamoTokenRepository` |
+| `AuditLogsTable` | `log_id` (AUDIT-XXXXXXXXXXXX) | Bitácora inmutable (solo PutItem) | `DynamoAuditRepository` |
+
+### Patrón de acceso clave
+
+```python
+# repositories.py L.152
+def record_key(node_id: str, student_id: str) -> str:
+    return f"{node_id}#{student_id}"
 ```
 
-**macOS / Linux:**
+Esto garantiza que el Scan de DynamoDB por `document_number` (`find_by_document`) siempre opera dentro del espacio de claves de un nodo, y que el `upsert` por `record_key` sea idempotente (carga repetida = actualización).
+
+### Neguentropía mediante TTL
+
+```python
+# repositories.py L.235 (DynamoTokenRepository)
+# El atributo `ttl` (= exp del token) hace que DynamoDB borre el registro al vencer.
+```
+
+El atributo `ttl` = Unix timestamp de expiración del JWT. DynamoDB lo elimina automáticamente dentro de las 48 h posteriores al vencimiento, manteniendo la tabla limpia sin ningún job de limpieza — esto es **neguentropía aplicada** (el sistema expulsa "ruido" de forma autónoma).
+
+---
+
+## 5. Seguridad: cifrado y mecanismos de protección
+
+### Capas de cifrado
+
+| Capa | Mecanismo | Código |
+|---|---|---|
+| **En tránsito** | TLS 1.2+ forzado por API Gateway (AWS gestiona el certificado) | Transparente en infraestructura |
+| **API Key del nodo** | SHA-256 (nunca se guarda en texto plano) | `security.py → hash_api_key()` L.23-24 |
+| **Contraseña del estudiante** | PBKDF2-HMAC-SHA256, 100.000 iteraciones, sal de 16 bytes aleatoria | `security.py → hash_password()` L.29-32 |
+| **Firma del historial** | SHA-256 del JSON canónico (sort_keys, sin espacios) | `security.py → record_signature()` L.55-57 |
+| **Token de consentimiento** | JWT HS256 con `jti`, `aud`, `exp` y lista negra en DynamoDB | `tokens.py → issue_token()` / `verify_token()` |
+| **En reposo (DynamoDB)** | AES-256 gestionado por AWS KMS (activado por defecto) | Configuración de infraestructura AWS |
+| **Timing-safe comparisons** | `hmac.compare_digest()` para Admin Key y contraseñas | `security.py` L.44-47, L.65 |
+
+### CSP (Content Security Policy)
+
+```python
+# main.py L.12-18
+PAGE_HEADERS = {
+    "Content-Security-Policy": (
+        "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; "
+        "base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+    ),
+    ...
+}
+```
+
+Todos los scripts son externos (`type="module"`) para cumplir con `script-src 'self'`. No hay inline scripts ni inline styles.
+
+---
+
+## 6. Alta disponibilidad y tolerancia a fallos
+
+### ¿Por qué el sistema no se cae?
+
+| Mecanismo | Detalle |
+|---|---|
+| **Escalado automático de Lambda** | AWS instancia múltiples ejecuciones concurrentes en milisegundos ante picos de carga. No hay servidor que administrar. SLA: 99.95%. |
+| **Failover a réplica (HU-08)** | `federated.py` L.100-114: si `records.get()` retorna `None` o lanza excepción, se consulta `ReplicasTable` automáticamente. La cabecera `X-Data-Source: Replica` lo evidencia. |
+| **Simulación de caída** | La cabecera `X-Simulate-Down: true` (o la variable `SIMULATE_NODE_DOWN` en `.env`) fuerza el failover sin necesidad de apagar nada. |
+| **Idempotencia del upsert** | Si una sincronización falla a mitad, se puede re-ejecutar sin duplicar datos: `put_item` sobreescribe por `record_key`. |
+| **Tokens con expiración** | TTL de 24 h evita acumulación de tokens activos. La lista negra permite revocación inmediata. |
+| **Bitácora inmutable** | `AuditLogsTable` solo recibe `PutItem` (nunca `UpdateItem` ni `DeleteItem`). Cualquier operación queda trazada con IP, resultado y fuente de datos. |
+
+---
+
+## 7. Ejecución local
+
 ```bash
-git clone https://github.com/BrayanBMC/RFHA-IES_SD_TGS.git
-cd RFHA-IES_SD_TGS
-code .
+# 1. Crear entorno y arrancar
+python scripts/run_demo.py --app --port 8001
+
+# 2. Tests completos
+.venv/Scripts/pytest -q
+
+# 3. Deploy a AWS
+python scripts/deploy_aws.py app --profile rfha --region us-east-2
 ```
 
-> Mientras lo último esté en la rama `dev` y no en `main`, agrega `git checkout dev` después de `cd RFHA-IES_SD_TGS`.
+### Variables de entorno (`.env`)
 
-Al abrir el proyecto, VS Code propone instalar las extensiones recomendadas (Python, Pylance y Thunder Client). Acepta.
-
-### 10.3 Abrir la terminal integrada
-En VS Code: menú **Terminal → New Terminal** o el atajo **`Ctrl + ñ`** (en teclados en inglés, `` Ctrl + ` ``). La terminal se abre ya en la carpeta del proyecto.
-
-### 10.4 Levantar la demo (un solo comando)
-
-El lanzador crea el entorno de Python, instala las dependencias, genera un `.env` con un secreto aleatorio, enciende la demo y prueba los tres escenarios básicos. **No hay que crear el entorno virtual ni instalar nada a mano.**
-
-| | Comando |
-|---|---|
-| **Windows** | `.\run-demo.cmd` |
-| **macOS / Linux** | `bash run-demo.sh` |
-| **Cualquier sistema** | `python scripts/run_demo.py` |
-| **Desde el menú de VS Code** | `Ctrl+Shift+P`, escribir *Tasks: Run Task* y elegir **Demo: levantar en local** |
-
-Cuando salga `DEMO LISTA`, abre **http://127.0.0.1:8000** en el navegador. La primera vez tarda de 1 a 2 minutos. **No cierres la terminal** mientras uses la demo; para detenerla pulsa `Ctrl + C`.
-
-Opciones: `--port 8010` (otro puerto), `--no-check` (omite la verificación inicial), `--once` (levanta, verifica y termina). En Windows: `.\run-demo.cmd -Port 8010`.
-
-### 10.5 Levantar la app final (HU-01 a HU-05)
-
-| | Comando |
-|---|---|
-| **Windows** | `.\run-app.cmd` |
-| **macOS / Linux** | `bash run-demo.sh --app` |
-| **Cualquier sistema** | `python scripts/run_demo.py --app` |
-
-Al arrancar, la terminal muestra las cuatro pantallas (`/registro-nodo`, `/admin`, `/panel-nodo`, `/portal-estudiante`) y la **clave de administrador** (`ADMIN_KEY`, que el lanzador genera en tu `.env`). Los datos viven en memoria y se pierden al detener la app. El recorrido completo, con datos de ejemplo, está en `docs/APP_FINAL.md` (sección 7). Puedes tener la demo (puerto 8000) y la app (puerto 8001) a la vez, cada una en su propia terminal: usa el botón **+** del panel de terminal de VS Code para abrir otra.
-
-### 10.6 Problemas frecuentes
-
-| Problema | Solución |
-|---|---|
-| Windows: «la ejecución de scripts está deshabilitada» | Usa `.\run-demo.cmd` (o `.\run-app.cmd`), que ya evita el bloqueo. |
-| «El puerto 8000 está ocupado» | `.\run-demo.cmd -Port 8010` (macOS/Linux: `bash run-demo.sh --port 8010`). |
-| Falla la instalación de dependencias | Instala Python 3.12 y vuelve a ejecutar. |
-| La terminal no encuentra `python` | Cierra y abre VS Code; en Windows, desactiva el alias de la Tienda de Microsoft en *Configuración → Aplicaciones → Alias de ejecución de aplicaciones*. |
-
-### 10.7 Ejecutar las pruebas en tu computador (opcional)
-Las pruebas oficiales corren en GitHub. Para correrlas localmente, crea el entorno una vez:
-
-**Windows (PowerShell):**
-```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m pytest
-```
-
-**macOS / Linux:**
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-pytest
-```
-
-Por partes: `pytest demo/tests` (demo) y `pytest tests` (app final).
-
-### 10.8 Thunder Client (cliente de pruebas de la API)
-Las colecciones están en `thunder-tests/` y se cargan solas al abrir el proyecto. Elige el entorno **Local** o **AWS** en el selector de entornos. Es un respaldo; las pruebas de la demo se hacen en la pantalla (ver `docs/DEMO.md`).
+| Variable | Descripción | Default |
+|---|---|---|
+| `REPOSITORY_BACKEND` | `memory` (local) o `dynamodb` (AWS) | `memory` |
+| `ADMIN_KEY` | Clave del administrador general | — |
+| `JWT_SECRET` | Secreto de firma de tokens | valor de desarrollo |
+| `SIMULATE_NODE_DOWN` | `node_id` de nodo a simular caído | — |
+| `NODES_TABLE` | Nombre de la tabla DynamoDB | `NodesTable` |
+| `RECORDS_TABLE` | — | `RecordsTable` |
+| `REPLICAS_TABLE` | — | `ReplicasTable` |
+| `TOKENS_TABLE` | — | `TokensTable` |
+| `AUDIT_TABLE` | — | `AuditLogsTable` |
 
 ---
 
-## 11. Pruebas, CI y CD
+## 8. Historias de usuario implementadas
 
-- **Pruebas:** `pytest` con 170 pruebas (demo: 39; app final: 131, de HU-01 a HU-07, API, pantallas y flujo completo). DynamoDB se prueba con `moto`, sin tocar AWS.
-- **CI** (`.github/workflows/ci.yml`): en cada subida a `dev` y `main` corre `pytest` y el job `demo-runner`, que arranca la demo y la app final con el lanzador y verifica los escenarios.
-- **CD** (`.github/workflows/cd-demo.yml`): despliegue manual de la demo a AWS. Nunca corre solo.
-- **Regla:** las pruebas oficiales son las de GitHub Actions. Una historia no se da por terminada hasta que el CI esté en verde.
+| HU | Descripción | Router / archivo principal |
+|----|-------------|---------------------------|
+| HU-01 | Registro de universidad como nodo | `routers/nodes.py → POST /api/v1/nodes/register` |
+| HU-02 | Aprobación de nodo por administrador | `routers/admin.py → PATCH /api/v1/admin/nodes/{id}/approve` |
+| HU-03 | Sincronización de historiales | `routers/sync.py → POST /api/v1/node/sync-records` |
+| HU-04 | Emisión de token de consentimiento | `routers/students.py → POST /api/v1/students/token` |
+| HU-05 | Revocación de token | `routers/students.py → DELETE /api/v1/students/token/{jti}` |
+| HU-06 | Consulta federada con token | `routers/federated.py → GET /api/v1/federated/academic-history/{id}` |
+| HU-07 | Bloqueo por token inválido / revocado | mismo endpoint, control L.86-94 |
+| HU-08 | Tolerancia a fallos + conmutación a réplica | mismo endpoint, control L.100-114 |
+| HU-09 | Bitácora inmutable de auditoría | `routers/audit.py` + `_log()` en `federated.py` |
+| HU-10 | Interfaz web completa | `main.py PAGES` + `static/` |
 
 ---
 
-## 12. Estructura del repositorio
+## 9. Bucles de retroalimentación (TGS)
 
-```
-RFHA-IES_SD_TGS/
-├── demo/                  # Demo del middleware (puerto 8000)
-│   ├── main.py            # API, validación del token y servidor de la pantalla
-│   ├── students.py        # 6 estudiantes ficticios (datos de prueba)
-│   ├── static/            # Interfaz web: index.html, styles.css, app.js
-│   ├── tests/             # Pruebas de la demo
-│   └── template.yaml      # Receta AWS SAM del paquete rfha-demo
-├── src/app/               # App final (puerto 8001)
-│   ├── main.py            # Aplicación, pantallas, cabeceras de seguridad y entrada de Lambda
-│   ├── models.py, config.py
-│   ├── repositories.py    # Tablas: nodos, historiales y tokens (memoria y DynamoDB)
-│   ├── security.py        # Hash de claves, firma de historiales, permisos de administrador y nodo
-│   ├── tokens.py          # Emisión y verificación del token del estudiante (JWT)
-│   ├── routers/           # nodes (HU-01), admin (HU-02), sync (HU-03), students (HU-04 y HU-05)
-│   └── static/            # Pantallas: registro-nodo, admin, panel-nodo, portal-estudiante
-├── template.yaml          # Receta AWS del paquete rfha-app (Lambda, API y tres tablas)
-├── tests/                 # Pruebas de la app final (HU-01 a HU-05)
-├── scripts/               # run_demo.py, deploy_aws.py, smoke_aws.py, clean_aws_data.py, ...
-├── thunder-tests/         # Colecciones de Thunder Client (Demo y App final)
-├── docs/                  # Documentación (ver sección 13)
-├── .github/workflows/     # ci.yml y cd-demo.yml
-├── .vscode/               # Extensiones, ajustes y tareas de VS Code
-├── run-demo.cmd / run-demo.ps1 / run-app.cmd / run-demo.sh   # Lanzadores
-├── requirements.txt       # Dependencias con versiones fijadas
-└── .env.example           # Variables de entorno (sin valores reales)
+```mermaid
+flowchart LR
+    A[Universidad solicita registro] --> B[Admin aprueba/rechaza]
+    B --> C{Estado del nodo}
+    C -->|ACTIVO| D[Nodo puede sincronizar y ser consultado]
+    C -->|RECHAZADO| E[Nodo inactivo - sin acceso]
+
+    F[Estudiante emite token] --> G[Universidad consulta historial]
+    G --> H[Bitácora registra IP y resultado]
+    H --> I[Estudiante puede revocar si detecta abuso]
+    I --> F
 ```
 
-`demo/` y `src/app/` **no se importan entre sí**; comparten solo las dependencias y las carpetas de configuración.
+Los tres loops de feedback del sistema:
+1. **Aprobación:** Solicitud → Revisión admin → Estado nodo → Capacidad de operación.
+2. **Consentimiento:** Emisión de token → Consulta → Auditoría → Revocación si necesario.
+3. **Integridad:** Sincronización firma SHA-256 → Consulta verifica firma → Error 500 si no coincide → Nodo debe re-sincronizar.
 
 ---
 
-## 13. Documentación
-
-| Documento | Contenido |
-|---|---|
-| `docs/CREDENCIALES_Y_GUIA_AWS.md` | **Credenciales, casos de prueba y guía de AWS:** Clave de admin, las 4 universidades activas con sus API Keys, los 6 estudiantes ficticios con claves y casos de prueba, y guía paso a paso para recorrer la consola web de AWS (DynamoDB, Lambda, API Gateway, CloudWatch, CloudFormation y Billing) con el profesor. |
-| `docs/ARQUITECTURA_Y_MODULOS.md` | **Arquitectura completa, combinación AWS y módulos:** Explicación técnica exhaustiva de cada archivo y router en Python, diagramas de capas y flujos, cómo se combinan los servicios de AWS con FastAPI, viabilidad del módulo de reportes PDF para el admin y guía para conectar múltiples máquinas simultáneamente en la sustentación de Sistemas Distribuidos. |
-| `docs/APP_FINAL.md` | **Guía de la app final:** Direcciones, cómo se conecta todo, cómo se comunica el código con AWS, las cinco tablas DynamoDB, seguridad criptográfica, qué hace cada historia (HU-01 a HU-10), viabilidad de reportes PDF y guía de demostración distribuida. |
-| `docs/historias/HU-01.md` a `HU-05.md` | Una historia por archivo: qué se hizo, archivos, cómo probarla y matriz de criterios con su prueba automática. |
-| `docs/BITACORA.md` | Bitácora de desarrollo: qué se hizo, commits, resultado del CI e incidencias. |
-| `docs/DECISIONES.md` | Registro de decisiones (D-01 a D-35). |
-| `docs/BRECHAS.md` | Faltantes, ambigüedades e inconsistencias del levantamiento. |
-| `docs/AWS_PASO_A_PASO.md` | Guía de AWS para quien administra la cuenta. |
-| `docs/ADENDA_FRONTEND.md` | Requerimientos de la interfaz web (RF-11 a RF-19, RNF-F1 a F9, HU-10). |
-| `docs/DEMO_MARTES.md` | Lista de verificación y guion breve de la exposición. |
-| `docs/PROMPT-AGENTE-RFHA-IES.md` | Prompt de trabajo del agente de IA (versión 2, con frontend). |
-
----
+## 10. Estructura del repositorio
 
 ## 14. Cronograma y riesgos
 

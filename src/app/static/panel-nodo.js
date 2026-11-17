@@ -1,41 +1,68 @@
 // RFHA-IES · panel del nodo: carga de historiales (HU-03).
 import { $, announce, api, errorText, setBusy, setMessage } from "/static/common.js";
 
-// Datos FICTICIOS de ejemplo.
-const EXAMPLE = {
-  records: [
-    {
-      student_id: "20262678029",
-      document_number: "1012345678",
-      full_name: "Brayan Acosta Parrado",
-      program: "Ingeniería en Telemática",
-      academic_status: "ACTIVO",
-      password: "Clave-2026-A",
-      courses: [
-        { code: "165-301", name: "Sistemas Distribuidos", credits: 3, grade: 4.8, semester: "2026-1" },
-        { code: "165-302", name: "Teoría General de Sistemas", credits: 2, grade: 4.5, semester: "2026-1" },
-        { code: "165-330", name: "Seguridad Informática", credits: 3, grade: null, semester: "2026-2" },
-      ],
-    },
-    {
-      student_id: "20251234501",
-      document_number: "1098765432",
-      full_name: "Laura Camila Ríos Herrera",
-      program: "Ingeniería de Sistemas y Computación",
-      academic_status: "ACTIVO",
-      password: "Clave-2026-B",
-      courses: [
-        { code: "2015167", name: "Cálculo Integral", credits: 4, grade: 2.6, semester: "2024-2" },
-        { code: "2015167", name: "Cálculo Integral", credits: 4, grade: 3.4, semester: "2025-1" },
-      ],
-    },
-  ],
-};
+// ---- Generador de datos de ejemplo aleatorios (nuevo en cada ejecución) ----
+const FIRST_NAMES = ["Brayan","Laura","Sebastián","Valentina","Andrés","Camila","Diego","Mariana","Felipe","Daniela","Julián","Sofía","Miguel","Isabella","Carlos","Natalia","Samuel","Paula","Esteban","Sara"];
+const LAST_NAMES = ["Acosta","Ríos","Gómez","Herrera","Martínez","López","Torres","Ramírez","García","Vargas","Moreno","Jiménez","Castro","Rojas","Peña","Suárez","Mendoza","Salazar","Ortiz","Silva"];
+const PROGRAMS = ["Ingeniería en Telemática","Ingeniería de Sistemas y Computación","Ingeniería Electrónica","Ingeniería de Software","Ciencias de la Computación","Ingeniería en Redes","Matemáticas Aplicadas","Física Computacional"];
+const COURSES = [
+  { code:"165-301", name:"Sistemas Distribuidos", credits:3 },
+  { code:"165-302", name:"Teoría General de Sistemas", credits:2 },
+  { code:"165-330", name:"Seguridad Informática", credits:3 },
+  { code:"2015167", name:"Cálculo Integral", credits:4 },
+  { code:"2015168", name:"Álgebra Lineal", credits:3 },
+  { code:"165-401", name:"Redes de Computadoras", credits:3 },
+  { code:"165-402", name:"Bases de Datos Distribuidas", credits:3 },
+  { code:"165-403", name:"Computación en la Nube", credits:2 },
+  { code:"165-404", name:"Inteligencia Artificial", credits:3 },
+  { code:"165-405", name:"Programación Funcional", credits:2 },
+];
+const STATUSES = ["ACTIVO","ACTIVO","ACTIVO","GRADUADO","RETIRADO"];
+const SEMESTERS = ["2024-1","2024-2","2025-1","2025-2","2026-1","2026-2"];
+
+function _rnd(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function _rndInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function _rndFloat(min, max) { return Math.round((Math.random() * (max - min) + min) * 10) / 10; }
+function _rndId(len) { return Array.from({length: len}, () => _rndInt(0,9)).join(""); }
+
+function generateExample() {
+  const count = _rndInt(2, 4);
+  const usedIds = new Set();
+  const records = [];
+  for (let i = 0; i < count; i++) {
+    let sid;
+    do { sid = _rndId(_rndInt(10, 11)); } while (usedIds.has(sid));
+    usedIds.add(sid);
+    const doc = _rndId(10);
+    const firstName = _rnd(FIRST_NAMES);
+    const lastName1 = _rnd(LAST_NAMES);
+    const lastName2 = _rnd(LAST_NAMES);
+    const numCourses = _rndInt(2, 4);
+    const shuffled = [...COURSES].sort(() => Math.random() - 0.5).slice(0, numCourses);
+    const courses = shuffled.map((c, idx) => ({
+      code: c.code,
+      name: c.name,
+      credits: c.credits,
+      grade: idx === numCourses - 1 ? null : _rndFloat(1.5, 5.0),
+      semester: _rnd(SEMESTERS),
+    }));
+    records.push({
+      student_id: sid,
+      document_number: doc,
+      full_name: `${firstName} ${lastName1} ${lastName2}`,
+      program: _rnd(PROGRAMS),
+      academic_status: _rnd(STATUSES),
+      password: `Demo-${doc.slice(-4)}-${_rndInt(10,99)}`,
+      courses,
+    });
+  }
+  return { records };
+}
 
 $("#btn-example").addEventListener("click", () => {
-  $("#records-json").value = JSON.stringify(EXAMPLE, null, 2);
+  $("#records-json").value = JSON.stringify(generateExample(), null, 2);
   setMessage("#sync-error", "");
-  announce("Ejemplo cargado.");
+  announce("Ejemplo de demostración generado.");
 });
 
 $("#sync-form").addEventListener("submit", async (event) => {

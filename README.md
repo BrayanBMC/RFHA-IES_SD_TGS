@@ -43,10 +43,10 @@ flowchart TD
         ADM[Administrador\nPanel /admin]
     end
 
-    N1 -->|POST /api/v1/node/sync-records\nX-Node-API-Key| GW
-    N2 -->|GET /api/v1/federated/academic-history/{id}\nX-Student-Consent-Token| GW
-    STU -->|POST /api/v1/students/token\nCredenciales + nodo destino| GW
-    ADM -->|PATCH /api/v1/admin/nodes/{id}/approve\nX-Admin-Key| GW
+    N1 -->|"POST /api/v1/node/sync-records<br>X-Node-API-Key"| GW
+    N2 -->|"GET /api/v1/federated/academic-history/{id}<br>X-Student-Consent-Token"| GW
+    STU -->|"POST /api/v1/students/token<br>Credenciales + nodo destino"| GW
+    ADM -->|"PATCH /api/v1/admin/nodes/{id}/approve<br>X-Admin-Key"| GW
 
     GW --> LM
     LM --> DB
@@ -61,7 +61,7 @@ sequenceDiagram
     participant LM as Lambda (FastAPI)
     participant DB as DynamoDB
 
-    U->>GW: GET /api/v1/federated/academic-history/{student_id}\n  Headers: X-Node-API-Key, X-Student-Consent-Token
+    U->>GW: GET /api/v1/federated/academic-history/{student_id} (Headers: X-Node-API-Key, X-Student-Consent-Token)
     GW->>LM: invoca handler (Mangum adapta ASGI→Lambda)
     LM->>DB: find_by_api_key_hash(sha256(api_key)) → NodesTable
     DB-->>LM: nodo ACTIVO confirmado

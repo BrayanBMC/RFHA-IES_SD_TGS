@@ -2,58 +2,25 @@
 
 > Sistema distribuido de intercambio federado de historiales académicos interuniversitarios, desplegado como serverless en AWS.
 
-Sistema distribuido y descentralizado que conecta a las universidades en una red interoperable. Un funcionario de una universidad puede consultar, en segundos, el historial académico de un estudiante de **otra** universidad, **siempre que el estudiante lo autorice** con un token de consentimiento digital. Los datos permanecen en el nodo de origen de cada institución.
-
-## Pruébalo ahora (en AWS)
-
-| | Dirección |
-|---|---|
-| **Demo del middleware** (consulta de un historial con permiso del estudiante) | https://qotg90dhje.execute-api.us-east-2.amazonaws.com |
-| **App final: menú de inicio** (explica el proyecto y lleva a cada módulo) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com |
-| App final: registro de universidad (HU-01) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/registro-nodo |
-| App final: administración (HU-02) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/admin |
-| App final: panel del nodo (HU-03) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/panel-nodo |
-| App final: portal del estudiante (HU-04 y HU-05) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/portal-estudiante |
-| App final: consulta federada (HU-06 a HU-08) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/consulta |
-| App final: bitácora de auditoría inmutable (HU-09) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/auditoria |
-| App final: reportes ejecutivos PDF | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/reportes |
-
-- La primera visita puede tardar unos segundos (arranque en frío de AWS Lambda); después responde en menos de un segundo.
-- Todos los datos son **ficticios**. La demo está en modo demostración (botones que simulan al estudiante) y se apagará después de la exposición.
-- Para entrar a `/admin` hace falta la clave de administrador, que **no** está en este repositorio; el equipo la tiene.
-- Cómo usar la demo: `docs/DEMO.md`. Cómo usar la app final, y cómo se conecta el código con AWS: `docs/APP_FINAL.md`.
-
-## Contenido
-
-1. [Ficha del proyecto](#1-ficha-del-proyecto)
-2. [Resumen y problema que resuelve](#2-resumen-y-problema-que-resuelve)
-3. [Alcance y actores](#3-alcance-y-actores)
-4. [Requerimientos funcionales](#4-requerimientos-funcionales)
-5. [Requerimientos no funcionales](#5-requerimientos-no-funcionales)
-6. [Historias de usuario](#6-historias-de-usuario)
-7. [Arquitectura, stack y modelo de datos](#7-arquitectura-stack-y-modelo-de-datos)
-8. [Mapeo con Sistemas Distribuidos y Teoría General de Sistemas](#8-mapeo-con-sistemas-distribuidos-y-teoría-general-de-sistemas)
-9. [Lo que se ha hecho (estado del proyecto)](#9-lo-que-se-ha-hecho-estado-del-proyecto)
-10. [Cómo ejecutarlo desde la terminal de VS Code](#10-cómo-ejecutarlo-desde-la-terminal-de-vs-code)
-11. [Pruebas, CI y CD](#11-pruebas-ci-y-cd)
-12. [Estructura del repositorio](#12-estructura-del-repositorio)
-13. [Documentación](#13-documentación)
-14. [Cronograma y riesgos](#14-cronograma-y-riesgos)
-15. [Flujo de trabajo en Git](#15-flujo-de-trabajo-en-git)
+**URL pública:** `https://ypybm0azfg.execute-api.us-east-2.amazonaws.com`  
+**Rama activa:** `dev` → PR hacia `main`  
+**Stack:** Python 3.12 · FastAPI · AWS Lambda + API Gateway · DynamoDB · Mangum
 
 ---
 
 ## Tabla de módulos
 
-| | |
-|---|---|
-| **Proyecto** | Red Federada de Historiales Académicos de Instituciones de Educación Superior (RFHA-IES) |
-| **Asignaturas** | Sistemas Distribuidos (165-301) y Teoría General de Sistemas (TGS) |
-| **Docentes** | Ismael Antonio Ardila Sánchez · Miguel Ángel Leguizamón Páez |
-| **Institución** | Universidad Distrital Francisco José de Caldas, Facultad Tecnológica |
-| **Programa** | Ingeniería en Telemática (Grupo 1) |
-| **Autores** | Santiago Alfonso Prieto · Brayan Acosta Parrado · Malfaida Nicol Salazar Cruz · Cristian Darío Prieto Avella · Felipe Andrés Rojas González |
-| **Versión del levantamiento** | 2.0.0, noviembre de 2026 (con la adenda de frontend, 2.1) |
+| Módulo web | URL | Descripción |
+|------------|-----|-------------|
+| Inicio | `/` | Menú principal |
+| Registro de universidad | `/registro-nodo` | HU-01 |
+| Administración | `/admin` | HU-02 |
+| Panel del nodo | `/panel-nodo` | HU-03 |
+| Portal del estudiante | `/portal-estudiante` | HU-04 / HU-05 |
+| Consulta federada | `/consulta` | HU-06 / HU-07 / HU-08 |
+| Bitácora de auditoría | `/auditoria` | HU-09 |
+| Reportes ejecutivos | `/reportes` | PDF por tipo de reporte |
+
 ---
 
 ## 1. Arquitectura general
@@ -295,15 +262,17 @@ python scripts/deploy_aws.py app --profile rfha --region us-east-2
 | HU | Descripción | Router / archivo principal |
 |----|-------------|---------------------------|
 | HU-01 | Registro de universidad como nodo | `routers/nodes.py → POST /api/v1/nodes/register` |
-| HU-02 | Aprobación de nodo por administrador | `routers/admin.py → PATCH /api/v1/admin/nodes/{id}/approve` |
+| HU-02 | Aprobación de nodo por administrador | `routers/admin.py → POST /api/v1/admin/nodes/{id}/approve` |
 | HU-03 | Sincronización de historiales | `routers/sync.py → POST /api/v1/node/sync-records` |
 | HU-04 | Emisión de token de consentimiento | `routers/students.py → POST /api/v1/students/token` |
 | HU-05 | Revocación de token | `routers/students.py → DELETE /api/v1/students/token/{jti}` |
 | HU-06 | Consulta federada con token | `routers/federated.py → GET /api/v1/federated/academic-history/{id}` |
 | HU-07 | Bloqueo por token inválido / revocado | mismo endpoint, control L.86-94 |
 | HU-08 | Tolerancia a fallos + conmutación a réplica | mismo endpoint, control L.100-114 |
-| HU-09 | Bitácora inmutable de auditoría | `routers/audit.py` + `_log()` en `federated.py` |
+| HU-09 | Bitácora inmutable de auditoría + filtro `since` | `routers/audit.py` + `_log()` en `federated.py` |
 | HU-10 | Interfaz web completa | `main.py PAGES` + `static/` |
+| SD-01 | Control de concurrencia optimista (ConditionExpression) | `repositories.py → DynamoRecordRepository.upsert()` |
+| SD-04 | Estado de salud de nodos (ACTIVO/DEGRADADO) | `routers/admin.py → PATCH /api/v1/admin/nodes/{id}/status` |
 
 ---
 
@@ -331,36 +300,112 @@ Los tres loops de feedback del sistema:
 
 ## 10. Estructura del repositorio
 
-## 14. Cronograma y riesgos
+```
+src/
+├── app/
+│   ├── config.py          # Variables de entorno
+│   ├── main.py            # FastAPI app + páginas HTML + handler Lambda
+│   ├── models.py          # Pydantic models (validación de entrada)
+│   ├── repositories.py    # Acceso a DynamoDB (Protocol + In-Memory + Dynamo)
+│   │                        # → DynamoRecordRepository.upsert: ConditionExpression SD-01
+│   ├── security.py        # SHA-256, PBKDF2, firma, control de acceso
+│   ├── tokens.py          # JWT HS256: emisión y verificación
+│   ├── reports.py         # Generación de PDF con ReportLab
+│   ├── routers/
+│   │   ├── admin.py       # HU-02 + PATCH /nodes/{id}/status (SD-04)
+│   │   ├── audit.py       # HU-09: bitácora + ?since (B5) + no-cache
+│   │   ├── federated.py   # HU-06/07/08: consulta federada
+│   │   ├── nodes.py       # HU-01: registro
+│   │   ├── students.py    # HU-04/05: tokens
+│   │   └── sync.py        # HU-03: sincronización + manejo 409 SD-01
+│   └── static/            # HTML + CSS + JS (sin framework de build)
+scripts/
+├── deploy_aws.py          # SAM build + package + deploy
+└── run_demo.py            # Entorno local con venv automático
+tests/                     # suite pytest
+```
 
-### Hitos (noviembre de 2026)
+---
 
-| Hito | Entregable | Semana | Estado |
-|---|---|---|---|
-| **1. Requerimientos y middleware** | Exposición de Web Services y documento de requerimientos. | 1 | **Hecho:** demo, guías y documentación. |
-| **2. Despliegue core en AWS** | API Gateway, Lambda y tablas DynamoDB en el Free Tier. | 2 | En curso: demo lista para desplegar; falta el despliegue y las tablas. |
-| **3. Seguridad y tokens** | Validador JWT del `student_auth_token`. | 3 | Parcial: la demo valida el JWT; falta HU-04 y HU-05. |
-| **4. Modelado TGS y pruebas** | Diagramas causal y de Forrester; pruebas de carga. | 3 | Pendiente. |
-| **5. Sustentación final** | Informe en PDF (ICONTEC) y sustentación de 20 minutos. | 4 | Pendiente. |
+## 11. Diagramas TGS — DFD Nivel 0 y Nivel 1 (TGS-01)
 
-### Riesgos y mitigación
+### DFD Nivel 0 — Vista del sistema completo
 
-| Riesgo | Mitigación |
+```mermaid
+flowchart LR
+    UNI([Universidad\nNodo IES])
+    STU([Estudiante])
+    ADM([Administrador])
+    SYS[RFHA-IES\nMiddleware]
+
+    UNI -->|Historiales académicos| SYS
+    STU -->|Consentimiento / Token| SYS
+    ADM -->|Aprobaciones / Configuración| SYS
+    SYS -->|Historial verificado + auditoría| UNI
+    SYS -->|Estado de tokens activos| STU
+    SYS -->|Reportes + logs de red| ADM
+```
+
+### DFD Nivel 1 — Procesos internos del Middleware
+
+```mermaid
+flowchart TD
+    P1["P1\nAutenticación\nde Nodo\nsecurity.py"]
+    P2["P2\nValidación JWT\ntokens.py"]
+    P3["P3\nEnrutamiento\nFederado\nfederated.py"]
+    P4["P4\nFailover\nRéplica\nfederated.py"]
+    P5["P5\nVerificación\nIntegridad SHA-256\nsecurity.py"]
+    P6["P6\nAuditoría\nInmutable\nrepositories.py"]
+
+    DS1[(NodesTable)]
+    DS2[(TokensTable)]
+    DS3[(RecordsTable)]
+    DS4[(ReplicasTable)]
+    DS5[(AuditLogsTable)]
+
+    REQ([Petición\nde consulta]) --> P1
+    P1 --> DS1
+    DS1 --> P1
+    P1 --> P2
+    P2 --> DS2
+    DS2 --> P2
+    P2 --> P3
+    P3 --> DS3
+    DS3 --> P3
+    P3 -->|Nodo caído| P4
+    P4 --> DS4
+    DS4 --> P4
+    P4 --> P5
+    P3 --> P5
+    P5 --> P6
+    P6 --> DS5
+    P5 --> RESP([Respuesta\nverificada])
+```
+
+---
+
+## 12. Sistema abierto y propiedades TGS (TGS-02)
+
+| Propiedad TGS | Implementación en RFHA-IES |
 |---|---|
-| Superar la cuota gratuita de AWS. | Alerta de presupuesto de USD 0,01, plan *Free* de la cuenta, límite de peticiones por segundo y logs de 7 días. |
-| Arranque en frío de Lambda. | Runtime liviano de Python 3.11 y una consulta de calentamiento antes de exponer. |
-| Desconexión entre los entregables de TGS y de Sistemas Distribuidos. | Tabla de trazabilidad entre historias, requerimientos y código (`docs/historias/` y este README). |
-| El Free Tier cambió para cuentas nuevas (plan de créditos de hasta 6 meses). | Documentado en `docs/BRECHAS.md`; se usa el plan *Free* y se borra todo con `sam delete` al terminar. |
+| **Sistema abierto** | Interactúa con el entorno (universidades, estudiantes, admin) a través de API REST (frontera definida: HTTP + TLS) |
+| **Subsistemas** | Nodo de registro (`nodes.py`), gestión admin (`admin.py`), historial (`sync.py`), autenticación (`students.py`), auditoría (`audit.py`), consulta federada (`federated.py`) |
+| **Equifinalidad** | Múltiples rutas al mismo resultado: consulta exitosa vía nodo primario (`RecordsTable`) o vía réplica (`ReplicasTable`) — mismo JSON de respuesta, distinto `X-Data-Source` |
+| **Homeostasis** | El sistema mantiene consistencia ante fallos gracias al failover automático (`federated.py` L.100-114) y la lista negra de tokens (`TokensTable.revoked=True`) |
+| **Neguentropía** | (1) Firmas SHA-256 detectan corrupción → `record_signature()`. (2) Bitácora inmutable preserva historia → solo `PutItem` en `AuditLogsTable`. (3) TTL automático en `TokensTable` elimina tokens vencidos. (4) `ConditionExpression` en `DynamoRecordRepository.upsert()` evita escrituras conflictivas. |
+| **Retroalimentación** | Loop de aprobación, loop de consentimiento/revocación, loop de integridad (ver §9) |
+| **Bucles de feedback** | Ver §9 — cada loop tiene evidencia directa en el código con archivo y línea |
 
 ---
 
-## 15. Flujo de trabajo en Git
+## 13. Decisiones Arquitectónicas y Trade-offs
 
-- **Rama de trabajo:** `dev`. Cada historia se sube a `dev` y el CI de GitHub corre las pruebas.
-- **Integración:** pull request de `dev` a `main` abierto por el equipo.
-- **Etiqueta `demo-martes`:** versión de la demo para la exposición.
-- **Mensajes de commit:** Conventional Commits (por ejemplo `feat(hu-02): aprobar nodo y emitir api key`).
-- **Seguridad:** nunca se suben `.env`, claves ni credenciales de AWS.
-- **Bitácora:** todo desarrollo se registra en `docs/BITACORA.md` antes de cada commit.
-
----
+| Decisión | Alternativa | Justificación técnica |
+|---|---|---|
+| **DynamoDB on-demand** | RDS PostgreSQL | Sin gestión de servidores; TTL nativo para tokens; latencia < 10 ms por clave; ideal para Lambda stateless |
+| **JWT HS256 (simétrico)** | RS256 (asimétrico) | Menor overhead computacional; en este modelo el middleware es la única parte que emite y verifica tokens. RS256 sería necesario si los nodos verificaran tokens directamente. |
+| **Replicación síncrona** | DynamoDB Streams + SQS | Simple y verificable. La desventaja: si `replicas.upsert()` falla, la réplica queda desactualizada silenciosamente. Para producción: DynamoDB Streams desacoplaría la replicación sin riesgo de fallo síncrono. |
+| **API Key en header** | OAuth2 Client Credentials | Más simple de implementar y demostrar; OAuth2 agrega un Authorization Server que escapa al alcance del proyecto académico. |
+| **ADMIN_KEY estática** | AWS Secrets Manager | Rotación manual. Para producción se usaría Secrets Manager con rotación automática y Lambda extension para cachear la clave sin consultar el API en cada request. |
+| **Cifrado de campo** | AES-256 en reposo (AWS KMS, default) | El campo `doc` (cédula) viaja en el payload JWT sin cifrar (solo firmado). En producción se reemplazaría por JWE (JSON Web Encryption) o se usaría un hash del documento como identificador público. |
+| **Concurrencia optimista** | Bloqueo pesimista (mutex) | Lambda es stateless — no puede mantener bloqueos entre invocaciones. `ConditionExpression` en DynamoDB es el mecanismo nativo para control de concurrencia sin locks distribuidos. |

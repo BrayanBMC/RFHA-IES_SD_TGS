@@ -21,9 +21,11 @@
       </a>
       <nav class="main-nav" aria-label="Secciones">
         <a href="/">Inicio</a>
+        <a href="/registro-nodo">Registro</a>
         <a href="/admin">Administración</a>
         <a href="/panel-nodo">Panel del nodo</a>
         <a href="/consulta">Consulta</a>
+        <a href="/portal-estudiante">Estudiante</a>
         <a href="/auditoria" aria-current="page">Auditoría</a>
         <a href="/reportes">Reportes</a>
       </nav>
@@ -58,7 +60,12 @@
               <option value="20">20 registros más recientes</option>
               <option value="50" selected>50 registros más recientes</option>
               <option value="100">100 registros más recientes</option>
+              <option value="200">200 registros más recientes</option>
             </select>
+          </div>
+          <div class="field">
+            <label for="since-value">Desde (fecha/hora, opcional)</label>
+            <input id="since-value" type="datetime-local" autocomplete="off" title="Filtrar eventos desde esta fecha y hora">
           </div>
           <button type="submit" class="btn primary" id="btn-load">Cargar bitácora</button>
         </form>

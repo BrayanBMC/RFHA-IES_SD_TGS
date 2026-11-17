@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from src.app.models import SyncRequest, SyncResponse
 from src.app.repositories import (
@@ -33,6 +33,7 @@ def sync_records(
     Si el estudiante ya existe se reemplaza (upsert por nodo + student_id).
     """
     created = updated = 0
+    conflicts = []
     for student in body.records:
         existing = records.get(node["node_id"], student.student_id)
         password_hash = hash_password(student.password) if student.password else (existing or {}).get("password_hash")
@@ -54,10 +55,18 @@ def sync_records(
             "digital_signature_hash": record_signature(data),
             "synced_at": datetime.now(timezone.utc).isoformat(),
         }
-        records.upsert(item_to_save)
-        replicas.upsert(item_to_save)
-        if existing:
-            updated += 1
-        else:
-            created += 1
+        try:
+            records.upsert(item_to_save)
+            replicas.upsert(item_to_save)
+            if existing:
+                updated += 1
+            else:
+                created += 1
+        except ValueError as exc:
+            # SD-01: conflicto de escritura concurrente; se registra pero no aborta el lote
+            conflicts.append({"student_id": student.student_id, "reason": str(exc)})
+
+    if conflicts and created == 0 and updated == 0:
+        raise HTTPException(status_code=409, detail={"message": "Todos los registros presentaron conflictos de concurrencia.", "conflicts": conflicts})
+
     return SyncResponse(node_id=node["node_id"], received=len(body.records), created=created, updated=updated)

@@ -185,7 +185,32 @@ class DynamoRecordRepository:
         return self._table.get_item(Key={"record_key": record_key(node_id, student_id)}).get("Item")
 
     def upsert(self, item: dict) -> None:
-        self._table.put_item(Item=_to_dynamo(item))
+        """PutItem con control de concurrencia optimista (SD-01 Mitigación).
+
+        Si ya existe un registro para esta clave (record_key) con un synced_at más reciente
+        que el del ítem entrante, rechaza la escritura para evitar sobreescrituras conflictivas.
+        En caso de ConditionalCheckFailedException, lanza ValueError — el router convierte esto en 409.
+        """
+        from boto3.dynamodb.conditions import Attr
+        from botocore.exceptions import ClientError
+
+        new_synced_at = item.get("synced_at", "")
+        try:
+            self._table.put_item(
+                Item=_to_dynamo(item),
+                # Escribe si: (a) no existe, o (b) synced_at del existente <= nuevo synced_at
+                ConditionExpression=(
+                    Attr("record_key").not_exists() |
+                    Attr("synced_at").lte(new_synced_at)
+                ),
+            )
+        except ClientError as exc:
+            if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
+                raise ValueError(
+                    f"Conflicto de escritura concurrente en {item.get('record_key')}: "
+                    "el registro en la base es más reciente. Re-sincroniza para obtener la versión actual."
+                ) from exc
+            raise
 
     def find_by_document(self, document_number: str) -> list[dict]:
         from boto3.dynamodb.conditions import Attr

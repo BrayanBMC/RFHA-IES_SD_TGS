@@ -48,10 +48,14 @@ $("#audit-form").addEventListener("submit", async (event) => {
   }
 
   const limit = $("#limit-value").value;
+  const sinceRaw = $("#since-value")?.value;
+  // Convierte datetime-local a ISO-8601 UTC
+  const sinceParam = sinceRaw ? "&since=" + encodeURIComponent(new Date(sinceRaw).toISOString()) : "";
   const button = $("#btn-load");
   setBusy(button, true, "Cargando…", "Cargar bitácora");
 
-  const result = await api("GET", `/api/v1/audit/logs?limit=${limit}`, { headers });
+  // Bug fix logs tardíos: cache: "no-store" fuerza petición fresca al servidor, evitando caché de API GW/navegador
+  const result = await api("GET", `/api/v1/audit/logs?limit=${limit}${sinceParam}`, { headers: { ...headers, "Cache-Control": "no-store" } });
   setBusy(button, false, "", "Cargar bitácora");
 
   const resultBox = $("#result-box");

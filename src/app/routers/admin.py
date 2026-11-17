@@ -1,8 +1,10 @@
 import re
 from datetime import datetime, timezone
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
+from pydantic import BaseModel
 
 from src.app.models import (
     ACTIVE_STATUS,
@@ -21,6 +23,13 @@ from src.app.repositories import (
 from src.app.security import hash_api_key, new_api_key, require_admin
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Administrador general"], dependencies=[Depends(require_admin)])
+
+DEGRADED_STATUS = "DEGRADADO"
+ALLOWED_MANUAL_STATUSES = {ACTIVE_STATUS, DEGRADED_STATUS}
+
+
+class NodeStatusUpdate(BaseModel):
+    status: Literal["ACTIVO", "DEGRADADO"]
 
 
 @router.get("/nodes", response_model=NodeListResponse)
@@ -57,6 +66,38 @@ def approve_node(node_id: str, nodes: NodeRepository = Depends(get_node_reposito
         api_key=api_key,
         message="Nodo aprobado. Entrega esta API Key a la universidad: no se puede volver a consultar.",
     )
+
+
+@router.patch("/nodes/{node_id}/status", status_code=200)
+def set_node_status(
+    node_id: str,
+    body: NodeStatusUpdate,
+    nodes: NodeRepository = Depends(get_node_repository),
+) -> dict:
+    """SD-04 Mitigación: marca un nodo aprobado como ACTIVO o DEGRADADO manualmente.
+
+    Complementa el failover reactivo (X-Data-Source: Replica) con control proactivo
+    de salud de nodos. Un nodo DEGRADADO sigue en la lista de nodos pero el sistema
+    puede priorizarlo distinto en futuras implementaciones de healthcheck.
+    """
+    if not re.fullmatch(NODE_ID_PATTERN, node_id):
+        raise HTTPException(status_code=404, detail="Nodo no encontrado.")
+    node = nodes.get_node(node_id)
+    if node is None:
+        raise HTTPException(status_code=404, detail="Nodo no encontrado.")
+    if node["status"] not in {ACTIVE_STATUS, DEGRADED_STATUS}:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Solo se puede cambiar el estado de nodos aprobados. Estado actual: {node['status']}",
+        )
+    nodes.update_node(
+        node_id,
+        {
+            "status": body.status,
+            "status_updated_at": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+    return {"node_id": node_id, "status": body.status, "updated_at": datetime.now(timezone.utc).isoformat()}
 
 
 @router.get("/reports/network-summary")

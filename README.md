@@ -2,25 +2,58 @@
 
 > Sistema distribuido de intercambio federado de historiales académicos interuniversitarios, desplegado como serverless en AWS.
 
-**URL pública:** `https://ypybm0azfg.execute-api.us-east-2.amazonaws.com`  
-**Rama activa:** `dev` → PR hacia `main`  
-**Stack:** Python 3.12 · FastAPI · AWS Lambda + API Gateway · DynamoDB · Mangum
+Sistema distribuido y descentralizado que conecta a las universidades en una red interoperable. Un funcionario de una universidad puede consultar, en segundos, el historial académico de un estudiante de **otra** universidad, **siempre que el estudiante lo autorice** con un token de consentimiento digital. Los datos permanecen en el nodo de origen de cada institución.
+
+## Pruébalo ahora (en AWS)
+
+| | Dirección |
+|---|---|
+| **Demo del middleware** (consulta de un historial con permiso del estudiante) | https://qotg90dhje.execute-api.us-east-2.amazonaws.com |
+| **App final: menú de inicio** (explica el proyecto y lleva a cada módulo) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com |
+| App final: registro de universidad (HU-01) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/registro-nodo |
+| App final: administración (HU-02) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/admin |
+| App final: panel del nodo (HU-03) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/panel-nodo |
+| App final: portal del estudiante (HU-04 y HU-05) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/portal-estudiante |
+| App final: consulta federada (HU-06 a HU-08) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/consulta |
+| App final: bitácora de auditoría inmutable (HU-09) | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/auditoria |
+| App final: reportes ejecutivos PDF | https://ypybm0azfg.execute-api.us-east-2.amazonaws.com/reportes |
+
+- La primera visita puede tardar unos segundos (arranque en frío de AWS Lambda); después responde en menos de un segundo.
+- Todos los datos son **ficticios**. La demo está en modo demostración (botones que simulan al estudiante) y se apagará después de la exposición.
+- Para entrar a `/admin` hace falta la clave de administrador, que **no** está en este repositorio; el equipo la tiene.
+- Cómo usar la demo: `docs/DEMO.md`. Cómo usar la app final, y cómo se conecta el código con AWS: `docs/APP_FINAL.md`.
+
+## Contenido
+
+1. [Ficha del proyecto](#1-ficha-del-proyecto)
+2. [Resumen y problema que resuelve](#2-resumen-y-problema-que-resuelve)
+3. [Alcance y actores](#3-alcance-y-actores)
+4. [Requerimientos funcionales](#4-requerimientos-funcionales)
+5. [Requerimientos no funcionales](#5-requerimientos-no-funcionales)
+6. [Historias de usuario](#6-historias-de-usuario)
+7. [Arquitectura, stack y modelo de datos](#7-arquitectura-stack-y-modelo-de-datos)
+8. [Mapeo con Sistemas Distribuidos y Teoría General de Sistemas](#8-mapeo-con-sistemas-distribuidos-y-teoría-general-de-sistemas)
+9. [Lo que se ha hecho (estado del proyecto)](#9-lo-que-se-ha-hecho-estado-del-proyecto)
+10. [Cómo ejecutarlo desde la terminal de VS Code](#10-cómo-ejecutarlo-desde-la-terminal-de-vs-code)
+11. [Pruebas, CI y CD](#11-pruebas-ci-y-cd)
+12. [Estructura del repositorio](#12-estructura-del-repositorio)
+13. [Documentación](#13-documentación)
+14. [Cronograma y riesgos](#14-cronograma-y-riesgos)
+15. [Flujo de trabajo en Git](#15-flujo-de-trabajo-en-git)
 
 ---
 
 ## Tabla de módulos
 
-| Módulo web | URL | Descripción |
-|------------|-----|-------------|
-| Inicio | `/` | Menú principal |
-| Registro de universidad | `/registro-nodo` | HU-01 |
-| Administración | `/admin` | HU-02 |
-| Panel del nodo | `/panel-nodo` | HU-03 |
-| Portal del estudiante | `/portal-estudiante` | HU-04 / HU-05 |
-| Consulta federada | `/consulta` | HU-06 / HU-07 / HU-08 |
-| Bitácora de auditoría | `/auditoria` | HU-09 |
-| Reportes ejecutivos | `/reportes` | PDF por tipo de reporte |
-
+| | |
+|---|---|
+| **Proyecto** | Red Federada de Historiales Académicos de Instituciones de Educación Superior (RFHA-IES) |
+| **Asignaturas** | Sistemas Distribuidos (165-301) y Teoría General de Sistemas (TGS) |
+| **Docentes** | Ismael Antonio Ardila Sánchez · Miguel Ángel Leguizamón Páez |
+| **Institución** | Universidad Distrital Francisco José de Caldas, Facultad Tecnológica |
+| **Programa** | Ingeniería en Telemática (Grupo 1) |
+| **Autores** | Santiago Alfonso Prieto · Brayan Acosta Parrado · Malfaida Nicol Salazar Cruz · Cristian Darío Prieto Avella · Felipe Andrés Rojas González |
+| **Versión del levantamiento** | 2.0.0, noviembre de 2026 (con la adenda de frontend, 2.1) |
 ---
 
 ## 1. Arquitectura general
@@ -298,26 +331,36 @@ Los tres loops de feedback del sistema:
 
 ## 10. Estructura del repositorio
 
-```
-src/
-├── app/
-│   ├── config.py          # Variables de entorno
-│   ├── main.py            # FastAPI app + páginas HTML + handler Lambda
-│   ├── models.py          # Pydantic models (validación de entrada)
-│   ├── repositories.py    # Acceso a DynamoDB (Protocol + In-Memory + Dynamo)
-│   ├── security.py        # SHA-256, PBKDF2, firma, control de acceso
-│   ├── tokens.py          # JWT HS256: emisión y verificación
-│   ├── reports.py         # Generación de PDF con ReportLab
-│   ├── routers/
-│   │   ├── admin.py       # HU-02: aprobación de nodos
-│   │   ├── audit.py       # HU-09: bitácora
-│   │   ├── federated.py   # HU-06/07/08: consulta federada
-│   │   ├── nodes.py       # HU-01: registro
-│   │   ├── students.py    # HU-04/05: tokens
-│   │   └── sync.py        # HU-03: sincronización
-│   └── static/            # HTML + CSS + JS (sin framework de build)
-scripts/
-├── deploy_aws.py          # SAM build + package + deploy
-└── run_demo.py            # Entorno local con venv automático
-tests/                     # 185 tests (pytest)
-```
+## 14. Cronograma y riesgos
+
+### Hitos (noviembre de 2026)
+
+| Hito | Entregable | Semana | Estado |
+|---|---|---|---|
+| **1. Requerimientos y middleware** | Exposición de Web Services y documento de requerimientos. | 1 | **Hecho:** demo, guías y documentación. |
+| **2. Despliegue core en AWS** | API Gateway, Lambda y tablas DynamoDB en el Free Tier. | 2 | En curso: demo lista para desplegar; falta el despliegue y las tablas. |
+| **3. Seguridad y tokens** | Validador JWT del `student_auth_token`. | 3 | Parcial: la demo valida el JWT; falta HU-04 y HU-05. |
+| **4. Modelado TGS y pruebas** | Diagramas causal y de Forrester; pruebas de carga. | 3 | Pendiente. |
+| **5. Sustentación final** | Informe en PDF (ICONTEC) y sustentación de 20 minutos. | 4 | Pendiente. |
+
+### Riesgos y mitigación
+
+| Riesgo | Mitigación |
+|---|---|
+| Superar la cuota gratuita de AWS. | Alerta de presupuesto de USD 0,01, plan *Free* de la cuenta, límite de peticiones por segundo y logs de 7 días. |
+| Arranque en frío de Lambda. | Runtime liviano de Python 3.11 y una consulta de calentamiento antes de exponer. |
+| Desconexión entre los entregables de TGS y de Sistemas Distribuidos. | Tabla de trazabilidad entre historias, requerimientos y código (`docs/historias/` y este README). |
+| El Free Tier cambió para cuentas nuevas (plan de créditos de hasta 6 meses). | Documentado en `docs/BRECHAS.md`; se usa el plan *Free* y se borra todo con `sam delete` al terminar. |
+
+---
+
+## 15. Flujo de trabajo en Git
+
+- **Rama de trabajo:** `dev`. Cada historia se sube a `dev` y el CI de GitHub corre las pruebas.
+- **Integración:** pull request de `dev` a `main` abierto por el equipo.
+- **Etiqueta `demo-martes`:** versión de la demo para la exposición.
+- **Mensajes de commit:** Conventional Commits (por ejemplo `feat(hu-02): aprobar nodo y emitir api key`).
+- **Seguridad:** nunca se suben `.env`, claves ni credenciales de AWS.
+- **Bitácora:** todo desarrollo se registra en `docs/BITACORA.md` antes de cada commit.
+
+---

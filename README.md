@@ -894,3 +894,189 @@ classDiagram
 * **Atributos:** `timestamp` (ISO-8601 UTC), `consulting_node_id`, `target_student_id`, `origin_node_id`, `outcome` (`SUCCESS`, `DENIED`, `ERROR`), `reason`, `data_source` (`Primary`, `Replica`, `None`), `client_ip`.
 * **Inmutabilidad y No-Repudio:** La política de permisos IAM de Lambda restringe las operaciones sobre esta tabla a `PutItem` y `Scan`; no existe permiso para modificar (`UpdateItem`) ni eliminar (`DeleteItem`) registros.
 * **Mapeo:** Gestionada en `DynamoAuditRepository` (`src/app/repositories.py`) e invocada en cada flujo del router `federated.py`.
+
+
+---
+
+## 22. Stack Tecnológico Detallado: Lenguajes, Librerías y Herramientas
+
+Esta sección analiza en profundidad cada uno de los lenguajes de programación, marcado, serialización y librerías que componen **RFHA-IES**, explicando su naturaleza técnica, la justificación de su elección y su rol operativo en el código.
+
+### 22.1 Lenguajes de Programación y Marcado
+
+#### 1. Python (Versión 3.12)
+* **¿Qué es?** Python es un lenguaje de programación de alto nivel, interpretado, multiparadigma, fuertemente tipado y de sintaxis limpia y legible.
+* **¿Por qué se eligió?** La versión 3.12 ofrece mejoras sustanciales en rendimiento (tiempo de inicio y ejecución de bytecode optimizado con el *Specializing Adaptive Interpreter*), soporte robusto para anotaciones de tipos estáticas (`PEP 695`) y compatibilidad nativa de primer nivel con el entorno serverless de **AWS Lambda**.
+* **¿Cómo opera en el proyecto?** Es el núcleo absoluto del backend (`src/app/`). Todo el procesamiento de reglas de negocio, validación criptográfica, mediación de mensajes federados, manejo de concurrencia y generación dinámica de documentos binarios se ejecuta sobre el intérprete de Python 3.12.
+
+#### 2. HTML5 (HyperText Markup Language 5)
+* **¿Qué es?** Es el estándar universal de marcado estructurado para la web, diseñado para representar documentos jerárquicos con semántica accesible y rica.
+* **¿Por qué se eligió?** Se utiliza HTML5 semántico puro (`<header>`, `<main>`, `<nav>`, `<section>`, `<article>`, `<dl>`, `<table>`) sin frameworks pesados de frontend (como React o Angular), minimizando el peso de transferencia sobre la red y eliminando cadenas de compilación complejas.
+* **¿Cómo opera en el proyecto?** Los archivos ubicados en `src/app/static/` estructuran las interfaces de usuario. Se sirven directamente desde FastAPI a través de `StaticFiles` y endpoints con cabeceras de seguridad estrictas (`PAGE_HEADERS` en `src/app/main.py`).
+
+#### 3. CSS3 (Cascading Style Sheets 3)
+* **¿Qué es?** Es el lenguaje estándar para definir la presentación visual, diagramación y diseño adaptativo de documentos HTML.
+* **¿Por qué se eligió?** Permite implementar una interfaz moderna, limpia y accesible con cero dependencias externas de librerías CSS (como Bootstrap o Tailwind).
+* **¿Cómo opera en el proyecto?** El archivo `src/app/static/styles.css` utiliza funcionalidades modernas como:
+  * Capas de cascada `@layer` (`reset`, `tokens`, `base`, `components`) para controlar estrictamente la especificidad.
+  * Función nativa `light-dark()` para soporte dual de modo claro y oscuro respetando las preferencias del sistema operativo del usuario.
+  * Funciones de escala tipográfica fluida `clamp()` que ajustan fuentes y márgenes automáticamente según el ancho del dispositivo sin requerir docenas de *media queries*.
+
+#### 4. JavaScript Vanilla (ES Modules / ECMAScript 2022+)
+* **¿Qué es?** Es el lenguaje de programación estándar del lado del cliente en la web, ejecutado directamente en el motor V8 o equivalente del navegador del usuario.
+* **¿Por qué se eligió?** Al usar módulos nativos (`type="module"`), se logra un desacoplamiento limpio de la lógica de presentación sin requerir empaquetadores como Webpack o Vite, cumpliendo estrictamente con la política de seguridad **Content Security Policy (CSP)** sin scripts embebidos en el HTML.
+* **¿Cómo opera en el proyecto?** Archivos modulares como `common.js`, `panel-nodo.js`, `auditoria.js` y `reportes.js` controlan la reactividad del cliente: capturan eventos de formularios, ejecutan peticiones asíncronas con `fetch`, actualizan el DOM mediante inserción segura de texto (`textContent` para evitar ataques XSS) y gestionan estados de carga accesibles (`aria-live`).
+
+#### 5. JSON (JavaScript Object Notation) y YAML (YAML Ain't Markup Language)
+* **¿Qué son y cómo operan?** 
+  * **JSON:** Formato de texto ligero para intercambio de datos estructurados. Es el payload estándar de todas las peticiones y respuestas de la API REST, así como el formato nativo en que DynamoDB almacena documentos y mapas de materias.
+  * **YAML:** Formato de serialización legible para humanos. Se utiliza en `template.yaml` para definir la infraestructura como código de **AWS SAM / CloudFormation**, especificando las funciones Lambda, eventos de API Gateway y políticas IAM.
+
+---
+
+### 22.2 Frameworks y Librerías Backend Clave
+
+| Librería / Dependencia | Versión / Tipo | Propósito Técnico en RFHA-IES | Archivo Clave donde se Aplica |
+|---|---|---|---|
+| **FastAPI** | Framework ASGI | Provee el enrutamiento web asíncrono de alto rendimiento, inyección automática de dependencias (`Depends`), validación estricta y generación de OpenAPI. | `src/app/main.py`, `src/app/routers/*.py` |
+| **Mangum** | Adaptador Serverless | Actúa como puente adaptador que traduce los eventos y contextos del API Gateway HTTP API v2 al formato de petición ASGI que FastAPI entiende, y viceversa. | `src/app/main.py` (`handler = Mangum(app)`) |
+| **Pydantic (v2)** | Validación de Datos | Garantiza la integridad de tipos, expresiones regulares y límites de longitud en todas las entidades recibidas por HTTP antes de que ingresen a la lógica de negocio. | `src/app/models.py` |
+| **Boto3** | AWS SDK oficial | Librería oficial de Amazon Web Services para Python. Gestiona la conexión HTTP persistente, autenticación SigV4 y ejecución de operaciones sobre Amazon DynamoDB. | `src/app/repositories.py` (`_dynamo_table()`) |
+| **PyJWT** | Criptografía / Tokens | Codifica, firma digitalmente con HMAC-SHA256 (`HS256`), decodifica y verifica tokens JWT asegurando expiración y claim de audiencia estricto (`aud`). | `src/app/tokens.py` (`issue_token`, `verify_token`) |
+| **ReportLab** | Motor de PDF | Compila programáticamente en memoria documentos PDF con tablas estructuradas, cabeceras institucionales y reportes forenses ejecutivos. | `src/app/reports.py` (`generate_network_report`) |
+| **hashlib / hmac** | Módulo estándar Python | Funciones criptográficas seguras: cálculo de hashes SHA-256 para llaves y firmas de integridad, y PBKDF2-HMAC-SHA256 con sal para contraseñas de alumnos. | `src/app/security.py` |
+
+---
+
+## 23. Arquitectura de Cifrado, Integridad y Seguridad Capa por Capa
+
+La seguridad en **RFHA-IES** no depende de un único mecanismo, sino de un enfoque de **Defensa en Profundidad (Defense in Depth)** donde múltiples capas protegen la información en cada estado de su ciclo de vida.
+
+```mermaid
+flowchart TD
+    subgraph Capa1["Capa 1: En Tránsito (TLS 1.3)"]
+        Browser[Navegador Web / Cliente API] -->|"HTTPS (Cifrado Asimétrico RSA/ECDHE + Simétrico AES-GCM)"| APIGW[Amazon API Gateway]
+    end
+
+    subgraph Capa2["Capa 2: Aislamiento Perimetral y CSP"]
+        APIGW -->|"Headers de Seguridad:<br>CSP, X-Content-Type-Options, Referrer-Policy"| Lambda[AWS Lambda Execution Environment]
+    end
+
+    subgraph Capa3["Capa 3: Identidad y Autorización Criptográfica"]
+        Lambda -->|"API Keys: Hashing SHA-256 (Never Plaintext)"| AuthNode[Autenticación de Nodos]
+        Lambda -->|"Contraseñas: PBKDF2-HMAC-SHA256 (100k iters + Salt)"| AuthStu[Autenticación Estudiantes]
+        Lambda -->|"Consentimiento: JWT HS256 con Audience Restringida"| AuthTok[Tokens de Consentimiento]
+    end
+
+    subgraph Capa4["Capa 4: Integridad Criptográfica"]
+        AuthTok -->|"Firma SHA-256 del JSON Canónico del Historial"| IntegrityCheck[Verificación de Huella Digital]
+    end
+
+    subgraph Capa5["Capa 5: En Reposo (Storage Security)"]
+        IntegrityCheck -->|"DynamoDB Server-Side Encryption (AES-256 KMS)"| DynamoDB[(Tablas DynamoDB Físicas)]
+        IntegrityCheck -->|"Inmutabilidad Estricta: IAM Append-Only"| AuditLogs[(AuditLogsTable)]
+    end
+```
+
+### 23.1 Cifrado en Tránsito: Protocolo HTTPS / TLS 1.3
+* **Fundamento Criptográfico:** Cuando un cliente contacta a la API, se realiza un proceso de negociación criptográfica (**TLS Handshake**). Se utiliza criptografía asimétrica de curvas elípticas o RSA para autenticar la identidad del servidor y acordar una clave de sesión simétrica efímera (**AES-GCM de 256 bits**).
+* **Protección Activa:** Todo el tráfico entre el navegador y API Gateway viaja encapsulado dentro de este túnel cifrado. Esto neutraliza de raíz los ataques de interceptación pasiva (*Sniffing*) o manipulación activa (*Man-in-the-Middle*), impidiendo que contraseñas, documentos de identidad o las cabeceras `X-Node-API-Key` y `X-Admin-Key` sean leídas en claro mientras cruzan la red pública.
+
+### 23.2 Cifrado en Reposo: Algoritmo AES-256 en Amazon DynamoDB
+* **Fundamento Criptográfico:** **AES (*Advanced Encryption Standard*)** con longitud de clave de 256 bits es el estándar de cifrado simétrico por bloques más seguro y avalado a nivel gubernamental y financiero mundial.
+* **Implementación:** Todas las tablas de DynamoDB (`NodesTable`, `RecordsTable`, `ReplicasTable`, `TokensTable`, `AuditLogsTable`) tienen habilitado por defecto el cifrado en reposo del lado del servidor (**Server-Side Encryption - SSE**) utilizando claves maestras de cifrado administradas por **AWS KMS (*Key Management Service*)**.
+* **Mitigación de Riesgos:** Incluso en el hipotético escenario de una extracción o robo físico de los discos de estado sólido en los centros de datos de AWS, los bloques de datos almacenados son completamente ilegibles e indescifrables sin la clave criptográfica correspondiente gestionada por el módulo de seguridad de hardware (HSM) de AWS.
+
+### 23.3 Autenticación y Firma con JWT (`HS256`) vs. Cifrado
+* **Firma vs. Cifrado:** Es vital comprender la diferencia técnica:
+  * **Cifrar un dato:** Significa volverlo ininteligible para quien no posea la clave de descifrado (confidencialidad).
+  * **Firmar digitalmente un dato (JWT con HS256):** Significa garantizar de forma matemáticamente infalsificable la **identidad del emisor** y la **integridad del mensaje** (que nadie lo haya alterado en el camino). El payload del JWT es legible en Base64URL, pero cualquier cambio en un solo byte de su contenido hace que la firma calculada `HMAC-SHA256(Header + Payload, Secret)` sea completamente inválida.
+* **Aislamiento por Audiencia (`aud`):**
+  * El estudiante autoriza explícitamente a una universidad concreta (ej. `aud: "IES-2222BBBB"`).
+  * Si la Universidad C intercepta o recibe ese token e intenta utilizarlo para consultar el historial en el endpoint federado, la función `verify_token()` en `src/app/tokens.py` ejecuta `jwt.decode(..., audience=consulting_node_id)`. Al detectar que la audiencia del token no coincide con el `node_id` de la Universidad C, rechaza la operación inmediatamente con `InvalidAudienceError` (HTTP 403).
+
+### 23.4 Integridad de Datos mediante Hashes Criptográficos SHA-256
+* **¿Qué es SHA-256?** Es un algoritmo criptográfico de resumen unidireccional (*Secure Hash Algorithm*) que toma cualquier volumen de datos y produce una cadena hexadecimal de longitud fija de 256 bits (64 caracteres).
+* **Efecto Avalancha (*Avalanche Effect*):** Es la propiedad matemática fundamental de los hashes criptográficos donde la alteración de un solo bit en los datos de entrada (por ejemplo, cambiar la nota de una materia de `4.5` a `4.6`) provoca un cambio drástico e impredecible en más del 50% de los bits del hash resultante.
+* **Verificación de Huella Digital en RFHA-IES:**
+  1. Cuando un nodo sincroniza un historial en `src/app/routers/sync.py`, la función `record_signature()` toma el historial, ordena sus campos alfabéticamente para garantizar una representación canónica idéntica e inyecta el hash resultante en el atributo `digital_signature_hash`.
+  2. Cuando una universidad receptora consulta el historial en `src/app/routers/federated.py`, el middleware recalcula en memoria el hash de las materias y datos recibidos.
+  3. Si el hash calculado no coincide con el `digital_signature_hash` guardado, el sistema asume que la base de datos fue manipulada o corrompida y aborta la entrega emitiendo un error HTTP 500 y registrando el evento en la bitácora de auditoría.
+
+---
+
+## 24. Diagramas de Funcionamiento Interno del Middleware y Failover
+
+A continuación se presentan los diagramas de arquitectura interna que desglosan la mediación federada y el mecanismo de conmutación por error.
+
+### 24.1 Diagrama de Mediación Interna del Middleware
+
+```mermaid
+flowchart TD
+    Req([Petición Externa\nGET /api/v1/federated/...]) --> Intercept[1. Interceptación y Extracción de Headers]
+    
+    subgraph SecurityFilter["Filtro de Seguridad e Identidad"]
+        Intercept --> CheckNode{2. ¿API Key del nodo válida\ny nodo ACTIVO?}
+        CheckNode -->|No| Reject403[403 Forbidden\nAPI Key inválida]
+        CheckNode -->|Sí| CheckToken{3. ¿JWT válido, vigente\ny aud = nodo consultante?}
+        CheckToken -->|No / Revocado| LogDeny[Registrar DENIED\nen AuditLogsTable] --> RejectToken403[403 Forbidden\nToken no autorizado]
+    end
+
+    subgraph DataRouting["Plano de Enrutamiento y Failover"]
+        CheckToken -->|Válido| CheckPrimary{4. ¿Nodo primario responde\ny X-Simulate-Down es false?}
+        CheckPrimary -->|Sí| FetchPrimary[Recuperar de RecordsTable\nX-Data-Source = Primary]
+        CheckPrimary -->|Falla / Simulado| FetchReplica[Conmutación: Leer ReplicasTable\nX-Data-Source = Replica]
+    end
+
+    subgraph IntegrityAndAudit["Plano de Integridad y Trazabilidad"]
+        FetchPrimary --> VerifyHash{5. ¿record_signature ==\ndigital_signature_hash?}
+        FetchReplica --> VerifyHash
+        VerifyHash -->|No| ErrIntegrity[500 Error\nFallo de Integridad]
+        VerifyHash -->|Sí| WriteAudit[6. Escribir Log Inmutable\nen AuditLogsTable]
+        WriteAudit --> SendResponse[7. Responder 200 OK con Historial\n+ Cabecera X-Data-Source]
+    end
+```
+
+#### Explicación detallada del diagrama de mediación:
+1. **Paso 1 (Interceptación):** La solicitud llega a través de API Gateway y entra al router `federated.py`. Se extraen las cabeceras `X-Node-API-Key` y `X-Student-Consent-Token`.
+2. **Paso 2 (Validación de Nodo):** Se calcula el hash SHA-256 de la API Key y se consulta `NodesTable`. Si la clave no existe o el nodo está en estado distinto a `ACTIVO`, el flujo se corta de inmediato con HTTP 403 sin gastar cómputo en validar el token.
+3. **Paso 3 (Validación de Token):** Se decodifica el JWT con la clave simétrica. Se evalúa que no haya expirado, que su claim de audiencia (`aud`) coincida con el nodo que consulta y se inspecciona `TokensTable` para asegurar que el `jti` no figure como revocado por el alumno.
+4. **Paso 4 (Enrutamiento y Failover):** Si el nodo de origen está disponible, se recupera el historial de `RecordsTable`. Si el nodo falló o se envió la cabecera `X-Simulate-Down: true`, el sistema conmuta transparentemente a `ReplicasTable` y etiqueta la fuente como `Replica`.
+5. **Paso 5 (Verificación de Integridad):** Se reconstruye el JSON canónico de las asignaturas y se evalúa el hash SHA-256 contra el guardado en la base de datos.
+6. **Paso 6 y 7 (Auditoría y Entrega):** Se asienta el registro inmutable en `AuditLogsTable` indicando la IP del solicitante, resultado y fuente de datos, enviando finalmente la respuesta HTTP 200 al cliente.
+
+---
+
+### 24.2 Diagrama de Flujo de Tolerancia a Fallos (Failover Primario ↔ Réplica)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Universidad Receptora (Consulta)
+    participant MW as Middleware RFHA-IES (Lambda)
+    participant P as RecordsTable (Primario)
+    participant R as ReplicasTable (Contingencia)
+    participant A as AuditLogsTable (Bitácora)
+
+    U->>MW: Solicita Historial Académico con Consentimiento
+    Note over MW: Evalúa estado del nodo origen
+    alt Nodo origen en línea (Flujo Normal)
+        MW->>P: get_item(Key: node_id#student_id)
+        P-->>MW: Retorna historial completo
+        Note over MW: X-Data-Source = Primary
+    else Nodo origen caído o X-Simulate-Down = true (Failover Activo)
+        MW-xP: Intento de lectura falla / bypass por caída
+        Note over MW,R: Activación de Circuit Breaker / Contingencia
+        MW->>R: get_item(Key: node_id#student_id)
+        R-->>MW: Retorna historial replicado idéntico
+        Note over MW: X-Data-Source = Replica
+    end
+    MW->>A: put_item(Log de auditoría con X-Data-Source)
+    MW-->>U: Retorna 200 OK + Payload + X-Data-Source
+```
+
+#### Explicación detallada del diagrama de failover:
+1. **Paso 1:** La universidad receptora emite la petición GET hacia el middleware aportando su API Key y el token emitido por el estudiante.
+2. **Paso 2 y 3 (Flujo Primario):** En condiciones normales de operación, el middleware intenta resolver la lectura contra `RecordsTable`. Al tener éxito, obtiene el registro primario y establece el metadato interno `X-Data-Source = Primary`.
+3. **Paso 4 a 6 (Conmutación por Error):** Si el nodo origen se encuentra marcado como inaccesible (simulado con `X-Simulate-Down` o error de conexión), el bloque de contingencia en `src/app/routers/federated.py` (L.100-114) atrapa la condición y redirige la consulta hacia `ReplicasTable`. La réplica retorna la última versión sincronizada y se etiqueta `X-Data-Source = Replica`.
+4. **Paso 7 y 8 (Registro y Entrega):** Independientemente de la vía utilizada (principio de **equifinalidad** en TGS), el evento queda asentado en `AuditLogsTable` y la respuesta llega al solicitante sin interrupción del servicio.
